@@ -5,7 +5,8 @@ const getTheme = async () => {
             freeze: true,
             callback: async function (response) {
                 resolve(response?.message || response)
-            }
+            },
+            freeze_message: __("Getting theme...")
         });
     })
 }
@@ -20,8 +21,6 @@ const applyTheme = async () => {
             background: ${theme.page_background_type && theme.page_background_type == 'Color' ? `${theme.login_page_background_color}` : theme.page_background_type == 'Image' ? theme.login_page_background_image && `url("${theme.login_page_background_image}")` : 'transparent'} !important;
             background-size: cover !important;
             height: 100vh !important;
-            z-index: 1000;
-            /* background-color: transparent !important; */
         }
         .btn-primary.btn-login {
             background-color: ${theme.login_button_background_color && theme.login_button_background_color} !important;
@@ -33,14 +32,16 @@ const applyTheme = async () => {
         }
         .for-login {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : ''};
-            right: ${theme.login_box_position === 'Right' ? '15%' : ''};
-            left: ${theme.login_box_position === 'Left' ? '15%' : ''};
+            right: ${theme.login_box_position === 'Right' ? '10%' : ''};
+            left: ${theme.login_box_position === 'Left' ? '10%' : ''};
+            top:18%;
         }
         .login-content.page-card{
-            padding: ${theme.login_box_position !== 'Default' ? '50' : ''}px;
+            padding: ${theme.login_box_position !== 'Default' ? '40px' : ''};
             background-color: ${theme.login_box_background_color && theme.login_box_background_color} !important;
             border: 2px solid ${theme.login_box_background_color && theme.login_box_background_color} !important;
         }
+        
         .page-card-head h4 {
             color: ${theme.page_heading_text_color && theme.page_heading_text_color} !important;
         }
@@ -61,8 +62,14 @@ const applyTheme = async () => {
         .navbar {
             background-color: ${theme.navbar_color && theme.navbar_color} !important;
         }
-        .navbar.container {
+        .navbar.container ,.navbar-brand{
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
+        }
+        .navbar-toggler , .navbar-toggler span svg{
+            stroke:${theme.navbar_text_color && theme.navbar_text_color} !important;
+        }
+        button.navbar-toggler{
+            border-color:${theme.navbar_text_color && theme.navbar_text_color} !important;
         }
         #navbar-breadcrumbs li a {
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
