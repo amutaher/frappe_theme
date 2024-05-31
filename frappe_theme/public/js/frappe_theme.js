@@ -141,9 +141,11 @@ const applyTheme = async () => {
 
 
         /* table */
-        .level.list-row-head ,.level.list-row-head span.level-item{
+        .level.list-row-head.text-muted{
             background-color: ${theme.table_head_background_color && theme.table_head_background_color} !important;
-            color: ${theme.page_heading_text_color && theme.page_heading_text_color} !important;
+        }
+        .level-left.list-header-subject .list-row-col.ellipsis.hidden-xs ,span.level-item{
+            color: ${theme.table_head_text_color && theme.table_head_text_color} !important;
         }
         .level.list-row,.level-item.bold.ellipsis a,.filterable.ellipsis{
             background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;;
