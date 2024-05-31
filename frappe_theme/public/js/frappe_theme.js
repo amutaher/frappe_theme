@@ -64,9 +64,12 @@ const applyTheme = async () => {
         .navbar.container {
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
         }
-
         #navbar-breadcrumbs li a {
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
+        }
+        .d-lg-block,
+        .d-sm-block {
+            display: ${theme.hide_help_button == 1 && 'none'} !important;
         }
 
 
@@ -81,10 +84,7 @@ const applyTheme = async () => {
     
         
         /* main Contant*/
-        .d-lg-block,
-        .d-sm-block {
-            display: none !important;
-        }
+        
         body{
             background-color: ${theme.body_background_color && theme.body_background_color} !important;
         }
@@ -126,7 +126,7 @@ const applyTheme = async () => {
             background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
         }
 
-        
+
         /* table */
         .level.list-row-head.text-muted{
             background-color: ${theme.table_head_background_color && theme.table_head_background_color} !important;
@@ -145,7 +145,7 @@ const applyTheme = async () => {
         /* Widgets */
         .widget.number-widget-box{
             background-color: ${theme.number_card_background_color && theme.number_card_background_color} !important;
-            border: 2px solid ${theme.number_card_border_color ? theme.number_card_border_color : 'transparent'} !important;
+            border: 2px solid ${theme.number_card_border_color ? theme.number_card_border_color : '#EDEDED'} !important;
         }
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;

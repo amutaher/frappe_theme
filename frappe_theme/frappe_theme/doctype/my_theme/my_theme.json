@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "login_page_tab",
   "login_page_section",
   "login_button_background_color",
   "login_page_button_hover_background_color",
@@ -18,10 +19,13 @@
   "login_box_position",
   "page_heading_text_color",
   "login_box_background_color",
+  "navbar_tab",
   "navbar_section",
   "navbar_color",
+  "hide_help_button",
   "column_break_jevx",
   "navbar_text_color",
+  "buttons_tab",
   "primary_button_section",
   "button_background_color",
   "button_hover_background_color",
@@ -34,10 +38,12 @@
   "column_break_mslv",
   "secondary_button_text_color",
   "secondary_button_hover_text_color",
+  "body_tab",
   "main_body_section",
   "body_background_color",
   "column_break_ojdd",
   "main_body_content_box_background_color",
+  "table_tab",
   "list_table_section",
   "table_head_background_color",
   "table_body_background_color",
@@ -54,8 +60,7 @@
  "fields": [
   {
    "fieldname": "navbar_section",
-   "fieldtype": "Section Break",
-   "label": "Navbar"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "navbar_color",
@@ -97,8 +102,7 @@
   },
   {
    "fieldname": "login_page_section",
-   "fieldtype": "Section Break",
-   "label": "Login Page"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "login_button_text_color",
@@ -214,8 +218,7 @@
   },
   {
    "fieldname": "list_table_section",
-   "fieldtype": "Section Break",
-   "label": "List Table"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "table_head_background_color",
@@ -269,12 +272,43 @@
   {
    "fieldname": "column_break_swjv",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "login_page_tab",
+   "fieldtype": "Tab Break",
+   "label": "Login Page"
+  },
+  {
+   "fieldname": "navbar_tab",
+   "fieldtype": "Tab Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "buttons_tab",
+   "fieldtype": "Tab Break",
+   "label": "Buttons"
+  },
+  {
+   "fieldname": "body_tab",
+   "fieldtype": "Tab Break",
+   "label": "Body"
+  },
+  {
+   "fieldname": "table_tab",
+   "fieldtype": "Tab Break",
+   "label": "Table"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_help_button",
+   "fieldtype": "Check",
+   "label": "Hide Help Button"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-05-31 16:22:03.564478",
+ "modified": "2024-05-31 16:43:19.480086",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
