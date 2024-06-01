@@ -47,6 +47,7 @@
   "list_table_section",
   "table_head_background_color",
   "table_body_background_color",
+  "table_hide_like_comment_section",
   "column_break_xskf",
   "table_head_text_color",
   "table_body_text_color",
@@ -303,12 +304,19 @@
    "fieldname": "hide_help_button",
    "fieldtype": "Check",
    "label": "Hide Help Button"
+  },
+  {
+   "default": "0",
+   "description": "Warning : This will dislocate the list count string from header to footer",
+   "fieldname": "table_hide_like_comment_section",
+   "fieldtype": "Check",
+   "label": "Hide Like Comment Section"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-05-31 16:43:19.480086",
+ "modified": "2024-06-01 16:19:16.195161",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",

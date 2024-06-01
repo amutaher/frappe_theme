@@ -10,7 +10,36 @@ const getTheme = async () => {
         });
     })
 }
-
+const hide_comments_and_like_from_list = () => {
+    const targetNode = document.documentElement;
+    const config = {
+        childList: true,
+        subtree: true,
+    };
+    const callback = async function(mutationsList) {
+        for (let _ of mutationsList) {
+            var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
+            if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
+                elementsToRemove.forEach((element)=>{
+                    element.remove();
+                })
+                let pageArea = document.querySelector('.list-paging-area.level')
+                var counts = document.createElement('p');
+                let count_string = await cur_list.get_count_str();
+                counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
+                if(pageArea && pageArea.childElementCount == 2){
+                    var loadMoreButton = pageArea.children[1];
+                    pageArea.insertBefore(counts,loadMoreButton);
+                }
+                if(count_string){
+                    document.querySelector('#custom_count_renderer').innerText = count_string;
+                }
+            }
+        }
+    };
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+}
 const applyTheme = async () => {
     let theme = await getTheme()
     console.log(theme, "theme");
@@ -81,6 +110,12 @@ const applyTheme = async () => {
         #navbar-breadcrumbs li.disabled a{
             color: ${(theme.navbar_color && theme.navbar_text_color) ? theme.navbar_text_color : theme.navbar_color && '#56373F'} !important;
         }
+        .btn-reset.nav-link span{
+            color:${theme.hide_help_button == 0 && (theme.navbar_text_color && theme.navbar_text_color)} !important;
+        }
+        .btn-reset.nav-link span svg{
+            stroke:${theme.hide_help_button == 0 && (theme.navbar_text_color && theme.navbar_text_color)} !important;
+        }
         .d-lg-block,
         .d-sm-block {
             display: ${theme.hide_help_button == 1 && 'none'} !important;
@@ -138,23 +173,33 @@ const applyTheme = async () => {
             background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
         }
 
-
-            /* table */
+        /* table */
         .level.list-row-head.text-muted{
             background-color: ${theme.table_head_background_color && theme.table_head_background_color} !important;
         }
-        .level-left.list-header-subject.list-row-col.ellipsis.hidden-xs, span.level-item{
+        .level-left.list-header-subject, span.level-item,div.level-right{
             color: ${theme.table_head_text_color && theme.table_head_text_color} !important;
         }
+        div.level-right span.level-item.list-liked-by-me span svg use.like-icon{
+            stroke:${theme.table_head_text_color && theme.table_head_text_color} !important;
+        }
+        
         .level.list-row,.level-item.bold.ellipsis a,.filterable.ellipsis{
             background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
             color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
         }
+        div.level-item.list-row-activity{
+            color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
+        }
+        .level-item.list-row-activity span.list-row-like span svg.es-icon.es-line.icon-sm use,.level-item.list-row-activity span.comment-count svg.es-icon.es-line.icon-sm use{
+            stroke:${theme.table_body_text_color && theme.table_body_text_color} !important;
+        }
+        
         .level-right{
             background-color: none!important;
         }
 
-            /* Widgets */
+        /* Widgets */
         .widget.number-widget-box{
             background-color: ${theme.number_card_background_color && theme.number_card_background_color} !important;
             border: 2px solid ${theme.number_card_border_color ? theme.number_card_border_color : '#EDEDED'} !important;
@@ -163,6 +208,9 @@ const applyTheme = async () => {
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
         }
     `;
+    if(theme.table_hide_like_comment_section == 1){
+        hide_comments_and_like_from_list()
+    }
     document.head.appendChild(style);
 }
 applyTheme()
