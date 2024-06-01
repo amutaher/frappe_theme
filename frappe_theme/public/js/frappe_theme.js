@@ -31,13 +31,14 @@ const applyTheme = async () => {
             color: ${theme.login_page_button_hover_text_color && theme.login_page_button_hover_text_color} !important;
         }
         .for-login {
-            position: ${theme.login_box_position !== 'Default' ? 'absolute' : ''};
+            position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
             right: ${theme.login_box_position === 'Right' ? '10%' : ''};
             left: ${theme.login_box_position === 'Left' ? '10%' : ''};
             top:18%;
         }
         .login-content.page-card{
-            padding: ${theme.login_box_position !== 'Default' ? '40px' : ''};
+            padding: ${theme.login_box_position !== 'Default' ? '40px' : ''} !important;
+            width:${theme.login_box_position !== 'Default' ? '450px' : ''} !important;
             background-color: ${theme.login_box_background_color && theme.login_box_background_color} !important;
             border: 2px solid ${theme.login_box_background_color && theme.login_box_background_color} !important;
         }
