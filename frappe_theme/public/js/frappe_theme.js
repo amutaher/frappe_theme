@@ -81,90 +81,88 @@ const applyTheme = async () => {
         #navbar-breadcrumbs li.disabled a{
             color: ${(theme.navbar_color && theme.navbar_text_color) ? theme.navbar_text_color : theme.navbar_color && '#56373F'} !important;
         }
-        .d - lg - block,
-        .d - sm - block {
-    display: ${theme.hide_help_button == 1 && 'none'} !important;
-}
-
-
+        .d-lg-block,
+        .d-sm-block {
+            display: ${theme.hide_help_button == 1 && 'none'} !important;
+        }
 
         /* Primary Btn */
-        .btn - primary, .btn - primary:active{
-    background - color: ${theme.button_background_color && theme.button_background_color} !important;
-}
-        .btn - primary span, .btn - primary:active span{
-    color: ${theme.button_text_color && theme.button_text_color} !important;
-}
+        .btn-primary, .btn-primary:active{
+            background-color: ${theme.button_background_color && theme.button_background_color} !important;
+        }
+        .btn-primary span, .btn-primary:active span{
+            color: ${theme.button_text_color && theme.button_text_color} !important;
+        }
 
 
         /* main Contant*/
             
         body{
-    background - color: ${theme.body_background_color && theme.body_background_color} !important;
-}
-        .content.page - container{
-    background - color: ${theme.body_background_color && theme.body_background_color} !important;
-}
-        .page - head {
-    background - color: ${theme.body_background_color && theme.body_background_color} !important;
-}
-        .layout - main - section, .row.form - section.card - section.visible - section{
-    background - color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
-    border - radius: 10px!important;
-}
-@media(min - width: 992px) {
-    [data - page - route=Workspaces].layout - main.layout - main - section.edit - mode {
-        background - color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
-    }
-}
-        .desk - sidebar - item.standard - sidebar - item.selected,.desk - sidebar - item.standard - sidebar - item.selected span{
-    background - color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
-    color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
-}
-        .desk - sidebar - item.standard - sidebar - item: hover,.desk - sidebar - item.standard - sidebar - item:hover span{
-    background - color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
-    color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
-}
+            background-color: ${theme.body_background_color && theme.body_background_color} !important;
+        }
+        .content.page-container{
+            background-color: ${theme.body_background_color && theme.body_background_color} !important;
+        }
+        .page-head {
+            background-color: ${theme.body_background_color && theme.body_background_color} !important;
+        }
+        .layout-main-section, .row.form-section.card-section.visible-section{
+            background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
+            border-radius: 10px!important;
+        }
+        @media(min-width: 992px) {
+            [data-page-route=Workspaces].layout-main.layout-main-section.edit-mode {
+                background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
+            }
+        }
+        .desk-sidebar-item.standard-sidebar-item.selected,.desk-sidebar-item.standard-sidebar-item.selected span{
+            background-color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
+            color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+        }
+        .desk-sidebar-item.standard-sidebar-item: hover,.desk-sidebar-item.standard-sidebar-item:hover span{
+            background-color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
+            color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+        }
         .btn.btn -default.ellipsis, .btn -default , .btn -default:active{
-    background - color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
-    color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important; s
-}
+            background-color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
+            color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important; s
+        }
         .btn.btn -default.ellipsis: hover, .btn -default:hover{
-    background - color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
-    color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
-}
-        .page - form.flex{
-    background - color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
-}
+            background-color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
+            color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+        }
+        .page-form.flex{
+            background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
+        }
         .widget{
-    background - color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
-}
+            background-color: ${theme.main_body_content_box_background_color && theme.main_body_content_box_background_color} !important;
+        }
 
 
             /* table */
-        .level.list - row - head.text - muted{
-    background - color: ${theme.table_head_background_color && theme.table_head_background_color} !important;
-}
-        .level - left.list - header - subject.list - row - col.ellipsis.hidden - xs, span.level - item{
-    color: ${theme.table_head_text_color && theme.table_head_text_color} !important;
-}
-        .level.list - row,.level - item.bold.ellipsis a,.filterable.ellipsis{
-    background - color:${theme.table_body_background_color && theme.table_body_background_color} !important;
-    color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
-}
-        .level - right{
-    background - color: none!important;
-}
+        .level.list-row-head.text-muted{
+            background-color: ${theme.table_head_background_color && theme.table_head_background_color} !important;
+        }
+        .level-left.list-header-subject.list-row-col.ellipsis.hidden-xs, span.level-item{
+            color: ${theme.table_head_text_color && theme.table_head_text_color} !important;
+        }
+        .level.list-row,.level-item.bold.ellipsis a,.filterable.ellipsis{
+            background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
+            color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
+        }
+        .level-right{
+            background-color: none!important;
+        }
 
             /* Widgets */
-        .widget.number - widget - box{
-    background - color: ${theme.number_card_background_color && theme.number_card_background_color} !important;
-    border: 2px solid ${theme.number_card_border_color ? theme.number_card_border_color : '#EDEDED'} !important;
-}
-        .widget - head, .widget - label, .widget - title, .widget - body,.widget - content div.number{
-    color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
-}
-`;
+        .widget.number-widget-box{
+            background-color: ${theme.number_card_background_color && theme.number_card_background_color} !important;
+            border: 2px solid ${theme.number_card_border_color ? theme.number_card_border_color : '#EDEDED'} !important;
+        }
+        .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
+            color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
+        }
+    `;
     document.head.appendChild(style);
 }
 applyTheme()
