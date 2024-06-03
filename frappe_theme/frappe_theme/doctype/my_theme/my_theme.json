@@ -51,6 +51,7 @@
   "column_break_xskf",
   "table_head_text_color",
   "table_body_text_color",
+  "disable_card_view_on_mobile_view",
   "widgets_tab",
   "number_card_section",
   "number_card_background_color",
@@ -311,12 +312,18 @@
    "fieldname": "table_hide_like_comment_section",
    "fieldtype": "Check",
    "label": "Hide Like Comment Section"
+  },
+  {
+   "default": "0",
+   "fieldname": "disable_card_view_on_mobile_view",
+   "fieldtype": "Check",
+   "label": "Disable card view on mobile view"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-01 16:19:16.195161",
+ "modified": "2024-06-03 12:33:53.406121",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
