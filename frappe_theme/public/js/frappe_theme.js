@@ -220,15 +220,15 @@ const applyTheme = async () => {
             background-color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
             color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
         }
-        .desk-sidebar-item.standard-sidebar-item: hover,.desk-sidebar-item.standard-sidebar-item:hover span{
+        .desk-sidebar-item.standard-sidebar-item:hover,.desk-sidebar-item.standard-sidebar-item:hover span{
             background-color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
             color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
         }
-        .btn.btn -default.ellipsis, .btn -default , .btn -default:active{
+        .btn.btn-default.ellipsis, .btn-default , .btn-default:active{
             background-color: ${theme.secondary_button_background_color && theme.secondary_button_background_color} !important;
             color: ${theme.secondary_button_text_color && theme.secondary_button_text_color} !important; s
         }
-        .btn.btn -default.ellipsis: hover, .btn -default:hover{
+        .btn.btn-default.ellipsis:hover, .btn-default:hover{
             background-color: ${theme.secondary_button_hover_background_color && theme.secondary_button_hover_background_color} !important;
             color: ${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
         }
@@ -301,7 +301,6 @@ const applyTheme = async () => {
 
             .custom_mobile_card_value{
                 font-weight: bold !important;
-               
             }
         }
             
