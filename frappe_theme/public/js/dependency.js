@@ -1,0 +1,1 @@
+console.log(frappe,'hii from dependency JS');
