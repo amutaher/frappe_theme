@@ -12,7 +12,7 @@ const getTheme = async () => {
 }
 
 
-const makeListResponsive = async (observer) => {
+const makeListResponsive = async (observer ,theme) => {
     let fields = await cur_list?.columns?.filter(e => {
         return e?.df?.in_list_view === 1;
     }).map(e => {
@@ -37,7 +37,9 @@ const makeListResponsive = async (observer) => {
                 itemHTML += '</div></div>';
                 return itemHTML;
             });
-            frappeList.innerHTML = cardContent.join('');
+            if (theme.disable_card_view_on_mobile_view == 0) {
+                frappeList.innerHTML = cardContent.join('');
+            }
             const cards = document.querySelectorAll('.custom_mobile_card');
             cards.forEach((card, index) => {
                 card.addEventListener('click', (event) => {
@@ -56,58 +58,59 @@ const makeListResponsive = async (observer) => {
                             window.location.href = newUrl;
                             // console.log(url.pathname.includes('/view/list'));
                         }
-                        
+
                     }
 
                 })
             });
-        observer.disconnect();
-    }}
-}
-
-    const observer_function = async (theme) => {
-        const targetNode = document.documentElement;
-        const config = {
-            childList: true,
-            subtree: true,
-        };
-        const observer = new MutationObserver(async (mutationsList) => {
-            for (let _ of mutationsList) {
-                observer.disconnect();
-                if (theme.table_hide_like_comment_section == 1) {
-                    await hide_comments_and_like_from_list(observer);
-                }
-                await makeListResponsive(observer);
-                observer.observe(targetNode, config);
-            }
-        });
-
-        observer.observe(targetNode, config);
-    }
-    const hide_comments_and_like_from_list = async (observer) => {
-        var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
-        if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
-            elementsToRemove.forEach((element) => {
-                element.remove();
-            })
-            let pageArea = document.querySelector('.list-paging-area.level')
-            var counts = document.createElement('p');
-            let count_string = await cur_list.get_count_str();
-            counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
-            if (pageArea && pageArea.childElementCount == 2) {
-                var loadMoreButton = pageArea.children[1];
-                pageArea.insertBefore(counts, loadMoreButton);
-            }
-            if (count_string) {
-                document.querySelector('#custom_count_renderer').innerText = count_string;
-            }
             observer.disconnect();
         }
     }
-    const applyTheme = async () => {
-        let theme = await getTheme()
-        const style = document.createElement('style');
-        style.innerHTML = `
+}
+
+const observer_function = async (theme) => {
+    const targetNode = document.documentElement;
+    const config = {
+        childList: true,
+        subtree: true,
+    };
+    const observer = new MutationObserver(async (mutationsList) => {
+        for (let _ of mutationsList) {
+            observer.disconnect();
+            if (theme.table_hide_like_comment_section == 1) {
+                await hide_comments_and_like_from_list(observer);
+            }
+            await makeListResponsive(observer ,theme);
+            observer.observe(targetNode, config);
+        }
+    });
+
+    observer.observe(targetNode, config);
+}
+const hide_comments_and_like_from_list = async (observer) => {
+    var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
+    if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
+        elementsToRemove.forEach((element) => {
+            element.remove();
+        })
+        let pageArea = document.querySelector('.list-paging-area.level')
+        var counts = document.createElement('p');
+        let count_string = await cur_list.get_count_str();
+        counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
+        if (pageArea && pageArea.childElementCount == 2) {
+            var loadMoreButton = pageArea.children[1];
+            pageArea.insertBefore(counts, loadMoreButton);
+        }
+        if (count_string) {
+            document.querySelector('#custom_count_renderer').innerText = count_string;
+        }
+        observer.disconnect();
+    }
+}
+const applyTheme = async () => {
+    let theme = await getTheme()
+    const style = document.createElement('style');
+    style.innerHTML = `
         /* Login page */
         #page-login {
             background: ${theme.page_background_type && theme.page_background_type == 'Color' ? `${theme.login_page_background_color}` : theme.page_background_type == 'Image' ? theme.login_page_background_image && `url("${theme.login_page_background_image}")` : 'transparent'} !important;
@@ -250,6 +253,7 @@ const makeListResponsive = async (observer) => {
         .level.list-row,.level-item.bold.ellipsis a,.filterable.ellipsis{
             background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
             color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
+            margin-top: 1px !important;
         }
         div.level-item.list-row-activity{
             color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
@@ -271,12 +275,12 @@ const makeListResponsive = async (observer) => {
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
         }
         .result{
-            display: block !important;
+            display:${theme.disable_card_view_on_mobile_view == 0 && 'block'} !important;
         }
 
         @media (max-width: 767px) {
             .result{
-                display: none !important;
+                display: ${theme.disable_card_view_on_mobile_view == 0 && 'none'} !important;
             }
             .custom_mobile_card{  
                 min-height: 40px !important;
@@ -302,7 +306,7 @@ const makeListResponsive = async (observer) => {
         }
             
     `;
-        await observer_function(theme);
-        document.head.appendChild(style);
-    }
-    applyTheme()
+    await observer_function(theme);
+    document.head.appendChild(style);
+}
+applyTheme()
