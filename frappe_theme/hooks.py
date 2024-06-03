@@ -15,7 +15,6 @@ app_include_js = [
     "/assets/frappe_theme/js/frappe_theme.js",
     "/assets/frappe_theme/js/dependency.js"
 ]
-
 # include js, css files in header of web template
 # web_include_css = "/assets/frappe_theme/css/frappe_theme.css"
 web_include_js = "/assets/frappe_theme/js/frappe_theme.js"
