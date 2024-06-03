@@ -10,41 +10,104 @@ const getTheme = async () => {
         });
     })
 }
-const hide_comments_and_like_from_list = () => {
-    const targetNode = document.documentElement;
-    const config = {
-        childList: true,
-        subtree: true,
-    };
-    const callback = async function(mutationsList) {
-        for (let _ of mutationsList) {
-            var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
-            if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
-                elementsToRemove.forEach((element)=>{
-                    element.remove();
+
+
+const makeListResponsive = async (observer) => {
+    let fields = await cur_list?.columns?.filter(e => {
+        return e?.df?.in_list_view === 1;
+    }).map(e => {
+        return e?.df?.fieldname;
+    });
+    let mediaQuery = window.matchMedia('(max-width: 767px)');
+    const frappeList = document.querySelector('.frappe-list');
+    if (mediaQuery.matches && cur_list && frappeList && fields && fields.length > 0) {
+        if (cur_list.data && cur_list.data.length > 0) {
+            const cardContent = await cur_list?.data?.map(item => {
+                let itemHTML = '<div class="custom_mobile_card">';
+                itemHTML += '<div class="custom_mobile_card_row">';
+                // itemHTML += `<input type="checkbox">`;
+                itemHTML += `<p class="card-property"> <span class="custom_mobile_card_value">Name </span>: ${item?.name}</p>`;
+
+                Object.entries(item)?.forEach(([key, val]) => {
+                    if (fields?.includes(key)) {
+                        let fieldLabel = cur_list?.columns?.find(e => e?.df?.fieldname === key)?.df?.label || key;
+                        itemHTML += `<p class="card-property"> <span class="custom_mobile_card_value">${fieldLabel} </span>: ${val}</p>`;
+                    }
+                });
+                itemHTML += '</div></div>';
+                return itemHTML;
+            });
+            frappeList.innerHTML = cardContent.join('');
+            const cards = document.querySelectorAll('.custom_mobile_card');
+            cards.forEach((card, index) => {
+                card.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const name = cur_list?.data[index]?.name;
+                    if (name) {
+                        if (name) {
+                            const url = new URL(window.location.href);
+                            if (url.pathname.includes('/view/list')) {
+                                url.pathname = url.pathname.replace('/view/list', '');
+                            } else if (url.pathname.includes('/view')) {
+                                url.pathname = url.pathname.replace('/view', '');
+                            }
+                            let newUrl = `${url.pathname}/${name}`;
+                            console.log(newUrl, 'newPathname');
+                            window.location.href = newUrl;
+                            // console.log(url.pathname.includes('/view/list'));
+                        }
+                        
+                    }
+
                 })
-                let pageArea = document.querySelector('.list-paging-area.level')
-                var counts = document.createElement('p');
-                let count_string = await cur_list.get_count_str();
-                counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
-                if(pageArea && pageArea.childElementCount == 2){
-                    var loadMoreButton = pageArea.children[1];
-                    pageArea.insertBefore(counts,loadMoreButton);
-                }
-                if(count_string){
-                    document.querySelector('#custom_count_renderer').innerText = count_string;
-                }
-            }
-        }
-    };
-    const observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
+            });
+        observer.disconnect();
+    }}
 }
-const applyTheme = async () => {
-    let theme = await getTheme()
-    console.log(theme, "theme");
-    const style = document.createElement('style');
-    style.innerHTML = `
+
+    const observer_function = async (theme) => {
+        const targetNode = document.documentElement;
+        const config = {
+            childList: true,
+            subtree: true,
+        };
+        const observer = new MutationObserver(async (mutationsList) => {
+            for (let _ of mutationsList) {
+                observer.disconnect();
+                if (theme.table_hide_like_comment_section == 1) {
+                    await hide_comments_and_like_from_list(observer);
+                }
+                await makeListResponsive(observer);
+                observer.observe(targetNode, config);
+            }
+        });
+
+        observer.observe(targetNode, config);
+    }
+    const hide_comments_and_like_from_list = async (observer) => {
+        var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
+        if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
+            elementsToRemove.forEach((element) => {
+                element.remove();
+            })
+            let pageArea = document.querySelector('.list-paging-area.level')
+            var counts = document.createElement('p');
+            let count_string = await cur_list.get_count_str();
+            counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
+            if (pageArea && pageArea.childElementCount == 2) {
+                var loadMoreButton = pageArea.children[1];
+                pageArea.insertBefore(counts, loadMoreButton);
+            }
+            if (count_string) {
+                document.querySelector('#custom_count_renderer').innerText = count_string;
+            }
+            observer.disconnect();
+        }
+    }
+    const applyTheme = async () => {
+        let theme = await getTheme()
+        const style = document.createElement('style');
+        style.innerHTML = `
         /* Login page */
         #page-login {
             background: ${theme.page_background_type && theme.page_background_type == 'Color' ? `${theme.login_page_background_color}` : theme.page_background_type == 'Image' ? theme.login_page_background_image && `url("${theme.login_page_background_image}")` : 'transparent'} !important;
@@ -207,10 +270,39 @@ const applyTheme = async () => {
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
         }
+        .result{
+            display: block !important;
+        }
+
+        @media (max-width: 767px) {
+            .result{
+                display: none !important;
+            }
+            .custom_mobile_card{  
+                min-height: 40px !important;
+                background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
+                color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
+                margin: 10px !important;
+                border-radius: 10px !important;
+                
+            }
+            .custom_mobile_card_row{
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap:  0px 10px !important;
+                padding: 10px !important;
+                
+
+            }
+
+            .custom_mobile_card_value{
+                font-weight: bold !important;
+               
+            }
+        }
+            
     `;
-    if(theme.table_hide_like_comment_section == 1){
-        hide_comments_and_like_from_list()
+        await observer_function(theme);
+        document.head.appendChild(style);
     }
-    document.head.appendChild(style);
-}
-applyTheme()
+    applyTheme()
