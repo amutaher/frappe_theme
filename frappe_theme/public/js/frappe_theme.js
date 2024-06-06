@@ -35,12 +35,12 @@ const hide_comments_and_like_from_list = async () => {
         elementsToRemove.forEach((element) => {
             element.remove();
         })
-        let pageArea = document.querySelector('.list-paging-area.level')
+        let pageArea = document.querySelector('.list-paging-area.level div.level-left')
         var counts = document.createElement('p');
         let count_string = await cur_list.get_count_str();
         counts.innerHTML = `<span id="custom_count_renderer">0 of 0</span>`;
-        if (pageArea && pageArea.childElementCount == 2) {
-            var loadMoreButton = pageArea.children[1];
+        if (pageArea && pageArea.childElementCount == 1) {
+            var loadMoreButton = pageArea.children[0];
             pageArea.insertBefore(counts, loadMoreButton);
         }
         if (count_string) {
@@ -65,6 +65,10 @@ const applyTheme = async () => {
         .btn-primary.btn-login:hover {
             background-color: ${theme.login_page_button_hover_background_color && theme.login_page_button_hover_background_color} !important;
             color: ${theme.login_page_button_hover_text_color && theme.login_page_button_hover_text_color} !important;
+        }
+        div.level-left p{
+            padding-top: 8px;
+            padding-right: 8px;
         }
         .for-login {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
