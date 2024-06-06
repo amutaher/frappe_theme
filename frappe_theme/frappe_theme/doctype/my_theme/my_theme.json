@@ -57,7 +57,13 @@
   "number_card_background_color",
   "number_card_border_color",
   "column_break_swjv",
-  "number_card_text_color"
+  "number_card_text_color",
+  "input_tab",
+  "input_background_color",
+  "input_border_color",
+  "column_break_pdaj",
+  "input_text_color",
+  "input_label_color"
  ],
  "fields": [
   {
@@ -318,12 +324,41 @@
    "fieldname": "disable_card_view_on_mobile_view",
    "fieldtype": "Check",
    "label": "Disable card view on mobile view"
+  },
+  {
+   "fieldname": "input_tab",
+   "fieldtype": "Tab Break",
+   "label": "Input"
+  },
+  {
+   "fieldname": "input_background_color",
+   "fieldtype": "Color",
+   "label": "Background Color"
+  },
+  {
+   "fieldname": "input_border_color",
+   "fieldtype": "Color",
+   "label": "Border Color"
+  },
+  {
+   "fieldname": "input_text_color",
+   "fieldtype": "Color",
+   "label": "Text Color"
+  },
+  {
+   "fieldname": "input_label_color",
+   "fieldtype": "Color",
+   "label": "Label Color"
+  },
+  {
+   "fieldname": "column_break_pdaj",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-03 12:33:53.406121",
+ "modified": "2024-06-06 16:20:36.364482",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",

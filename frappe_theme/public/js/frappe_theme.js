@@ -70,6 +70,15 @@ const applyTheme = async () => {
             padding-top: 8px;
             padding-right: 8px;
         }
+        
+        .form-control{
+            background-color: ${theme.input_background_color && theme.input_background_color} !important;
+            color: ${theme.input_text_color && theme.input_text_color} !important;
+            border: 2px solid ${theme.input_border_color && theme.input_border_color} !important;
+        }
+        label.control-label{
+            color: ${theme.input_label_color && theme.input_label_color} !important;
+        }
         .for-login {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
             right: ${theme.login_box_position === 'Right' ? '10%' : ''};
