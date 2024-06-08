@@ -83,15 +83,29 @@ const applyTheme = async () => {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
             right: ${theme.login_box_position === 'Right' ? '10%' : ''};
             left: ${theme.login_box_position === 'Left' ? '10%' : ''};
-            top:18%;
+            top:${theme.is_app_details_inside_the_box ==1 ? '26%' : '18%'};
+            background-color:${theme.is_app_details_inside_the_box ==1 && (theme.login_box_background_color ? theme.login_box_background_color : '#ffff')} !important;
+            border-radius:${theme.is_app_details_inside_the_box ==1 && '10px'} !important;
         }
         .login-content.page-card{
-            padding: ${theme.login_box_position !== 'Default' ? '40px' : ''} !important;
+            padding: ${theme.is_app_details_inside_the_box ==1 ? '18px 40px 40px 40px' :(theme.login_box_position !== 'Default' ? '40px' : '')} !important;
             width:${theme.login_box_position !== 'Default' ? '450px' : ''} !important;
             background-color: ${theme.login_box_background_color && theme.login_box_background_color} !important;
             border: 2px solid ${theme.login_box_background_color && theme.login_box_background_color} !important;
         }
-        
+        .login-content{
+            border:${theme.is_app_details_inside_the_box ==1 && 'none'} !important;
+        }
+        .for-login .page-card-head h4{
+            display: ${theme.login_page_title && 'none'} !important;
+        }
+        .for-login .page-card-head:after{
+            display:${theme.login_page_title && 'flex'} !important;
+            justify-content:${theme.login_page_title && 'center'} !important;
+            margin-top:${theme.login_page_title && '10px'} !important;
+            content:${theme.login_page_title && `'${theme.login_page_title}'`} !important;
+            color:${theme.login_page_title && theme.page_heading_text_color} !important;
+        }
         .page-card-head h4 {
             color: ${theme.page_heading_text_color && theme.page_heading_text_color} !important;
         }

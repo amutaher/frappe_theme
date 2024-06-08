@@ -13,6 +13,8 @@
   "page_background_type",
   "login_page_background_color",
   "login_page_background_image",
+  "is_app_details_inside_the_box",
+  "login_page_title",
   "column_break_umnl",
   "login_button_text_color",
   "login_page_button_hover_text_color",
@@ -353,12 +355,25 @@
   {
    "fieldname": "column_break_pdaj",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_app_details_inside_the_box",
+   "fieldtype": "Check",
+   "label": "Is App Details Inside The Box"
+  },
+  {
+   "description": "Warning:This field accepts 30 characters only",
+   "fieldname": "login_page_title",
+   "fieldtype": "Data",
+   "label": "Login Page Title",
+   "length": 30
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-06 16:20:36.364482",
+ "modified": "2024-06-08 15:19:43.308650",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
