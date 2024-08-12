@@ -10,14 +10,14 @@ const makeListResponsive = async (theme) => {
         if (cur_list.data && cur_list.data.length > 0) {
             const cardContent = await cur_list?.data?.map(item => {
                 let itemHTML = '<div class="custom_mobile_card">';
-                itemHTML += '<div class="custom_mobile_card_row">';
+                itemHTML += '<div class="custom_mobile_card_row card rounded  shadow" >';
                 // itemHTML += `<input type="checkbox">`;
-                itemHTML += `<p class="card-property"> <span class="custom_mobile_card_value">Name </span>: ${item?.name}</p>`;
+                itemHTML += `<p class="card-property text-success "style="color:#CB2929;"> <span class="custom_mobile_card_value p-2"style="color: #264796;">Name </span>: ${item?.name}</p>`;
 
                 Object.entries(item)?.forEach(([key, val]) => {
                     if (fields?.includes(key)) {
                         let fieldLabel = cur_list?.columns?.find(e => e?.df?.fieldname === key)?.df?.label || key;
-                        itemHTML += `<p class="card-property"> <span class="custom_mobile_card_value">${fieldLabel} </span>: ${val}</p>`;
+                        itemHTML += `<p class="card-property text-success"> <span class="custom_mobile_card_value p-2" style="color: #264796;">${fieldLabel} </span>: ${val}</p>`;
                     }
                 });
                 itemHTML += '</div></div>';
