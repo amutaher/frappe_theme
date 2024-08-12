@@ -20,7 +20,7 @@ const observer_function = async (theme) => {
     };
     const observer = new MutationObserver(async (mutationsList) => {
         for (let _ of mutationsList) {
-            console.log('///////');
+            // console.log('///////');
             if (theme.table_hide_like_comment_section == 1) {
                 await hide_comments_and_like_from_list();
             }

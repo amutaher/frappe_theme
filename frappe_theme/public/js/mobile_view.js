@@ -8,23 +8,35 @@ const makeListResponsive = async (theme) => {
     const frappeList = document.querySelector('.frappe-list');
     if (mediaQuery.matches && cur_list && frappeList && fields && fields.length > 0) {
         if (cur_list.data && cur_list.data.length > 0) {
-            const cardContent = await cur_list?.data?.map(item => {
-                let itemHTML = '<div class="custom_mobile_card">';
+            let cardContent = [];
+            cardContent = await cur_list?.data?.map(item => {
+                itemHTML = '<div class="custom_mobile_card">';
                 itemHTML += '<div class="custom_mobile_card_row card rounded  shadow" >';
                 // itemHTML += `<input type="checkbox">`;
                 itemHTML += `<p class="card-property text-success "style="color:#CB2929;"> <span class="custom_mobile_card_value p-2"style="color: #264796;">Name </span>: ${item?.name}</p>`;
 
                 Object.entries(item)?.forEach(([key, val]) => {
                     if (fields?.includes(key)) {
-                        let fieldLabel = cur_list?.columns?.find(e => e?.df?.fieldname === key)?.df?.label || key;
-                        itemHTML += `<p class="card-property text-success"> <span class="custom_mobile_card_value p-2" style="color: #264796;">${fieldLabel} </span>: ${val}</p>`;
+                        let foundObj = cur_list?.columns?.find(e => e?.df?.fieldname === key);
+                        let fieldLabel = foundObj.df?.label || key;
+                        let fieldname = key || foundObj.df?.fieldname; 
+                        let foundLinkKeys = Object.entries(item)?.filter(([key, val]) => key.startsWith(fieldname+"_")).map(([key, val]) => key);
+                        itemHTML += `<p class="card-property text-success"> <span class="custom_mobile_card_value p-2" style="color: #264796;">${fieldLabel} </span>: ${item[foundLinkKeys] || item[fieldname] || val}</p>`;
                     }
                 });
                 itemHTML += '</div></div>';
                 return itemHTML;
             });
-            if (theme.disable_card_view_on_mobile_view == 0) {
-                frappeList.innerHTML = cardContent.join('');
+            // console.log(frappeList.children);
+
+            if (!theme.disable_card_view_on_mobile_view) {
+                const newElement = document.createElement('div');
+                newElement.innerHTML = cardContent.join('');
+                if(frappeList.children[0]){
+                    frappeList.replaceChild(newElement, frappeList.children[0]);
+                }else{
+                    frappeList.appendChild(newElement);
+                }
             }
             const cards = document.querySelectorAll('.custom_mobile_card');
             cards.forEach((card, index) => {
@@ -40,7 +52,6 @@ const makeListResponsive = async (theme) => {
                                 url.pathname = url.pathname.replace('/view', '');
                             }
                             let newUrl = `${url.pathname}/${name}`;
-                            console.log(newUrl, 'newPathname');
                             window.location.href = newUrl;
                         }
 
@@ -54,10 +65,30 @@ const makeListResponsive = async (theme) => {
 
 const makeResponsive = async () => {
     const my_theme = await getTheme();
-    if(my_theme){
+    if (my_theme) {
         setTimeout(() => {
             makeListResponsive(my_theme);
         }, 1000);
     }
+    frappe.router.on('change', async () => {
+        let cur_router = await frappe.get_route()
+        if(cur_router.includes('List')) {
+            if (my_theme) {
+                setTimeout(() => {
+                    makeListResponsive(my_theme);
+                }, 1000);
+            }
+        }
+    });
+    window.addEventListener('click', async (event) => {
+        if (event.target.type == 'button') {
+            // console.log('event', event.target.type);
+            if (my_theme) {
+                setTimeout(() => {
+                    makeListResponsive(my_theme);
+                }, 1000);
+            }
+        }
+    });
 }
 makeResponsive()
