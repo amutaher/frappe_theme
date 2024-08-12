@@ -19,8 +19,8 @@ const makeListResponsive = async (theme) => {
                     if (fields?.includes(key)) {
                         let foundObj = cur_list?.columns?.find(e => e?.df?.fieldname === key);
                         let fieldLabel = foundObj.df?.label || key;
-                        let fieldname = key || foundObj.df?.fieldname; 
-                        let foundLinkKeys = Object.entries(item)?.filter(([key, val]) => key.startsWith(fieldname+"_")).map(([key, val]) => key);
+                        let fieldname = key || foundObj.df?.fieldname;
+                        let foundLinkKeys = Object.entries(item)?.filter(([key, val]) => key.startsWith(fieldname + "_")).map(([key, val]) => key);
                         itemHTML += `<p class="card-property text-success"> <span class="custom_mobile_card_value p-2" style="color: #264796;">${fieldLabel} </span>: ${item[foundLinkKeys] || item[fieldname] || val}</p>`;
                     }
                 });
@@ -32,9 +32,9 @@ const makeListResponsive = async (theme) => {
             if (!theme.disable_card_view_on_mobile_view) {
                 const newElement = document.createElement('div');
                 newElement.innerHTML = cardContent.join('');
-                if(frappeList.children[0]){
+                if (frappeList.children[0]) {
                     frappeList.replaceChild(newElement, frappeList.children[0]);
-                }else{
+                } else {
                     frappeList.appendChild(newElement);
                 }
             }
@@ -71,13 +71,18 @@ const makeResponsive = async () => {
         }, 1000);
     }
     frappe.router.on('change', async () => {
-        let cur_router = await frappe.get_route()
-        if(cur_router.includes('List')) {
-            if (my_theme) {
-                setTimeout(() => {
-                    makeListResponsive(my_theme);
-                }, 1000);
+        try {
+            let cur_router = await frappe.get_route()
+            if (cur_router.includes('List')) {
+                if (my_theme) {
+                    setTimeout(() => {
+                        makeListResponsive(my_theme);
+                    }, 1000);
+                }
             }
+        } catch (error) {
+            console.log('error', error);
+
         }
     });
     window.addEventListener('click', async (event) => {

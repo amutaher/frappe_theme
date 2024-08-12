@@ -33,7 +33,9 @@ const hide_comments_and_like_from_list = async () => {
     var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
     if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
         elementsToRemove.forEach((element) => {
-            element.remove();
+            if(element){
+                element.remove();
+            }
         })
         let pageArea = document.querySelector('.list-paging-area.level div.level-left')
         var counts = document.createElement('p');
@@ -49,7 +51,7 @@ const hide_comments_and_like_from_list = async () => {
     }
 }
 const applyTheme = async () => {
-    let theme = await getTheme()
+    let theme = await getTheme();
     const style = document.createElement('style');
     style.innerHTML = `
         /* Login page */
