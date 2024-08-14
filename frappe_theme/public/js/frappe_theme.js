@@ -252,36 +252,7 @@ const applyTheme = async () => {
         }
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
-        }
-        .result{
-            display:${theme.disable_card_view_on_mobile_view == 0 && 'block'} !important;
-        }
-
-        @media (max-width: 767px) {
-            .result{
-                display: ${theme.disable_card_view_on_mobile_view == 0 && 'none'} !important;
-            }
-            .custom_mobile_card{  
-                min-height: 40px !important;
-                background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
-                color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
-                margin: 10px !important;
-                border-radius: 10px !important;
-                
-            }
-            .custom_mobile_card_row{
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap:  0px 10px !important;
-                padding: 10px !important;
-                
-
-            }
-
-            .custom_mobile_card_value{
-                font-weight: bold !important;
-            }
-        }
+      
             
     `;
     await observer_function(theme);
