@@ -73,6 +73,9 @@ const makeResponsive = async () => {
     frappe.router.on('change', async () => {
         try {
             let cur_router = await frappe.get_route()
+            if(cur_router.includes("Dashboards")){
+                window.location.reload();
+            }
             if (cur_router.includes('List')) {
                 if (my_theme) {
                     setTimeout(() => {
