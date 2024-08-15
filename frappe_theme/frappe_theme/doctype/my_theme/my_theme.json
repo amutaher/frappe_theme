@@ -43,6 +43,7 @@
   "body_tab",
   "main_body_section",
   "body_background_color",
+  "hide_side_bar",
   "column_break_ojdd",
   "main_body_content_box_background_color",
   "table_tab",
@@ -368,12 +369,18 @@
    "fieldtype": "Data",
    "label": "Login Page Title",
    "length": 30
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_side_bar",
+   "fieldtype": "Check",
+   "label": "Hide Side Bar"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-08 15:19:43.308650",
+ "modified": "2024-08-14 18:36:56.895855",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
