@@ -33,7 +33,7 @@ const hide_comments_and_like_from_list = async () => {
     var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
     if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
         elementsToRemove.forEach((element) => {
-            if(element){
+            if (element) {
                 element.remove();
             }
         })
@@ -85,18 +85,18 @@ const applyTheme = async () => {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
             right: ${theme.login_box_position === 'Right' ? '10%' : ''};
             left: ${theme.login_box_position === 'Left' ? '10%' : ''};
-            top:${theme.is_app_details_inside_the_box ==1 ? '26%' : '18%'};
-            background-color:${theme.is_app_details_inside_the_box ==1 && (theme.login_box_background_color ? theme.login_box_background_color : '#ffff')} !important;
-            border-radius:${theme.is_app_details_inside_the_box ==1 && '10px'} !important;
+            top:${theme.is_app_details_inside_the_box == 1 ? '26%' : '18%'};
+            background-color:${theme.is_app_details_inside_the_box == 1 && (theme.login_box_background_color ? theme.login_box_background_color : '#ffff')} !important;
+            border-radius:${theme.is_app_details_inside_the_box == 1 && '10px'} !important;
         }
         .login-content.page-card{
-            padding: ${theme.is_app_details_inside_the_box ==1 ? '18px 40px 40px 40px' :(theme.login_box_position !== 'Default' ? '40px' : '')} !important;
+            padding: ${theme.is_app_details_inside_the_box == 1 ? '18px 40px 40px 40px' : (theme.login_box_position !== 'Default' ? '40px' : '')} !important;
             width:${theme.login_box_position !== 'Default' ? '450px' : ''} !important;
             background-color: ${theme.login_box_background_color && theme.login_box_background_color} !important;
             border: 2px solid ${theme.login_box_background_color && theme.login_box_background_color} !important;
         }
         .login-content{
-            border:${theme.is_app_details_inside_the_box ==1 && 'none'} !important;
+            border:${theme.is_app_details_inside_the_box == 1 && 'none'} !important;
         }
         .for-login .page-card-head h4{
             display: ${theme.login_page_title && 'none'} !important;

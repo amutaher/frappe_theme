@@ -1,6 +1,6 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "allow_copy": 1,
  "autoname": "format:{##}",
  "creation": "2024-05-31 09:59:01.191566",
  "doctype": "DocType",
@@ -377,10 +377,12 @@
    "label": "Hide Side Bar"
   }
  ],
+ "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-14 18:36:56.895855",
+ "make_attachments_public": 1,
+ "modified": "2024-08-15 16:10:33.199544",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
