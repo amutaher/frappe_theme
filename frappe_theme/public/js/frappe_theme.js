@@ -252,7 +252,8 @@ const applyTheme = async () => {
         }
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
-        }
+      
+            
     `;
     await observer_function(theme);
     document.head.appendChild(style);
