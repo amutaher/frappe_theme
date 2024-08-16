@@ -1,3 +1,4 @@
+
 const makeListResponsive = async (theme) => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     if (mediaQuery.matches && theme.disable_card_view_on_mobile_view === 0) {
@@ -97,7 +98,6 @@ const makeListResponsive = async (theme) => {
 const hide_sidebar = async (theme) => {
     if (theme.hide_side_bar == 1) {
         frappe.router.on('change', async () => {
-            console.log(frappe);
             let cur_router = await frappe.get_route();
             if (cur_router[0] === 'Workspaces') {
                 $('.sidebar-toggle-btn').show();
@@ -116,16 +116,12 @@ const makeResponsive = async () => {
     const theme = await getTheme();
     makeListResponsive(theme);
     await hide_sidebar(theme);
+
     let user_settings = frappe.get_user_settings('User', 'UI') || {};
     let fullwidth = user_settings.full_width || true;
-    $(document.body).addClass('full-width', fullwidth); 
+    $(document.body).addClass('full-width', fullwidth);
 
     
-
 };
-
-  
-  
-
 
 makeResponsive();
