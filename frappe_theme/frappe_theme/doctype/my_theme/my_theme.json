@@ -25,6 +25,7 @@
   "navbar_section",
   "navbar_color",
   "hide_help_button",
+  "hide_search",
   "column_break_jevx",
   "navbar_text_color",
   "buttons_tab",
@@ -388,13 +389,19 @@
    "fieldtype": "Table",
    "label": "Workspace",
    "options": "Workspace Sidebar Remapping"
+  },
+  {
+   "fieldname": "hide_search",
+   "fieldtype": "Table MultiSelect",
+   "label": "Hide Search ",
+   "options": "Has Role"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-16 16:54:58.412917",
+ "modified": "2024-08-17 11:46:31.305549",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
