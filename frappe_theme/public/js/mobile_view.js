@@ -88,8 +88,8 @@ const makeListResponsive = async (theme) => {
             }
             .list-row-container .details-row {
                 color: ${theme.table_body_text_color || 'black'};
-                display: flex;
-                flex-wrap: wrap;
+                display: ${theme.disable_flex_card_content_on_mobile_view === 1 ? 'flex' : ''};
+                flex-wrap: ${theme.disable_flex_card_content_on_mobile_view === 1 ? 'wrap' : ''};
                 
             }
             .list-row-container .details-row div {
