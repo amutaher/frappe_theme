@@ -66,7 +66,9 @@
   "input_border_color",
   "column_break_pdaj",
   "input_text_color",
-  "input_label_color"
+  "input_label_color",
+  "workspace_remapping_tab",
+  "workspace"
  ],
  "fields": [
   {
@@ -375,14 +377,24 @@
    "fieldname": "hide_side_bar",
    "fieldtype": "Check",
    "label": "Hide Side Bar"
+  },
+  {
+   "fieldname": "workspace_remapping_tab",
+   "fieldtype": "Tab Break",
+   "label": "Workspace Remapping"
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Table",
+   "label": "Workspace",
+   "options": "Workspace Sidebar Remapping"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "make_attachments_public": 1,
- "modified": "2024-08-15 16:10:33.199544",
+ "modified": "2024-08-16 16:54:58.412917",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",

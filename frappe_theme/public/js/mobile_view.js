@@ -1,3 +1,4 @@
+
 const makeListResponsive = async (theme) => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     if (mediaQuery.matches && theme.disable_card_view_on_mobile_view === 0) {
@@ -5,6 +6,7 @@ const makeListResponsive = async (theme) => {
             constructor(opts) {
                 super(opts);
                 this.dynamic_field_map = {}; // Initialize dynamic field map
+
             }
 
             get_fields_for_doctype(doctype) {
@@ -106,7 +108,7 @@ const hide_sidebar = async (theme) => {
                 $('.layout-side-section').hide();
                 // $('.custom-actions').hide();
             }
-        
+
         });
     }
 }
@@ -114,6 +116,12 @@ const makeResponsive = async () => {
     const theme = await getTheme();
     makeListResponsive(theme);
     await hide_sidebar(theme);
+
+    let user_settings = frappe.get_user_settings('User', 'UI') || {};
+    let fullwidth = user_settings.full_width || true;
+    $(document.body).addClass('full-width', fullwidth);
+
+    
 };
 
 makeResponsive();
