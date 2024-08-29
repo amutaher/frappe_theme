@@ -43,31 +43,21 @@ const getTheme = async () => {
         });
     })
 }
-
-// frappe.ui.workspaces.on('refresh', function () {
-//     console.log(frappe, "oi");
-//     frappe.call({
-//         method: 'frappe_theme.api.get_workspace_configuration',
-//         callback: function (response) {
-//             const configurations = response.message; // Array of configuration objects
-//             console.log(configurations, "ioo");
-
-//             configurations.forEach(config => {
-//                 let workspace = frappe.ui.workspaces[config.workspace_name];
-//                 console.log(workspace, "ioo");
-//                 if (workspace) {
-//                     workspace.add_card({
-//                         type: 'Link',
-//                         label: config.card_label,
-//                         link: config.card_link,
-//                         icon: config.icon
-//                     });
-//                 }
-//             });
-//         }
-//     });
-// });
-
+const getUserRoles = (theme) => {
+    let currentUser = frappe?.boot?.user?.roles;
+    if(!currentUser){
+        return false;
+    }
+    if(currentUser.includes('Administrator')){
+        return false;
+    }
+    let roles = currentUser.filter((role) => !['All','Guest','Administrator','Desk User'].includes(role))
+    .some(role => theme.hide_search.some(u => u.role === role))
+    if(!roles){
+        return false;
+    }
+    return roles;
+}
 const observer_function = async (theme) => {
     const targetNode = document.documentElement;
     const config = {
@@ -180,6 +170,10 @@ const applyTheme = async () => {
 
 
         /* Navbar */
+        .form-inline.fill-width.justify-content-end {
+           display: ${ getUserRoles(theme) ? 'none' : ''} !important;
+        }
+     
         .navbar {
             background-color: ${theme.navbar_color && theme.navbar_color} !important;
         }

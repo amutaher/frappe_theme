@@ -27,7 +27,7 @@ const updateThemeLinks = async () => {
             let path = arr.find(f => f.workspace == title)?.path;
             if (path) {
                 e.setAttribute('href', path)
-                console.log('Path:', path);
+                // console.log('Path:', path);
             }
         });
     } catch (error) {

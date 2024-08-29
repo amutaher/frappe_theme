@@ -1,4 +1,3 @@
-
 const makeListResponsive = async (theme) => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     if (mediaQuery.matches && theme.disable_card_view_on_mobile_view === 0) {
@@ -6,7 +5,6 @@ const makeListResponsive = async (theme) => {
             constructor(opts) {
                 super(opts);
                 this.dynamic_field_map = {}; // Initialize dynamic field map
-
             }
 
             get_fields_for_doctype(doctype) {
@@ -37,7 +35,7 @@ const makeListResponsive = async (theme) => {
             get_list_row_html_skeleton(left = "", right = "", details = "") {
                 if (this.doctype) {
                     return `
-                        <div class="list-row-container" tabindex="1" style="border: 1px solid #ddd; min-height:fit-content; border-radius: 8px; margin-bottom: 10px; padding: 10px; background-color: ${theme.table_body_background_color ? theme.table_body_background_color : 'white'};">
+                        <div class="list-row-container" tabindex="1">
                             <div class="level list-row" style="align-items: center;">
                                 <div class="level-left ellipsis" style="font-weight: bold;">
                                     ${left}
@@ -46,9 +44,10 @@ const makeListResponsive = async (theme) => {
                                     ${right}
                                 </div>
                             </div>
-                            <div class=" text-truncate" style="padding-left:20px; font-size: 14px; flex-wrap: wrap;">
+                            <div class="details-row text-truncate" style="padding-left:10px;">
                                 ${details}
                             </div>
+                        
                         </div>
                     `;
                 }
@@ -71,30 +70,45 @@ const makeListResponsive = async (theme) => {
                     display: none;
                 }
             }
-            .list-row-container .details-row {
-                color: #555;
+            .list-row-container {
+                border-radius: 12px;
+                border: 1px solid #e8e8e8;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                background: ${theme.table_body_background_color || '#fff'};
+                margin-bottom: 10px;
+                transition: all 0.3s ease;
                 display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
+                flex-direction: column;
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            .list-row-container:hover {
+                // background-color: #e2e8f0;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+               
+            }
+            .list-row-container .details-row {
+                color: ${theme.table_body_text_color || 'black'};
+                display: ${theme.disable_flex_card_content_on_mobile_view === 1 ? 'flex' : ''};
+                flex-wrap: ${theme.disable_flex_card_content_on_mobile_view === 1 ? 'wrap' : ''};
+                
             }
             .list-row-container .details-row div {
                 flex: 1 1 auto;
                 min-width: 150px;
                 margin-bottom: 5px;
             }
-            .list-row-container {
+            .list-row-container .card-actions {
                 display: flex;
-                flex-direction: column;
-                transition: all 0.3s ease;    
+                justify-content: flex-end;
+                margin-top: 10px;
             }
-            .list-row-container:hover {
-                background-color: #f1f1f1;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            }
+            
+            
         `;
         document.head.appendChild(style);
     }
 };
+
 const hide_sidebar = async (theme) => {
     if (theme.hide_side_bar == 1) {
         frappe.router.on('change', async () => {
@@ -102,16 +116,14 @@ const hide_sidebar = async (theme) => {
             if (cur_router[0] === 'Workspaces') {
                 $('.sidebar-toggle-btn').show();
                 $('.layout-side-section').show();
-                // $('.custom-actions').hide();
             } else {
                 $('.sidebar-toggle-btn').hide();
                 $('.layout-side-section').hide();
-                // $('.custom-actions').hide();
             }
-
         });
     }
 }
+
 const makeResponsive = async () => {
     const theme = await getTheme();
     makeListResponsive(theme);
@@ -120,8 +132,6 @@ const makeResponsive = async () => {
     let user_settings = frappe.get_user_settings('User', 'UI') || {};
     let fullwidth = user_settings.full_width || true;
     $(document.body).addClass('full-width', fullwidth);
-
-    
 };
 
 makeResponsive();
