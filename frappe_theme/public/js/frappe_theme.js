@@ -37,7 +37,11 @@ const getTheme = async () => {
             method: "frappe_theme.api.get_my_theme",
             freeze: true,
             callback: async function (response) {
-                resolve(response?.message || response)
+                if(response?.message || response){
+                    resolve(response?.message || response)
+                }else{
+                    reject('No message in response');
+                }
             },
             // freeze_message: __("Getting theme...")
         });
