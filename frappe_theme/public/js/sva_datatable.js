@@ -36,7 +36,7 @@ class SvaDataTable {
     }
 
     setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '880'}px; width:${this.options?.style?.width || '880'}px;max-height:${this.options?.style?.height || '950'}px; height:${this.options?.style?.height || '950'}px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`
+        wrapper.style = `max-width:${this.options?.style?.width || '880px'}; width:${this.options?.style?.width || '880px'};max-height:${this.options?.style?.height || '950px'}; height:${this.options?.style?.height || '950px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`
         return wrapper;
     }
 
