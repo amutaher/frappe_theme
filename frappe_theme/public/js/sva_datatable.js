@@ -22,7 +22,7 @@ class SvaDataTable {
      * @param {string} tableOptions.style.tableHeader.color - Color of the table header text.
      */
 
-    constructor({ rows, columns }, wrapper, frm, childTableFieldName, options = {}) {
+    constructor({ wrapper,columns,rows,options,frm,childTableFieldName }) {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
@@ -30,7 +30,6 @@ class SvaDataTable {
         this.childTableFieldName = childTableFieldName;
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
-
         this.wrapper.appendChild(this.table);
         return this.wrapper;
     }
@@ -43,7 +42,7 @@ class SvaDataTable {
     createTable() {
         const table = document.createElement('table');
         table.classList.add('table', 'table-bordered');
-        table.style = 'width:100%; height:100%; font-size:13px; margin-top:0px !important; position:relative;';
+        table.style = 'width:100%; font-size:13px; margin-top:0px !important; position:relative;';
         table.appendChild(this.createTableHead());
         table.appendChild(this.createTableBody());
         return table;
@@ -51,7 +50,9 @@ class SvaDataTable {
 
     createTableHead() {
         const thead = document.createElement('thead');
-        thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
+        if(this.options?.additionalTableHeader){
+            thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
+        }
         thead.style = `
                 color:${this.options?.style?.tableHeader?.color || 'black'};
                 font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
@@ -77,7 +78,7 @@ class SvaDataTable {
                 left += column.width;
                 freezeColumnsAtLeft++;
             }
-            th.textContent = column.name;
+            th.textContent = column.name || column.label;
             tr.appendChild(th);
         });
 
@@ -125,6 +126,8 @@ class SvaDataTable {
                     td.textContent = row[column.fieldname] || "";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
+                    }else{
+                        this.createNonEditableField(td, column, row);
                     }
                     tr.appendChild(td);
                 });
@@ -180,6 +183,26 @@ class SvaDataTable {
                 }
             });
         }
+
+        const control = frappe.ui.form.make_control({
+            parent: td,
+            df: columnField,
+            render_input: true,
+            only_input: true,
+        });
+
+        $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+        if (row[column.fieldname]) {
+            control.set_value(row[column.fieldname]);
+        }
+        control.refresh();
+    }
+    createNonEditableField(td, column, row) {
+        td.textContent = "";
+        let columnField = {
+            ...column,
+            read_only: 1
+        };
 
         const control = frappe.ui.form.make_control({
             parent: td,
