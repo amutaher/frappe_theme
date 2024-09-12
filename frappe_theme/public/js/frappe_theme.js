@@ -1,4 +1,4 @@
-window.dev_server = 0;
+// window.dev_server = 0;
 const getElements = async (selector, waitSeconds=2) => {
     let timeTaken = 0;
     return new Promise((resolve, reject) => {
