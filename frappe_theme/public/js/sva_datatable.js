@@ -22,12 +22,12 @@ class SvaDataTable {
      * @param {string} tableOptions.style.tableHeader.color - Color of the table header text.
      */
 
-    constructor({ wrapper,columns,rows,options,frm,childTableFieldName }) {
+    constructor({ wrapper,columns,rows,options,frm,cdtfname }) {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
         this.frm = frm;
-        this.childTableFieldName = childTableFieldName;
+        this.childTableFieldName = cdtfname;
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
         this.wrapper.appendChild(this.table);
@@ -89,7 +89,7 @@ class SvaDataTable {
     createTableBody() {
         const tbody = document.createElement('tbody');
         let rowIndex = 0;
-        const batchSize = this.options?.pageLimit || 15;
+        const batchSize = this.options?.pageLimit || 30;
         tbody.style = `
             font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
