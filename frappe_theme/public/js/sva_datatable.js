@@ -1,28 +1,25 @@
 class SvaDataTable {
     /**
-     * Creates a table with specified options including serial number column, 
-     * frozen columns, and editable cells. It also defines styles for the table 
-     * body and header.
-     * 
-     * @param {Object} tableOptions - Configuration object for the table.
-     * @param {boolean} tableOptions.serialNumberColumn - Whether to include a serial number column.
-     * @param {number} tableOptions.freezeColumnsAtLeft - Number of columns to freeze on the left.
-     * @param {number} tableOptions.pageLimit - Number of rows to render at a time.
-     * @param {boolean} tableOptions.editable - Indicates if the table is editable.
-     * @param {Object} tableOptions.style - Object defining styles for the table.
-     * @param {string} tableOptions.style.width - Width of the table.
-     * @param {string} tableOptions.style.height - Height of the table.
-     * @param {Object} tableOptions.style.tableBody - Styles applied to the table body.
-     * @param {string} tableOptions.style.tableBody.fontSize - Font size for table body text.
-     * @param {string} tableOptions.style.tableBody.fontWeight - Font weight for table body text.
-     * @param {string} tableOptions.style.tableBody.color - Color of the table body text.
-     * @param {Object} tableOptions.style.tableHeader - Styles applied to the table header.
-     * @param {string} tableOptions.style.tableHeader.fontSize - Font size for table header text.
-     * @param {string} tableOptions.style.tableHeader.fontWeight - Font weight for table header text.
-     * @param {string} tableOptions.style.tableHeader.color - Color of the table header text.
+     * Constructor for initializing the table with provided options.
+     *
+     * @param {Object} params - Configuration parameters for the table.
+     * @param {HTMLElement} params.wrapper - The wrapper element to contain the table.
+     * @param {Array} params.columns - Array of column definitions.
+     * @param {Array} params.rows - Array of row data.
+     * @param {Object} params.options - Additional options for table configuration.
+     * @param {Object} params.frm - Form object related to the table.
+     * @param {string} params.cdtfname - Field name for the child table.
+     * @param {Object} params.options - Options to customize the table behavior and appearance.
+     * @param {boolean} params.options.serialNumberColumn - Whether to include a serial number column in the table.
+     * @param {number} params.options.freezeColumnsAtLeft - Number of columns to freeze on the left side of the table.
+     * @param {number} params.options.pageLimit - Limit for the number of rows per page.
+     * @param {boolean} params.options.editable - Whether the table rows are editable.
+     * @param {Object} params.options.style - Inline styles to apply to the table.
+     * @param {string} params.options.style.width - Width of the table (e.g., '100%').
+     * @param {string} params.options.style.height - Height of the table (e.g., '700px').
+     * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
-
-    constructor({ wrapper,columns,rows,options,frm,cdtfname }) {
+    constructor({ wrapper, columns, rows, options, frm, cdtfname }) {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
@@ -31,11 +28,13 @@ class SvaDataTable {
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
         this.wrapper.appendChild(this.table);
+        this.currentSort = { column: null, direction: 'asc' }; // Track sort state
+        this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
 
     setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '880px'}; width:${this.options?.style?.width || '880px'};max-height:${this.options?.style?.height || '950px'}; height:${this.options?.style?.height || '950px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`
+        wrapper.style = `max-width:${this.options?.style?.width || '880px'}; width:${this.options?.style?.width || '880px'};max-height:${this.options?.style?.height || '950px'}; height:${this.options?.style?.height || '950px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`;
         return wrapper;
     }
 
@@ -50,16 +49,16 @@ class SvaDataTable {
 
     createTableHead() {
         const thead = document.createElement('thead');
-        if(this.options?.additionalTableHeader){
+        if (this.options?.additionalTableHeader) {
             thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
         }
         thead.style = `
-                color:${this.options?.style?.tableHeader?.color || 'black'};
-                font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
-                font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-                position:sticky; top: 0px; background-color:#F3F3F3; 
-                text-align:center; z-index:3; font-weight:200 !important;
-            `;
+            color:${this.options?.style?.tableHeader?.color || 'black'};
+            font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
+            font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
+            position:sticky; top: 0px; background-color:#F3F3F3; 
+            text-align:center; z-index:3; font-weight:200 !important;`
+            ;
         const tr = document.createElement('tr');
 
         if (this.options.serialNumberColumn) {
@@ -73,12 +72,19 @@ class SvaDataTable {
 
         this.columns.forEach(column => {
             const th = document.createElement('th');
+            th.textContent = column.name || column.label;
+
+            if (column.sortable) {
+                this.createSortingIcon(th, column); // Create the sorting dropdown
+                th.style = 'cursor:pointer'; // Add pointer cursor to indicate clickable
+            }
+
             if (this.options.freezeColumnsAtLeft && this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
-                th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;`;
+                th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'}`;
                 left += column.width;
                 freezeColumnsAtLeft++;
             }
-            th.textContent = column.name || column.label;
+
             tr.appendChild(th);
         });
 
@@ -86,16 +92,38 @@ class SvaDataTable {
         return thead;
     }
 
+    createSortingIcon(th, column) {
+        const sortIcon = document.createElement('span');
+        sortIcon.className = 'sort-icon';
+        sortIcon.style = 'margin-left:5px; cursor:pointer;';
+        sortIcon.innerHTML = '&uarr;';  // Default icon (up arrow)
+        th.appendChild(sortIcon);
+
+        // Attach click event to toggle sorting direction and update the icon
+        th.addEventListener('click', () => {
+            const direction = this.currentSort.column === column.fieldname && this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+            this.sortByColumn(column, direction);
+
+            if (direction === 'asc') {
+                sortIcon.innerHTML = '&uarr;'; // Up arrow for ascending
+            } else {
+                sortIcon.innerHTML = '&darr;'; // Down arrow for descending
+            }
+        });
+    }
+
+
     createTableBody() {
         const tbody = document.createElement('tbody');
+        this.tBody = tbody;
         let rowIndex = 0;
         const batchSize = this.options?.pageLimit || 30;
         tbody.style = `
             font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
             color:${this.options?.style?.tableBody?.color || 'black'};
-            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};
-        `;
+            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};`
+            ;
 
         const renderBatch = () => {
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
@@ -126,17 +154,15 @@ class SvaDataTable {
                     td.textContent = row[column.fieldname] || "";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
-                    }else{
+                    } else {
                         this.createNonEditableField(td, column, row);
                     }
                     tr.appendChild(td);
                 });
-
-                tbody.appendChild(tr);
+                this.tBody.appendChild(tr);
                 rowIndex++;
             }
         };
-
         const handleScroll = () => {
             const scrollTop = this.wrapper.scrollTop;
 
@@ -149,14 +175,39 @@ class SvaDataTable {
         };
 
         this.wrapper.addEventListener('scroll', handleScroll);
-
         renderBatch();
         return tbody;
     }
 
+    sortByColumn(column, direction) {
+        const columnName = column.fieldname;
+        this.rows.sort((a, b) => {
+            const valueA = a[columnName];
+            const valueB = b[columnName];
+            if (valueA === valueB) return 0;
+            if (Number.isInteger(parseFloat(valueA)) && Number.isInteger(parseFloat(valueB))) {
+                return direction === 'asc' ? Number(valueA) - Number(valueB) : Number(valueB) - Number(valueA);
+            }
+            if (direction === 'asc') {
+                return valueA > valueB ? 1 : -1;
+            } else {
+                return valueA < valueB ? 1 : -1;
+            }
+        });
+
+        this.currentSort = { column: columnName, direction };
+        this.updateTableBody(); // Re-render table body with sorted rows
+    }
+
+    updateTableBody() {
+        const oldTbody = this.table.querySelector('tbody');
+        const newTbody = this.createTableBody();
+        this.table.replaceChild(newTbody, oldTbody); // Replace old tbody with new sorted tbody
+    }
+
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
-            ? `position:sticky; left:${left}px; z-index:2; background-color:white; min-width:${column.width}px; max-width:${column.width}px; padding:0px;`
+            ? `position:sticky; left:${left}px; z-index:2; background-color:white; min-width:${column.width}px; max-width:${column.width}px; padding:0px`
             : `min-width:${column.width}px; max-width:${column.width}px; padding:0px;`;
     }
 
@@ -197,6 +248,7 @@ class SvaDataTable {
         }
         control.refresh();
     }
+
     createNonEditableField(td, column, row) {
         td.textContent = "";
         let columnField = {
@@ -218,3 +270,4 @@ class SvaDataTable {
         control.refresh();
     }
 }
+
