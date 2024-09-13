@@ -11,6 +11,9 @@ class SvaDataTable {
      * @param {string} params.cdtfname - Field name for the child table.
      * @param {Object} params.options - Options to customize the table behavior and appearance.
      * @param {boolean} params.options.serialNumberColumn - Whether to include a serial number column in the table.
+     * @param {Object} params.options.defaultSort - Default sorting configuration for the table.
+     * @param {string} params.options.defaultSort.column - Default column to sort by.
+     * @param {string} params.options.defaultSort.direction - Default sorting direction ('asc' or 'desc').
      * @param {number} params.options.freezeColumnsAtLeft - Number of columns to freeze on the left side of the table.
      * @param {number} params.options.pageLimit - Limit for the number of rows per page.
      * @param {boolean} params.options.editable - Whether the table rows are editable.
@@ -23,12 +26,12 @@ class SvaDataTable {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
+        this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
         this.childTableFieldName = cdtfname;
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
         this.wrapper.appendChild(this.table);
-        this.currentSort = { column: null, direction: 'asc' }; // Track sort state
         this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
@@ -96,7 +99,7 @@ class SvaDataTable {
         const sortIcon = document.createElement('span');
         sortIcon.className = 'sort-icon';
         sortIcon.style = 'margin-left:5px; cursor:pointer;';
-        sortIcon.innerHTML = '&uarr;';  // Default icon (up arrow)
+        sortIcon.innerHTML = (this?.currentSort?.direction == 'desc' && this?.currentSort?.column == column.fieldname) ? '&darr;' : '&uarr;';  // Default icon (up arrow)
         th.appendChild(sortIcon);
 
         // Attach click event to toggle sorting direction and update the icon
@@ -124,7 +127,9 @@ class SvaDataTable {
             color:${this.options?.style?.tableBody?.color || 'black'};
             background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};`
             ;
-
+        if(this.currentSort){
+            this.sortByColumn(this.currentSort.column, this.currentSort.direction,false);
+        }
         const renderBatch = () => {
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
@@ -179,9 +184,9 @@ class SvaDataTable {
         return tbody;
     }
 
-    sortByColumn(column, direction) {
-        const columnName = column.fieldname;
-        this.rows.sort((a, b) => {
+    sortByColumn(column, direction,updateTable=true) {
+        const columnName = column.fieldname || column;
+        let sorted_rows = this.rows.sort((a, b) => {
             const valueA = a[columnName];
             const valueB = b[columnName];
             if (valueA === valueB) return 0;
@@ -196,7 +201,11 @@ class SvaDataTable {
         });
 
         this.currentSort = { column: columnName, direction };
-        this.updateTableBody(); // Re-render table body with sorted rows
+        if(updateTable){
+            this.updateTableBody();
+        }else{
+            return sorted_rows;
+        }
     }
 
     updateTableBody() {
