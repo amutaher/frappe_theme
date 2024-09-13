@@ -29,6 +29,7 @@ class SvaDataTable {
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
         this.childTableFieldName = cdtfname;
+        this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
         this.wrapper.appendChild(this.table);
@@ -224,26 +225,44 @@ class SvaDataTable {
         const frm = this.frm;
         const childTableFieldName = this.childTableFieldName;
         td.textContent = "";
-
+        
         let columnField = {
             ...column,
             onchange: function () {
                 if (row[column.fieldname] !== control.get_input_value()) {
-                    frm.doc[childTableFieldName][row.rowIndex][column.fieldname] = control.get_input_value();
+                    let rowIndex = frm.doc[childTableFieldName].findIndex(r => r.name === row.name);
+                    frm.doc[childTableFieldName][rowIndex][column.fieldname] = control.get_input_value();
                     frm.dirty();
                 }
             }
         };
-
-        if (column.link_filter) {
-            const [parentfield, filter_key] = column.link_filter.split("->");
-            columnField.get_query = () => ({
-                filters: {
-                    [filter_key]: frm.doc[childTableFieldName][row.rowIndex][parentfield] || `Please select ${parentfield}`
-                }
-            });
-        }
-
+     
+        columnField.get_query = () => {
+            const filters = []
+            if (column.link_filter) {
+                const [parentfield, filter_key] = column.link_filter.split("->");
+                let rowIndex = frm.doc[childTableFieldName].findIndex(r => r.name === row.name);
+                filters.push([
+                    column.options,filter_key,'=',frm.doc[childTableFieldName][rowIndex][parentfield]
+                ])
+            }
+            if (column.doc_link_filters) {
+                filters.push(...JSON.parse(column.doc_link_filters));
+            }
+            let keys = this.uniqueness?.row?.find(r => r.includes(column.fieldname));
+            if(keys){
+                let rowIndex = frm.doc[childTableFieldName].findIndex(r => r.name === row.name);
+                let _row = frm.doc[childTableFieldName][rowIndex]
+                filters.push([
+                    column.options,
+                    'name',
+                    'not in', 
+                    keys.map(k => _row[k]).filter(k => (k && k != columnField.fieldname) )
+                ]);
+            }
+            return {filters}
+        };
+        
         const control = frappe.ui.form.make_control({
             parent: td,
             df: columnField,
