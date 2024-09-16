@@ -53,10 +53,13 @@ const getUserRoles = (theme) => {
         return false;
     }
     if(currentUser.includes('Administrator')){
-        return false;
+        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+            return true;
+        }else{
+            return false;
+        }
     }
-    let roles = currentUser.filter((role) => !['All','Guest','Administrator','Desk User'].includes(role))
-    .some(role => theme.hide_search.some(u => u.role === role))
+    let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
     if(!roles){
         return false;
     }
