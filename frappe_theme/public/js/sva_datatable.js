@@ -239,6 +239,9 @@ class SvaDataTable {
      
         columnField.get_query = () => {
             const filters = []
+            if(column.additional_filters){
+                filters.push(...column.additional_filters);
+            }
             if (column.link_filter) {
                 const [parentfield, filter_key] = column.link_filter.split("->");
                 let rowIndex = frm.doc[childTableFieldName].findIndex(r => r.name === row.name);
