@@ -52,6 +52,13 @@ const getUserRoles = (theme) => {
     if(!currentUser){
         return false;
     }
+    if(currentUser.includes('Administrator')){
+        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+            return true;
+        }else{
+            return false;
+        }
+    }
     let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
     if(!roles){
         return false;
