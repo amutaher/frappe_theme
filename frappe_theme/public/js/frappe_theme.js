@@ -1,17 +1,70 @@
+// window.dev_server = 0;
+const getElements = async (selector, waitSeconds=2) => {
+    let timeTaken = 0;
+    return new Promise((resolve, reject) => {
+        let interval = setInterval(() => {
+            timeTaken += 0.5;
+            let elements = document.querySelectorAll(selector);
+            if (elements?.length) {
+                clearInterval(interval);
+                resolve(elements);
+            }else if(timeTaken >= waitSeconds){
+                clearInterval(interval)
+                resolve([]);
+            }
+        }, 500);
+    });
+}
+const getElement = async (selector, waitSeconds=2) => {
+    let timeTaken = 0;
+    return new Promise((resolve, reject) => {
+        let interval = setInterval(() => {
+            timeTaken += 0.5;
+            let element = document.querySelector(selector);
+            if (element?.length) {
+                clearInterval(interval);
+                resolve(element);
+            }else if(timeTaken >= waitSeconds){
+                clearInterval(interval)
+                resolve(null);
+            }
+        }, 500);
+    });
+}
 const getTheme = async () => {
     return new Promise((resolve, reject) => {
         frappe.call({
             method: "frappe_theme.api.get_my_theme",
             freeze: true,
             callback: async function (response) {
-                resolve(response?.message || response)
+                if(response?.message || response){
+                    resolve(response?.message || response)
+                }else{
+                    reject('No message in response');
+                }
             },
-            freeze_message: __("Getting theme...")
+            // freeze_message: __("Getting theme...")
         });
     })
 }
-
-
+const getUserRoles = (theme) => {
+    let currentUser = frappe?.boot?.user?.roles;
+    if(!currentUser){
+        return false;
+    }
+    if(currentUser.includes('Administrator')){
+        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
+    if(!roles){
+        return false;
+    }
+    return roles;
+}
 const observer_function = async (theme) => {
     const targetNode = document.documentElement;
     const config = {
@@ -20,7 +73,7 @@ const observer_function = async (theme) => {
     };
     const observer = new MutationObserver(async (mutationsList) => {
         for (let _ of mutationsList) {
-            console.log('///////');
+            // console.log('///////');
             if (theme.table_hide_like_comment_section == 1) {
                 await hide_comments_and_like_from_list();
             }
@@ -33,7 +86,9 @@ const hide_comments_and_like_from_list = async () => {
     var elementsToRemove = document.querySelectorAll('header div.level-right,div.level-right.text-muted');
     if (elementsToRemove && elementsToRemove.length > 0 && cur_list) {
         elementsToRemove.forEach((element) => {
-            element.remove();
+            if (element) {
+                element.remove();
+            }
         })
         let pageArea = document.querySelector('.list-paging-area.level div.level-left')
         var counts = document.createElement('p');
@@ -49,7 +104,7 @@ const hide_comments_and_like_from_list = async () => {
     }
 }
 const applyTheme = async () => {
-    let theme = await getTheme()
+    let theme = await getTheme();
     const style = document.createElement('style');
     style.innerHTML = `
         /* Login page */
@@ -83,18 +138,18 @@ const applyTheme = async () => {
             position: ${theme.login_box_position !== 'Default' ? 'absolute' : 'static'};
             right: ${theme.login_box_position === 'Right' ? '10%' : ''};
             left: ${theme.login_box_position === 'Left' ? '10%' : ''};
-            top:${theme.is_app_details_inside_the_box ==1 ? '26%' : '18%'};
-            background-color:${theme.is_app_details_inside_the_box ==1 && (theme.login_box_background_color ? theme.login_box_background_color : '#ffff')} !important;
-            border-radius:${theme.is_app_details_inside_the_box ==1 && '10px'} !important;
+            top:${theme.is_app_details_inside_the_box == 1 ? '26%' : '18%'};
+            background-color:${theme.is_app_details_inside_the_box == 1 && (theme.login_box_background_color ? theme.login_box_background_color : '#ffff')} !important;
+            border-radius:${theme.is_app_details_inside_the_box == 1 && '10px'} !important;
         }
         .login-content.page-card{
-            padding: ${theme.is_app_details_inside_the_box ==1 ? '18px 40px 40px 40px' :(theme.login_box_position !== 'Default' ? '40px' : '')} !important;
+            padding: ${theme.is_app_details_inside_the_box == 1 ? '18px 40px 40px 40px' : (theme.login_box_position !== 'Default' ? '40px' : '')} !important;
             width:${theme.login_box_position !== 'Default' ? '450px' : ''} !important;
             background-color: ${theme.login_box_background_color && theme.login_box_background_color} !important;
             border: 2px solid ${theme.login_box_background_color && theme.login_box_background_color} !important;
         }
         .login-content{
-            border:${theme.is_app_details_inside_the_box ==1 && 'none'} !important;
+            border:${theme.is_app_details_inside_the_box == 1 && 'none'} !important;
         }
         .for-login .page-card-head h4{
             display: ${theme.login_page_title && 'none'} !important;
@@ -122,6 +177,10 @@ const applyTheme = async () => {
 
 
         /* Navbar */
+        .form-inline.fill-width.justify-content-end {
+           display: ${ getUserRoles(theme) ? 'none' : ''} !important;
+        }
+     
         .navbar {
             background-color: ${theme.navbar_color && theme.navbar_color} !important;
         }
@@ -250,39 +309,70 @@ const applyTheme = async () => {
         }
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
-        }
-        .result{
-            display:${theme.disable_card_view_on_mobile_view == 0 && 'block'} !important;
-        }
-
-        @media (max-width: 767px) {
-            .result{
-                display: ${theme.disable_card_view_on_mobile_view == 0 && 'none'} !important;
-            }
-            .custom_mobile_card{  
-                min-height: 40px !important;
-                background-color:${theme.table_body_background_color && theme.table_body_background_color} !important;
-                color: ${theme.table_body_text_color && theme.table_body_text_color} !important;
-                margin: 10px !important;
-                border-radius: 10px !important;
-                
-            }
-            .custom_mobile_card_row{
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap:  0px 10px !important;
-                padding: 10px !important;
-                
-
-            }
-
-            .custom_mobile_card_value{
-                font-weight: bold !important;
-            }
-        }
+      
             
     `;
     await observer_function(theme);
     document.head.appendChild(style);
 }
 applyTheme()
+
+
+
+
+// const getWorkspaceConfiguration = async () => {
+//     return new Promise((resolve, reject) => {
+//         frappe.call({
+//             method: "frappe_theme.api.get_workspace_configuration",
+//             freeze: true,
+//             callback: function (response) {
+//                 if (response.message) {
+//                     resolve(response.message);
+//                 } else {
+//                     reject('No message in response');
+//                 }
+//             },
+//             freeze_message: __("Getting workspace configuration...")
+//         });
+//     });
+// };
+
+// const updateWorkspaces = async () => {
+//     try {
+//         const workspaceConfigs = await getWorkspaceConfiguration();
+//         console.log(workspaceConfigs, "Workspace Configurations");
+
+//         if (Array.isArray(workspaceConfigs)) {
+//             workspaceConfigs.forEach(config => {
+//                 // Fetch workspace details using custom method
+//                 frappe.call({
+//                     method: 'frappe_theme.api.get_workspace',
+//                     args: { workspace_name: config.workspace_name },
+//                     callback: function (response) {
+//                         const workspace = response.message;
+//                         if (workspace) {
+                            
+                           
+//                         } else {
+//                             console.error(`Workspace "${config.workspace_name}" not found`);
+//                         }
+//                     },
+//                     error: function (error) {
+//                         console.error('Error fetching workspace details:', error);
+//                     }
+//                 });
+//             });
+//         } else {
+//             console.error('Workspace configurations are not in array format');
+//         }
+//     } catch (error) {
+//         console.error('Error updating workspaces:', error);
+//     }
+// };
+
+// // Ensure Frappe is ready before updating workspaces
+
+//     updateWorkspaces();
+
+
+
