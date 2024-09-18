@@ -177,7 +177,7 @@ const applyTheme = async () => {
 
 
         /* Navbar */
-        .form-inline.fill-width.justify-content-end {
+        .input-group.search-bar.text-muted {
            display: ${ getUserRoles(theme) ? 'none' : ''} !important;
         }
      
