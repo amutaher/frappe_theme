@@ -32,7 +32,9 @@ class SvaDataTable {
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.wrapper = this.setupWrapper(wrapper);
         this.table = this.createTable();
-        this.wrapper.appendChild(this.table);
+        if (!this.wrapper.querySelector('table')) {
+            this.wrapper.appendChild(this.table);
+        }
         this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
