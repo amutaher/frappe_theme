@@ -229,7 +229,11 @@ class SvaDataTable {
         let columnField = {
             ...column,
             onchange: function () {
-                if (row[column.fieldname] !== control.get_input_value()) {
+                let changedValue = control.get_input_value();
+                if(column.fieldtype === 'Percent'){
+                    changedValue = parseFloat(changedValue);
+                }
+                if (row[column.fieldname] !== changedValue) {
                     let rowIndex = frm.doc[childTableFieldName].findIndex(r => r.name === row.name);
                     frm.doc[childTableFieldName][rowIndex][column.fieldname] = control.get_input_value();
                     frm.dirty();
