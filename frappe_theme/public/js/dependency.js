@@ -26,28 +26,38 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
         };
     }
 }
-
+const mapEvents = (props) => {
+    let obj = {};
+    for (let prop of props) {
+        if (prop) {
+            let abc = prop.value.split("->")
+            obj[abc[0]] = function (frm) {
+                apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+                frm.set_value(prop.field_name, "");
+            }
+        }
+    }
+    return {
+        refresh: function (frm) {
+            for (let prop of props) {
+                if (prop) {
+                    let abc = prop.value.split("->")
+                    apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+                }
+            }
+        },
+        ...obj
+    }
+}
 async function setDynamicProperties() {
-    if(cur_frm){
+    if (cur_frm) {
         try {
             let props = await getData(cur_frm.doc.doctype);
             if (!props.length) {
                 return;
             }
-            for (let prop of props) {
-                if (prop) {
-                    let abc = prop.value.split("->")
-                    frappe.ui.form.on(prop.doc_type, {
-                        refresh: function (frm) {
-                            apply_filter(prop.field_name,abc[0], frm, frm.doc[abc[1]]);
-                        },
-                        [abc[0]]: function (frm) {
-                            apply_filter(prop.field_name,abc[0], frm, frm.doc[abc[1]]);
-                            frm.set_value(prop.field_name, "");
-                        }
-                    });
-                }
-            }
+            frappe.ui.form.on(cur_frm.doc.doctype, mapEvents(props));
+            frappe.ui.form.trigger(cur_frm.doc.doctype, 'refresh', cur_frm);
         } catch (error) {
             console.error("Error setting dynamic properties:", error);
         }

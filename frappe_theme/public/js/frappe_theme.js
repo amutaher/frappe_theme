@@ -1,17 +1,70 @@
+// window.dev_server = 0;
+const getElements = async (selector, waitSeconds=2) => {
+    let timeTaken = 0;
+    return new Promise((resolve, reject) => {
+        let interval = setInterval(() => {
+            timeTaken += 0.5;
+            let elements = document.querySelectorAll(selector);
+            if (elements?.length) {
+                clearInterval(interval);
+                resolve(elements);
+            }else if(timeTaken >= waitSeconds){
+                clearInterval(interval)
+                resolve([]);
+            }
+        }, 500);
+    });
+}
+const getElement = async (selector, waitSeconds=2) => {
+    let timeTaken = 0;
+    return new Promise((resolve, reject) => {
+        let interval = setInterval(() => {
+            timeTaken += 0.5;
+            let element = document.querySelector(selector);
+            if (element?.length) {
+                clearInterval(interval);
+                resolve(element);
+            }else if(timeTaken >= waitSeconds){
+                clearInterval(interval)
+                resolve(null);
+            }
+        }, 500);
+    });
+}
 const getTheme = async () => {
     return new Promise((resolve, reject) => {
         frappe.call({
             method: "frappe_theme.api.get_my_theme",
             freeze: true,
             callback: async function (response) {
-                resolve(response?.message || response)
+                if(response?.message || response){
+                    resolve(response?.message || response)
+                }else{
+                    reject('No message in response');
+                }
             },
-            freeze_message: __("Getting theme...")
+            // freeze_message: __("Getting theme...")
         });
     })
 }
-
-
+const getUserRoles = (theme) => {
+    let currentUser = frappe?.boot?.user?.roles;
+    if(!currentUser){
+        return false;
+    }
+    if(currentUser.includes('Administrator')){
+        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
+    if(!roles){
+        return false;
+    }
+    return roles;
+}
 const observer_function = async (theme) => {
     const targetNode = document.documentElement;
     const config = {
@@ -124,6 +177,10 @@ const applyTheme = async () => {
 
 
         /* Navbar */
+        .input-group.search-bar.text-muted {
+           display: ${ getUserRoles(theme) ? 'none' : ''} !important;
+        }
+     
         .navbar {
             background-color: ${theme.navbar_color && theme.navbar_color} !important;
         }
@@ -259,3 +316,63 @@ const applyTheme = async () => {
     document.head.appendChild(style);
 }
 applyTheme()
+
+
+
+
+// const getWorkspaceConfiguration = async () => {
+//     return new Promise((resolve, reject) => {
+//         frappe.call({
+//             method: "frappe_theme.api.get_workspace_configuration",
+//             freeze: true,
+//             callback: function (response) {
+//                 if (response.message) {
+//                     resolve(response.message);
+//                 } else {
+//                     reject('No message in response');
+//                 }
+//             },
+//             freeze_message: __("Getting workspace configuration...")
+//         });
+//     });
+// };
+
+// const updateWorkspaces = async () => {
+//     try {
+//         const workspaceConfigs = await getWorkspaceConfiguration();
+//         console.log(workspaceConfigs, "Workspace Configurations");
+
+//         if (Array.isArray(workspaceConfigs)) {
+//             workspaceConfigs.forEach(config => {
+//                 // Fetch workspace details using custom method
+//                 frappe.call({
+//                     method: 'frappe_theme.api.get_workspace',
+//                     args: { workspace_name: config.workspace_name },
+//                     callback: function (response) {
+//                         const workspace = response.message;
+//                         if (workspace) {
+                            
+                           
+//                         } else {
+//                             console.error(`Workspace "${config.workspace_name}" not found`);
+//                         }
+//                     },
+//                     error: function (error) {
+//                         console.error('Error fetching workspace details:', error);
+//                     }
+//                 });
+//             });
+//         } else {
+//             console.error('Workspace configurations are not in array format');
+//         }
+//     } catch (error) {
+//         console.error('Error updating workspaces:', error);
+//     }
+// };
+
+// // Ensure Frappe is ready before updating workspaces
+
+//     updateWorkspaces();
+
+
+
