@@ -16,7 +16,7 @@ const updateThemeLinks = async () => {
                 return null;
             }
             return {
-                path: `/app/${e.ref_doctype.toLowerCase().replace(' ', '-')}`,
+                path: `/app/${e.ref_doctype.toLowerCase().replace(/\s+/g, '-')}`,
                 workspace: e.workspace
             };
         }).filter(e => e !== null);
