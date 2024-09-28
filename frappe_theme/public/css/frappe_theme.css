@@ -17,14 +17,13 @@
     padding: 0px 27px !important;
 }
 
-.layout-side-section {
+/* .layout-side-section {
     min-width: fit-content;
     z-index: 5;
     position: relative;
-}
+} */
 
-.layout-side-section.right {
+/* .layout-side-section.right {
     background-color: aqua;
-    /* position: fixed; */
     right: 5px;
-}
+} */
