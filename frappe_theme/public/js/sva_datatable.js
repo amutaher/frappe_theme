@@ -34,6 +34,7 @@ class SvaDataTable {
         this.childTableFieldName = cdtfname;
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.wrapper = this.setupWrapper(wrapper, this.crud);
+        this.noDataFound = this.createNoDataFoundPage();
         this.table = this.createTable(this.crud);
         if (!this.wrapper.querySelector('table')) {
             this.wrapper.appendChild(this.table);
@@ -56,7 +57,7 @@ class SvaDataTable {
                 wrapper.appendChild(create_button);
             }
         }
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || 'auto'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`;
         return wrapper;
     }
 
@@ -213,6 +214,9 @@ class SvaDataTable {
     }
 
     createTableBody(crud) {
+        if (this.rows.length === 0) {
+            return this.noDataFound;
+        }
         const tbody = document.createElement('tbody');
         this.tBody = tbody;
         let rowIndex = 0;
@@ -392,9 +396,13 @@ class SvaDataTable {
     }
 
     updateTableBody() {
+        if (this.rows.length === 0) {
+            this.table.replaceChild(this.noDataFound, this.tBody);
+            return;
+        }
         const oldTbody = this.table.querySelector('tbody');
         const newTbody = this.createTableBody(this.crud);
-        this.table.replaceChild(newTbody, oldTbody); // Replace old tbody with new sorted tbody
+        this.table.replaceChild(newTbody, oldTbody || this.noDataFound); // Replace old tbody with new sorted tbody
     }
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
@@ -521,6 +529,20 @@ class SvaDataTable {
                 }
             });
         });
+    }
+    createNoDataFoundPage() {
+        const noDataFoundPage = document.createElement('tr');
+        noDataFoundPage.id = 'noDataFoundPage';
+        noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
+        noDataFoundPage.style.fontSize = '20px';
+        const noDataFoundText = document.createElement('td');
+        noDataFoundText.colSpan = this.columns.length + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
+        noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
+        noDataFoundText.style.paddingTop = '30px';
+        noDataFoundText.style.color = 'grey';
+        noDataFoundText.textContent = "No data found!";
+        noDataFoundPage.appendChild(noDataFoundText);
+        return noDataFoundPage;
     }
 }
 
