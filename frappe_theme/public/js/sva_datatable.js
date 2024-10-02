@@ -50,14 +50,14 @@ class SvaDataTable {
                 create_button.id = 'create';
                 create_button.textContent = "Create";
                 create_button.classList.add('btn', 'btn-primary');
-                create_button.style = 'margin-bottom:20px;float:right;margin-right:10px;';
+                create_button.style = 'margin-bottom:20px;margin-right:10px;width:fit-content;'; 
                 create_button.addEventListener('click', async () => {
                     await this.createFormDialog(this.doctype);
                 });
                 wrapper.appendChild(create_button);
             }
         }
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;display:flex;flex-direction:column-reverse;justify-content: flex-end;`;
         return wrapper;
     }
 
