@@ -75,7 +75,8 @@ class SvaDataTable {
     }
 
     async createFormDialog(doctype, name = undefined) {
-        let dt = await frappe.db.get_doc('DocType', doctype);
+        let res = await frappe.call('frappe_theme.api.get_doctype_fields',{doctype:this.doctype});
+        let dt = res?.message;
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
             if (this.frm) {
@@ -309,7 +310,8 @@ class SvaDataTable {
                     deleteOption.addEventListener('click', async () => {
                         await this.deleteRecord(this.doctype, primaryKey);
                     });
-                    frappe.db.get_doc("DocType", this.doctype).then(doctypeInfo => {
+                    frappe.call('frappe_theme.api.get_doctype_fields',{doctype:this.doctype}).then(response => {
+                        let doctypeInfo = response?.message;
                         if (doctypeInfo?.links?.length) {
                             doctypeInfo.links.forEach(link => {
                                 const linkOption = document.createElement('a');
