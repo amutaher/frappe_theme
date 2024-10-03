@@ -32,33 +32,46 @@ class SvaDataTable {
         this.crud = crud;
         this.doctype = doctype;
         this.childTableFieldName = cdtfname;
+        this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
-        this.wrapper = this.setupWrapper(wrapper, this.crud);
         this.noDataFound = this.createNoDataFoundPage();
+        this.table_wrapper = document.createElement('div');
+        this.table_wrapper.id = 'table_wrapper';
         this.table = this.createTable(this.crud);
-        if (!this.wrapper.querySelector('table')) {
-            this.wrapper.appendChild(this.table);
+        if (!this.table_wrapper.querySelector('table')) {
+            this.table_wrapper.appendChild(this.table);
         }
+        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+        if(!this.wrapper.querySelector('#table_wrapper')) {
+            this.wrapper.appendChild(this.table_wrapper);
+        }
+        this.setupCreateButton(this.wrapper, this.crud);
         this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
 
-    setupWrapper(wrapper, crud) {
+    setupWrapper(wrapper) {
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};`;
+        return wrapper;
+    }
+    setupTableWrapper(tableWrapper) {
+        tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
+        return tableWrapper;
+    }
+    setupCreateButton(wrapper,crud){
         if (crud) {
             if (!wrapper.querySelector('button#create')) {
                 const create_button = document.createElement('button');
                 create_button.id = 'create';
                 create_button.textContent = "Create";
                 create_button.classList.add('btn', 'btn-primary');
-                create_button.style = 'margin-bottom:20px;margin-right:10px;width:fit-content;'; 
+                create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;'; 
                 create_button.addEventListener('click', async () => {
                     await this.createFormDialog(this.doctype);
                 });
                 wrapper.appendChild(create_button);
             }
         }
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;margin-bottom:20px;display:flex;flex-direction:column-reverse;justify-content: flex-end;`;
-        return wrapper;
     }
 
     async createFormDialog(doctype, name = undefined) {
