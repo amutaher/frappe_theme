@@ -2,10 +2,15 @@
     max-width: 1700px !important;
 }
 
-/* .page-head .container {
+.page-head.container {
     max-width: 1700px !important;
     padding: 0px 27px !important;
-} */
+}
+
+.page-head .container {
+    max-width: 1700px !important;
+    padding: 0px 27px !important;
+}
 
 .section-body {
     max-width: 1700px !important;
@@ -16,14 +21,3 @@
     max-width: 1700px !important;
     padding: 0px 27px !important;
 }
-
-/* .layout-side-section {
-    min-width: fit-content;
-    z-index: 5;
-    position: relative;
-} */
-
-/* .layout-side-section.right {
-    background-color: aqua;
-    right: 5px;
-} */
