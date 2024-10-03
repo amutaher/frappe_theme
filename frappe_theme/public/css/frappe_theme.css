@@ -1,11 +1,13 @@
-.layout-main{
+.layout-main {
     max-width: 1700px !important;
 }
-.page-head .container{
+
+.page-head.container {
     max-width: 1700px !important;
     padding: 0px 27px !important;
 }
-.section-body{
+
+.section-body {
     max-width: 1700px !important;
     padding: 0px 27px !important;
 }
