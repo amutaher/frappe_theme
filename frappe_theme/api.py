@@ -23,4 +23,18 @@ def get_my_list_settings(doctype):
 
 @frappe.whitelist()
 def get_meta_fields(doctype):
-	return frappe.get_meta(doctype).fields
+    meta_fields = frappe.get_meta(doctype).fields
+    property_setters = frappe.get_all('Property Setter', 
+                                      filters={'doc_type': doctype}, 
+                                      fields=['field_name', 'property', 'value'],ignore_permissions=True)
+    # Convert meta_fields into mutable dictionaries if necessary
+    fields_dict = [f.as_dict() for f in meta_fields]
+    # Apply property setter values to the meta fields
+    for field in fields_dict:
+        for ps in property_setters:
+            if field.get('fieldname') == ps.field_name:
+                # Dynamically set the field property
+                field[ps.property] = ps.value
+    
+    return fields_dict
+
