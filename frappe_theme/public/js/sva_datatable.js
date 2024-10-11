@@ -42,7 +42,7 @@ class SvaDataTable {
             this.table_wrapper.appendChild(this.table);
         }
         this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-        if(!this.wrapper.querySelector('#table_wrapper')) {
+        if (!this.wrapper.querySelector('#table_wrapper')) {
             this.wrapper.appendChild(this.table_wrapper);
         }
         this.setupCreateButton(this.wrapper, this.crud);
@@ -58,14 +58,14 @@ class SvaDataTable {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
         return tableWrapper;
     }
-    setupCreateButton(wrapper,crud){
+    setupCreateButton(wrapper, crud) {
         if (crud) {
             if (!wrapper.querySelector('button#create')) {
                 const create_button = document.createElement('button');
                 create_button.id = 'create';
                 create_button.textContent = "Create";
                 create_button.classList.add('btn', 'btn-primary');
-                create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;'; 
+                create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;';
                 create_button.addEventListener('click', async () => {
                     await this.createFormDialog(this.doctype);
                 });
@@ -75,7 +75,7 @@ class SvaDataTable {
     }
 
     async createFormDialog(doctype, name = undefined) {
-        let res = await frappe.call('frappe_theme.api.get_doctype_fields',{doctype:this.doctype});
+        let res = await frappe.call('frappe_theme.api.get_doctype_fields', { doctype: this.doctype });
         let dt = res?.message;
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
@@ -95,6 +95,16 @@ class SvaDataTable {
                     }
                 });
             }
+        } else if (this.frm.parentRow) {
+            dt.fields.forEach(f => {
+                if (this.frm.doctype == f.options) {
+                    f.default = this.frm.doc.name;
+                    f.read_only = 1;
+                } else if (this.frm.parentRow[f.fieldname]) {
+                    f.default = this.frm.parentRow[f.fieldname];
+                    f.read_only = 1;
+                }
+            });
         } else {
             dt.fields.forEach(f => {
                 if (this.frm.doctype == f.options) {
@@ -142,7 +152,7 @@ class SvaDataTable {
         frappe.confirm(`Are you sure you want to delete this ${doctype}?`, async () => {
             await frappe.xcall('frappe.client.delete', { doctype, name });
             let rowIndex = this.rows.findIndex(r => r.name === name);
-            console.log(rowIndex, 'rowIndex');
+            // console.log(rowIndex, 'rowIndex');
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
         });
@@ -181,7 +191,7 @@ class SvaDataTable {
 
         this.columns.forEach(column => {
             const th = document.createElement('th');
-            th.textContent = column.name || column.label;
+            th.textContent = column.label || column.name;
 
             if (column.sortable) {
                 this.createSortingIcon(th, column); // Create the sorting dropdown
@@ -284,7 +294,6 @@ class SvaDataTable {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;';
 
-                    // Create dropdown for actions
                     const dropdown = document.createElement('div');
                     dropdown.classList.add('dropdown');
 
@@ -310,7 +319,7 @@ class SvaDataTable {
                     deleteOption.addEventListener('click', async () => {
                         await this.deleteRecord(this.doctype, primaryKey);
                     });
-                    frappe.call('frappe_theme.api.get_doctype_fields',{doctype:this.doctype}).then(response => {
+                    frappe.call('frappe_theme.api.get_doctype_fields', { doctype: this.doctype }).then(response => {
                         let doctypeInfo = response?.message;
                         if (doctypeInfo?.links?.length) {
                             doctypeInfo.links.forEach(link => {
@@ -318,7 +327,7 @@ class SvaDataTable {
                                 linkOption.classList.add('dropdown-item');
                                 linkOption.textContent = link.link_doctype;
                                 linkOption.addEventListener('click', async () => {
-                                    await this.childTableDialog(link.link_doctype, link.link_fieldname, primaryKey);
+                                    await this.childTableDialog(link.link_doctype, link.link_fieldname, primaryKey, row);
                                 });
                                 dropdownMenu.appendChild(linkOption);
                             });
@@ -339,22 +348,21 @@ class SvaDataTable {
         };
 
         const handleScroll = () => {
-            const scrollTop = this.wrapper.scrollTop;
-
+            const scrollTop = this.table_wrapper.scrollTop;
             if (scrollTop > this.lastScrollTop) {
-                if (this.wrapper.scrollTop + this.wrapper.clientHeight >= this.wrapper.scrollHeight) {
+                if (this.table_wrapper.scrollTop + this.table_wrapper.clientHeight >= this.table_wrapper.scrollHeight) {
                     renderBatch();
                 }
             }
             this.lastScrollTop = scrollTop;
         };
 
-        this.wrapper.addEventListener('scroll', handleScroll);
+        this.table_wrapper.addEventListener('scroll', handleScroll);
         renderBatch();
         return tbody;
     }
 
-    async childTableDialog(doctype, primaryKey, primaryKeyValue) {
+    async childTableDialog(doctype, primaryKey, primaryKeyValue, parentRow) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
             fields: [{
@@ -366,18 +374,23 @@ class SvaDataTable {
         dialog.show();
         let settings = await this.getViewSettings(doctype);
         if (settings?.fields) {
-            let fields = JSON.parse(settings.fields);
+            let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
+            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: doctype });
+            let _columns = [{
+                fieldname: 'name',
+                label: 'ID'
+            }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
             let rows = await this.getDocList(doctype, [
                 [doctype, primaryKey, '=', primaryKeyValue]
-            ], fields.map(e => e.fieldname))
+            ], ['*'])
 
             let datatable = new SvaDataTable({
                 wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
-                columns: fields,
+                columns: _columns,
                 rows: rows,
                 doctype: doctype,
                 crud: true,
-                frm: { doctype: this.doctype, doc: { name: primaryKeyValue } },
+                frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
                 options: {
                     serialNumberColumn: true,
                     editable: false,

@@ -21,4 +21,6 @@ def get_my_list_settings(doctype):
 	except frappe.DoesNotExistError:
 		frappe.clear_messages()
 
-       
+@frappe.whitelist()
+def get_meta_fields(doctype):
+	return frappe.get_meta(doctype).fields
