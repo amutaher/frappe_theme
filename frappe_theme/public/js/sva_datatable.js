@@ -75,47 +75,44 @@ class SvaDataTable {
     }
 
     async createFormDialog(doctype, name = undefined) {
-        let res = await frappe.call('frappe_theme.api.get_doctype_fields', { doctype: this.doctype });
-        let dt = res?.message;
+        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+        let fields = res?.message;
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
-            if (this.frm) {
-                dt.fields.forEach(f => {
-                    if (this.frm.doctype == f.options) {
-                        f.default = this.frm.doc.name;
-                        f.read_only = 1;
-                    } else if (doc[f.fieldname]) {
-                        f.default = doc[f.fieldname];
-                    }
-                });
-            } else {
-                dt.fields.forEach(f => {
-                    if (doc[f.fieldname]) {
-                        f.default = doc[f.fieldname];
-                    }
-                });
-            }
-        } else if (this.frm.parentRow) {
-            dt.fields.forEach(f => {
-                if (this.frm.doctype == f.options) {
-                    f.default = this.frm.doc.name;
-                    f.read_only = 1;
-                } else if (this.frm.parentRow[f.fieldname]) {
-                    f.default = this.frm.parentRow[f.fieldname];
-                    f.read_only = 1;
+            fields.forEach(async f => {
+                if (doc[f.fieldname]) {
+                    f.default = doc[f.fieldname];
                 }
-            });
+            })
         } else {
-            dt.fields.forEach(f => {
+            await fields.forEach(async f => {
+                if (this.frm.parentRow) {
+                    if (this.frm.parentRow[f.fieldname]) {
+                        f.default = this.frm.parentRow[f.fieldname];
+                        f.read_only = 1;
+                    }
+                }
                 if (this.frm.doctype == f.options) {
                     f.default = this.frm.doc.name;
                     f.read_only = 1;
                 }
-            });
+                if (f.fieldtype === 'Link') {
+                    f.get_query = () => {
+                        const filters = []
+                        if (f.link_filter) {
+                            const [parentfield, filter_key] = f.link_filter.split("->");
+                            filters.push([
+                                f.options, filter_key, '=', dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`
+                            ])
+                        }
+                        return { filters }
+                    }
+                }
+            })
         }
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
-            fields: dt?.fields || [],
+            fields: fields || [],
             primary_action_label: name ? 'Update' : 'Create',
             primary_action: async (values) => {
                 if (!name) {
@@ -130,7 +127,7 @@ class SvaDataTable {
                         this.updateTableBody();
                     }
                 } else {
-                    let response = await frappe.xcall('frappe.client.set_value', { doctype, name, fieldname: values });
+                    let response = await frappe.xcall('frappe.client.set_value', { doctype:doctype, name, fieldname: values });
                     if (response) {
                         let rowIndex = this.rows.findIndex(r => r.name === name);
                         this.rows[rowIndex] = response;
@@ -443,7 +440,6 @@ class SvaDataTable {
         const frm = this.frm;
         const childTableFieldName = this.childTableFieldName;
         td.textContent = "";
-
         let columnField = {
             ...column,
             onchange: function () {
@@ -522,7 +518,15 @@ class SvaDataTable {
             control.refresh();
         } else {
             td.textContent = row[column.fieldname] || "";
-            $(td).css({ height: '35px', padding: "6px 10px" });
+            if (columnField?.has_link) {
+                let [doctype, link_field] = columnField.has_link.split('->');
+                td.addEventListener('click', async () => {
+                    await this.childTableDialog(doctype, link_field, row?.name, row);
+                })
+                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer' });
+            } else {
+                $(td).css({ height: '35px', padding: "6px 10px" });
+            }
         }
     }
     getDocList(doctype, filters, fields = ['*']) {
