@@ -99,6 +99,12 @@ class SvaDataTable {
                 if (f.fieldtype === 'Link') {
                     f.get_query = () => {
                         const filters = []
+                        if (this.uniqueness.column.length) {
+                            if (this.uniqueness.column.includes(f.fieldname)) {
+                                let existing_options = this.rows?.map((item) => { return item[f.fieldname] })
+                                filters.push([f.options, 'name', 'not in', existing_options])
+                            }
+                        }
                         if (f.link_filter) {
                             const [parentfield, filter_key] = f.link_filter.split("->");
                             filters.push([
@@ -127,7 +133,7 @@ class SvaDataTable {
                         this.updateTableBody();
                     }
                 } else {
-                    let response = await frappe.xcall('frappe.client.set_value', { doctype:doctype, name, fieldname: values });
+                    let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: values });
                     if (response) {
                         let rowIndex = this.rows.findIndex(r => r.name === name);
                         this.rows[rowIndex] = response;
@@ -149,7 +155,6 @@ class SvaDataTable {
         frappe.confirm(`Are you sure you want to delete this ${doctype}?`, async () => {
             await frappe.xcall('frappe.client.delete', { doctype, name });
             let rowIndex = this.rows.findIndex(r => r.name === name);
-            // console.log(rowIndex, 'rowIndex');
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
         });
