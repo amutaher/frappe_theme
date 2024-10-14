@@ -70,6 +70,7 @@
   "input_text_color",
   "input_label_color",
   "workspace_remapping_tab",
+  "sidebar_element_selector",
   "workspace"
  ],
  "fields": [
@@ -403,13 +404,19 @@
    "fieldname": "disable_flex_card_content_on_mobile_view",
    "fieldtype": "Check",
    "label": "Disable flex card content on mobile view"
+  },
+  {
+   "fieldname": "sidebar_element_selector",
+   "fieldtype": "Data",
+   "label": "Sidebar Element Selector",
+   "mandatory_depends_on": "eval:doc.workspace.length > 0"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-17 15:11:54.405967",
+ "modified": "2024-10-14 12:47:20.365158",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
