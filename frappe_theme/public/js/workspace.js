@@ -21,7 +21,7 @@ const updateThemeLinks = async () => {
             };
         }).filter(e => e !== null);
 
-        let nodes = await getElements('.desk-sidebar a', 5)
+        let nodes = await getElements('.item-anchor', 5)
         nodes.forEach((e) => {
             let title = e.getAttribute('title');
             let path = arr.find(f => f.workspace == title)?.path;
