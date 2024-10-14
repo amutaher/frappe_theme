@@ -63,6 +63,8 @@
   "number_card_border_color",
   "column_break_swjv",
   "number_card_text_color",
+  "section_break_bbon",
+  "dialog_width",
   "input_tab",
   "input_background_color",
   "input_border_color",
@@ -410,13 +412,23 @@
    "fieldtype": "Data",
    "label": "Sidebar Element Selector",
    "mandatory_depends_on": "eval:doc.workspace.length > 0"
+  },
+  {
+   "fieldname": "section_break_bbon",
+   "fieldtype": "Section Break",
+   "label": "Dialog"
+  },
+  {
+   "fieldname": "dialog_width",
+   "fieldtype": "Data",
+   "label": "Dialog Width"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-14 12:47:20.365158",
+ "modified": "2024-10-14 14:15:32.631809",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
