@@ -220,14 +220,14 @@ class SvaDataTable {
     }
 
     createSortingIcon(th, column) {
-        console.log(column,'column out')
+        console.log(column, 'column out')
         const sortIcon = document.createElement('span');
         sortIcon.className = 'sort-icon';
         sortIcon.style = 'margin-left:5px; cursor:pointer;';
         sortIcon.innerHTML = (this?.currentSort?.direction == 'desc' && this?.currentSort?.column == column.fieldname) ? '&darr;' : '&uarr;';  // Default icon (up arrow)
         th.appendChild(sortIcon);
         th.addEventListener('click', () => {
-            console.log(column,'column in')
+            console.log(column, 'column in')
             const direction = this.currentSort?.column === column.fieldname && this.currentSort?.direction === 'asc' ? 'desc' : 'asc';
             this.sortByColumn(column, direction);
             if (direction === 'asc') {
@@ -362,7 +362,6 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
-
     async childTableDialog(doctype, primaryKey, primaryKeyValue, parentRow) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
@@ -372,6 +371,12 @@ class SvaDataTable {
                 options: `<div id="${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}"></div>`,
             }],
         });
+        dialog.onhide = async function () {
+            let updated_doc = await frappe.db.get_doc(this.doctype, parentRow.name);
+            let idx = this.rows.findIndex(r => r.name === parentRow.name);
+            this.rows[idx] = updated_doc;
+            this.updateTableBody();
+        }.bind(this);
         dialog.show();
         let settings = await this.getViewSettings(doctype);
         if (settings?.fields) {
@@ -508,7 +513,7 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (['Link','HTML'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
