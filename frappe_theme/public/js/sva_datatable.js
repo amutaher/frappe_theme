@@ -220,17 +220,16 @@ class SvaDataTable {
     }
 
     createSortingIcon(th, column) {
+        console.log(column,'column out')
         const sortIcon = document.createElement('span');
         sortIcon.className = 'sort-icon';
         sortIcon.style = 'margin-left:5px; cursor:pointer;';
         sortIcon.innerHTML = (this?.currentSort?.direction == 'desc' && this?.currentSort?.column == column.fieldname) ? '&darr;' : '&uarr;';  // Default icon (up arrow)
         th.appendChild(sortIcon);
-
-        // Attach click event to toggle sorting direction and update the icon
         th.addEventListener('click', () => {
-            const direction = this.currentSort.column === column.fieldname && this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+            console.log(column,'column in')
+            const direction = this.currentSort?.column === column.fieldname && this.currentSort?.direction === 'asc' ? 'desc' : 'asc';
             this.sortByColumn(column, direction);
-
             if (direction === 'asc') {
                 sortIcon.innerHTML = '&uarr;'; // Up arrow for ascending
             } else {
@@ -509,7 +508,7 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (columnField.fieldtype === 'Link') {
+        if (['Link','HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
