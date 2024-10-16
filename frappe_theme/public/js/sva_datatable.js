@@ -377,6 +377,8 @@ class SvaDataTable {
             this.rows[idx] = updated_doc;
             this.updateTableBody();
         }.bind(this);
+        let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
+        $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
         let settings = await this.getViewSettings(doctype);
         if (settings?.fields) {
