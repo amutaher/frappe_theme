@@ -421,14 +421,14 @@
   {
    "fieldname": "dialog_width",
    "fieldtype": "Data",
-   "label": "Dialog Width"
+   "label": "SVA DataTable Dialog Width"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-14 14:15:32.631809",
+ "modified": "2024-10-16 11:12:57.588704",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
