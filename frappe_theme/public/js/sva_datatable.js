@@ -59,18 +59,18 @@ class SvaDataTable {
         return tableWrapper;
     }
     async setupCreateButton(wrapper, crud) {
+        let perms = await this.get_permissions(this.doctype);
         if (crud) {
-            if (!wrapper.querySelector('button#create')) {
-                const create_button = document.createElement('button');
-                create_button.id = 'create';
-                create_button.textContent = "Create";
-                create_button.classList.add('btn', 'btn-primary');
-                create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;';
-                create_button.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype);
-                });
-                let perms = await this.get_permissions(this.doctype);
-                if (perms.length && perms.includes('create')) {
+            if (perms.length && perms.includes('create')) {
+                if (!wrapper.querySelector('button#create')) {
+                    const create_button = document.createElement('button');
+                    create_button.id = 'create';
+                    create_button.textContent = "Create";
+                    create_button.classList.add('btn', 'btn-primary');
+                    create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;';
+                    create_button.addEventListener('click', async () => {
+                        await this.createFormDialog(this.doctype);
+                    });
                     wrapper.appendChild(create_button);
                 }
             }
@@ -353,7 +353,7 @@ class SvaDataTable {
                                     await this.childTableDialog(link.link_doctype, link.link_fieldname, primaryKey, row);
                                 });
                                 let perms = await this.get_permissions(link.link_doctype);
-                                if(perms.length && perms.includes('read')){
+                                if (perms.length && perms.includes('read')) {
                                     dropdownMenu.appendChild(linkOption);
                                 }
                             });
@@ -362,7 +362,7 @@ class SvaDataTable {
                     dropdown.appendChild(dropdownBtn);
                     dropdown.appendChild(dropdownMenu);
                     action_td.appendChild(dropdown);
-                    if(dropdownMenu.children?.length > 0){
+                    if (dropdownMenu.children?.length > 0) {
                         tr.appendChild(action_td);
                     }
                 }
@@ -559,11 +559,11 @@ class SvaDataTable {
                     let perms = await this.get_permissions(doctype);
                     if (perms.length && perms.includes('read')) {
                         await this.childTableDialog(doctype, link_field, row?.name, row);
-                    }else{
+                    } else {
                         frappe.msgprint('You do not have permission to access this resource.');
                     }
                 })
-                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer',color:'blue' });
+                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer', color: 'blue' });
             } else {
                 $(td).css({ height: '35px', padding: "6px 10px" });
             }
