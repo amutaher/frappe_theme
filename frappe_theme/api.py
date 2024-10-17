@@ -38,3 +38,19 @@ def get_meta_fields(doctype):
     
     return fields_dict
 
+@frappe.whitelist()
+def get_permissions(doctype):
+    permissions = []
+    if frappe.has_permission(doctype,'read'):
+        permissions.append('read')
+    if frappe.has_permission(doctype,'write'):
+        permissions.append('write')
+    if frappe.has_permission(doctype,'create'):
+        permissions.append('create')
+    if frappe.has_permission(doctype,'delete'):
+        permissions.append('delete')
+    if frappe.has_permission(doctype,'submit'):
+        permissions.append('submit')
+    if frappe.has_permission(doctype,'cancel'):
+        permissions.append('cancel')
+    return permissions

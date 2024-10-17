@@ -428,7 +428,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-16 11:12:57.588704",
+ "modified": "2024-10-17 14:14:55.187511",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
@@ -444,6 +444,14 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "All",
+   "select": 1,
+   "share": 1
   }
  ],
  "sort_field": "creation",
