@@ -552,7 +552,11 @@ class SvaDataTable {
             }
             control.refresh();
         } else {
-            td.textContent = row[column.fieldname] || "";
+            if (columnField.fieldname === 'name') {
+                td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
+            }else{
+                td.textContent = row[column.fieldname] || "";
+            }
             if (columnField?.has_link) {
                 let [doctype, link_field] = columnField.has_link.split('->');
                 td.addEventListener('click', async () => {
