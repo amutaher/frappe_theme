@@ -23,7 +23,7 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns, rows, options, frm, cdtfname, doctype, crud = false }) {
+    constructor({ wrapper, columns = [], rows = [], options, frm, cdtfname, doctype, crud = false }) {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
@@ -32,21 +32,73 @@ class SvaDataTable {
         this.crud = crud;
         this.doctype = doctype;
         this.childTableFieldName = cdtfname;
+        this.connection = this.options?.connection;
         this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
-        this.noDataFound = this.createNoDataFoundPage();
         this.table_wrapper = document.createElement('div');
         this.table_wrapper.id = 'table_wrapper';
-        this.table = this.createTable(this.crud);
-        if (!this.table_wrapper.querySelector('table')) {
-            this.table_wrapper.appendChild(this.table);
+        this.table = null;
+        this.permissions = [];
+        if (this.columns.length > 0 && this.rows.length > 0) {
+            if (!this.childTableFieldName) {
+                this.get_permissions(this.doctype).then(async perms => {
+                    this.permissions = perms;
+                    if (perms.length && perms.includes('read')) {
+                        this.table = this.createTable(this.crud);
+                        if (!this.table_wrapper.querySelector('table')) {
+                            this.table_wrapper.appendChild(this.table);
+                        }
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                        if (!this.wrapper.querySelector('#table_wrapper')) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupCreateButton(this.wrapper, this.crud);
+                    } else {
+                        this.handleNoPermission();
+                    }
+                })
+            } else {
+                this.table = this.createTable(this.crud);
+                if (!this.table_wrapper.querySelector('table')) {
+                    this.table_wrapper.appendChild(this.table);
+                }
+                this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                if (!this.wrapper.querySelector('#table_wrapper')) {
+                    this.wrapper.appendChild(this.table_wrapper);
+                }
+                this.tBody = this.table.querySelector('tbody');
+                this.setupCreateButton(this.wrapper, this.crud);
+            }
+        } else {
+            this.get_permissions(this.doctype).then(async perms => {
+                this.permissions = perms;
+                if (perms.length && perms.includes('read')) {
+                    let settings = await this.getViewSettings(this.doctype);
+                    if (settings?.fields) {
+                        let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                        this.columns = [{
+                            fieldname: 'name',
+                            label: 'ID'
+                        }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
+                        this.rows = await this.getDocList(this.doctype, [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]], ['*'])
+                        this.table = this.createTable(this.crud);
+                        if (!this.table_wrapper.querySelector('table')) {
+                            this.table_wrapper.appendChild(this.table);
+                        }
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                        if (!this.wrapper.querySelector('#table_wrapper')) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupCreateButton(this.wrapper, this.crud);
+                    }
+                } else {
+                    this.handleNoPermission();
+                }
+            })
         }
-        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-        if (!this.wrapper.querySelector('#table_wrapper')) {
-            this.wrapper.appendChild(this.table_wrapper);
-        }
-        this.setupCreateButton(this.wrapper, this.crud);
-        this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
 
@@ -59,9 +111,8 @@ class SvaDataTable {
         return tableWrapper;
     }
     async setupCreateButton(wrapper, crud) {
-        let perms = await this.get_permissions(this.doctype);
         if (crud) {
-            if (perms.length && perms.includes('create')) {
+            if (this.permissions.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('button#create')) {
                     const create_button = document.createElement('button');
                     create_button.id = 'create';
@@ -77,9 +128,6 @@ class SvaDataTable {
         }
     }
     async get_permissions(doctype) {
-        if (!this.crud) {
-            return [];
-        }
         let res = await frappe.call({
             method: 'frappe_theme.api.get_permissions',
             args: { doctype },
@@ -257,7 +305,7 @@ class SvaDataTable {
 
     createTableBody(crud) {
         if (this.rows.length === 0) {
-            return this.noDataFound;
+            return this.createNoDataFoundPage();
         }
         const tbody = document.createElement('tbody');
         this.tBody = tbody;
@@ -273,7 +321,6 @@ class SvaDataTable {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
         const renderBatch = async () => {
-            let perms = await this.get_permissions(this.doctype);
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
@@ -324,7 +371,7 @@ class SvaDataTable {
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
 
-                    if (perms.length && perms.includes('write')) {
+                    if (this.permissions.length && this.permissions.includes('write')) {
                         const editOption = document.createElement('a');
                         editOption.classList.add('dropdown-item');
                         editOption.textContent = "Edit";
@@ -333,7 +380,7 @@ class SvaDataTable {
                         });
                         dropdownMenu.appendChild(editOption);
                     }
-                    if (perms.length && perms.includes('delete')) {
+                    if (this.permissions.length && this.permissions.includes('delete')) {
                         const deleteOption = document.createElement('a');
                         deleteOption.classList.add('dropdown-item');
                         deleteOption.textContent = "Delete";
@@ -352,10 +399,7 @@ class SvaDataTable {
                                 linkOption.addEventListener('click', async () => {
                                     await this.childTableDialog(link.link_doctype, link.link_fieldname, primaryKey, row);
                                 });
-                                let perms = await this.get_permissions(link.link_doctype);
-                                if (perms.length && perms.includes('read')) {
-                                    dropdownMenu.appendChild(linkOption);
-                                }
+                                dropdownMenu.appendChild(linkOption);
                             });
                         }
                     });
@@ -404,31 +448,17 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
-        let settings = await this.getViewSettings(doctype);
-        if (settings?.fields) {
-            let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
-            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: doctype });
-            let _columns = [{
-                fieldname: 'name',
-                label: 'ID'
-            }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
-            let rows = await this.getDocList(doctype, [
-                [doctype, primaryKey, '=', primaryKeyValue]
-            ], ['*'])
-
-            let datatable = new SvaDataTable({
-                wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
-                columns: _columns,
-                rows: rows,
-                doctype: doctype,
-                crud: true,
-                frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
-                options: {
-                    serialNumberColumn: true,
-                    editable: false,
-                }
-            });
-        }
+        let datatable = new SvaDataTable({
+            wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
+            doctype: doctype,
+            crud: true,
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
+            options: {
+                connection: { link_doctype: this.doctype, link_fieldname: primaryKey },
+                serialNumberColumn: true,
+                editable: false,
+            },
+        });
     }
 
     sortByColumn(column, direction, updateTable = true) {
@@ -457,12 +487,12 @@ class SvaDataTable {
 
     updateTableBody() {
         if (this.rows.length === 0) {
-            this.table.replaceChild(this.noDataFound, this.tBody);
+            this.table.replaceChild(this.createNoDataFoundPage(), this.tBody);
             return;
         }
         const oldTbody = this.table.querySelector('tbody');
         const newTbody = this.createTableBody(this.crud);
-        this.table.replaceChild(newTbody, oldTbody || this.noDataFound); // Replace old tbody with new sorted tbody
+        this.table.replaceChild(newTbody, oldTbody || noDataFoundPage); // Replace old tbody with new sorted tbody
     }
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
@@ -554,18 +584,13 @@ class SvaDataTable {
         } else {
             if (columnField.fieldname === 'name') {
                 td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
-            }else{
+            } else {
                 td.textContent = row[column.fieldname] || "";
             }
             if (columnField?.has_link) {
                 let [doctype, link_field] = columnField.has_link.split('->');
                 td.addEventListener('click', async () => {
-                    let perms = await this.get_permissions(doctype);
-                    if (perms.length && perms.includes('read')) {
-                        await this.childTableDialog(doctype, link_field, row?.name, row);
-                    } else {
-                        frappe.msgprint('You do not have permission to access this resource.');
-                    }
+                    await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
                 $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer', color: 'blue' });
             } else {
@@ -619,6 +644,19 @@ class SvaDataTable {
         noDataFoundText.textContent = "No data found!";
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
+    }
+    handleNoPermission() {
+        let noPermissionPage = document.createElement('div');
+        noPermissionPage.id = 'noPermissionPage';
+        noPermissionPage.style.height = '100%';
+        noPermissionPage.style.fontSize = '20px';
+        noPermissionPage.style.textAlign = 'center';
+        noPermissionPage.style.paddingTop = '50px';
+        noPermissionPage.style.color = 'grey';
+        noPermissionPage.textContent = "You do not have permission through role permission to access this resource.";
+        if (!this.wrapper.querySelector('#noPermissionPage')) {
+            this.wrapper.appendChild(noPermissionPage);
+        }
     }
 }
 
