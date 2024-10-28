@@ -637,7 +637,7 @@ class SvaDataTable {
         noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
         noDataFoundPage.style.fontSize = '20px';
         const noDataFoundText = document.createElement('td');
-        noDataFoundText.colSpan = this.columns.length + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
+        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
         noDataFoundText.style.paddingTop = '30px';
         noDataFoundText.style.color = 'grey';
