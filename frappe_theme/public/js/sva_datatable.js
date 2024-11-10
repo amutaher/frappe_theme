@@ -23,7 +23,7 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns = [], rows = [], options, frm, cdtfname, doctype, crud = false }) {
+    constructor({ wrapper, columns = [], rows = [], options, frm, cdtfname, doctype, crud = false, render_only = false }) {
         this.rows = rows;
         this.columns = columns;
         this.options = options;
@@ -39,65 +39,78 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
-        if (this.columns.length > 0 && this.rows.length > 0) {
-            if (!this.childTableFieldName) {
+        if (!render_only) {
+            if (this.columns.length > 0 && this.rows.length > 0) {
+                if (!this.childTableFieldName && !this.rows.length) {
+                    this.get_permissions(this.doctype).then(async perms => {
+                        this.permissions = perms;
+                        if (perms.length && perms.includes('read')) {
+                            this.table = this.createTable(this.crud);
+                            if (!this.table_wrapper.querySelector('table')) {
+                                this.table_wrapper.appendChild(this.table);
+                            }
+                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                            if (!this.wrapper.querySelector('#table_wrapper')) {
+                                this.wrapper.appendChild(this.table_wrapper);
+                            }
+                            this.tBody = this.table.querySelector('tbody');
+                            this.setupCreateButton(this.wrapper, this.crud);
+                        } else {
+                            this.handleNoPermission();
+                        }
+                    })
+                } else {
+                    this.table = this.createTable(this.crud);
+                    if (!this.table_wrapper.querySelector('table')) {
+                        this.table_wrapper.appendChild(this.table);
+                    }
+                    this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                    if (!this.wrapper.querySelector('#table_wrapper')) {
+                        this.wrapper.appendChild(this.table_wrapper);
+                    }
+                    this.tBody = this.table.querySelector('tbody');
+                    this.setupCreateButton(this.wrapper, this.crud);
+                }
+            } else {
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
                     if (perms.length && perms.includes('read')) {
-                        this.table = this.createTable(this.crud);
-                        if (!this.table_wrapper.querySelector('table')) {
-                            this.table_wrapper.appendChild(this.table);
+                        let settings = await this.getViewSettings(this.doctype);
+                        if (settings?.fields) {
+                            let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
+                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                            this.columns = [{
+                                fieldname: 'name',
+                                label: 'ID'
+                            }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
+                            this.rows = await this.getDocList(this.doctype, [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]], ['*'])
+                            this.table = this.createTable(this.crud);
+                            if (!this.table_wrapper.querySelector('table')) {
+                                this.table_wrapper.appendChild(this.table);
+                            }
+                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                            if (!this.wrapper.querySelector('#table_wrapper')) {
+                                this.wrapper.appendChild(this.table_wrapper);
+                            }
+                            this.tBody = this.table.querySelector('tbody');
+                            this.setupCreateButton(this.wrapper, this.crud);
                         }
-                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                        if (!this.wrapper.querySelector('#table_wrapper')) {
-                            this.wrapper.appendChild(this.table_wrapper);
-                        }
-                        this.tBody = this.table.querySelector('tbody');
-                        this.setupCreateButton(this.wrapper, this.crud);
                     } else {
                         this.handleNoPermission();
                     }
                 })
-            } else {
-                this.table = this.createTable(this.crud);
-                if (!this.table_wrapper.querySelector('table')) {
-                    this.table_wrapper.appendChild(this.table);
-                }
-                this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                if (!this.wrapper.querySelector('#table_wrapper')) {
-                    this.wrapper.appendChild(this.table_wrapper);
-                }
-                this.tBody = this.table.querySelector('tbody');
-                this.setupCreateButton(this.wrapper, this.crud);
             }
         } else {
-            this.get_permissions(this.doctype).then(async perms => {
-                this.permissions = perms;
-                if (perms.length && perms.includes('read')) {
-                    let settings = await this.getViewSettings(this.doctype);
-                    if (settings?.fields) {
-                        let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
-                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
-                        this.columns = [{
-                            fieldname: 'name',
-                            label: 'ID'
-                        }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
-                        this.rows = await this.getDocList(this.doctype, [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]], ['*'])
-                        this.table = this.createTable(this.crud);
-                        if (!this.table_wrapper.querySelector('table')) {
-                            this.table_wrapper.appendChild(this.table);
-                        }
-                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                        if (!this.wrapper.querySelector('#table_wrapper')) {
-                            this.wrapper.appendChild(this.table_wrapper);
-                        }
-                        this.tBody = this.table.querySelector('tbody');
-                        this.setupCreateButton(this.wrapper, this.crud);
-                    }
-                } else {
-                    this.handleNoPermission();
-                }
-            })
+            this.table = this.createTable(this.crud);
+            if (!this.table_wrapper.querySelector('table')) {
+                this.table_wrapper.appendChild(this.table);
+            }
+            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+            if (!this.wrapper.querySelector('#table_wrapper')) {
+                this.wrapper.appendChild(this.table_wrapper);
+            }
+            this.tBody = this.table.querySelector('tbody');
+            this.setupCreateButton(this.wrapper, this.crud);
         }
         return this.wrapper;
     }
