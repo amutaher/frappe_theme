@@ -505,7 +505,7 @@ class SvaDataTable {
         }
         const oldTbody = this.table.querySelector('tbody');
         const newTbody = this.createTableBody(this.crud);
-        this.table.replaceChild(newTbody, oldTbody || noDataFoundPage); // Replace old tbody with new sorted tbody
+        this.table.replaceChild(newTbody, oldTbody || this.table.querySelector('#noDataFoundPage')); // Replace old tbody with new sorted tbody
     }
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
