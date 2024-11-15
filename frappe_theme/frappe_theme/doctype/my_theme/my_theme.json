@@ -63,6 +63,8 @@
   "number_card_border_color",
   "column_break_swjv",
   "number_card_text_color",
+  "section_break_bbon",
+  "dialog_width",
   "input_tab",
   "input_background_color",
   "input_border_color",
@@ -70,6 +72,7 @@
   "input_text_color",
   "input_label_color",
   "workspace_remapping_tab",
+  "sidebar_element_selector",
   "workspace"
  ],
  "fields": [
@@ -403,13 +406,29 @@
    "fieldname": "disable_flex_card_content_on_mobile_view",
    "fieldtype": "Check",
    "label": "Disable flex card content on mobile view"
+  },
+  {
+   "fieldname": "sidebar_element_selector",
+   "fieldtype": "Data",
+   "label": "Sidebar Element Selector",
+   "mandatory_depends_on": "eval:doc.workspace.length > 0"
+  },
+  {
+   "fieldname": "section_break_bbon",
+   "fieldtype": "Section Break",
+   "label": "Dialog"
+  },
+  {
+   "fieldname": "dialog_width",
+   "fieldtype": "Data",
+   "label": "SVA DataTable Dialog Width"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-17 15:11:54.405967",
+ "modified": "2024-10-17 14:14:55.187511",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
@@ -425,6 +444,14 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "All",
+   "select": 1,
+   "share": 1
   }
  ],
  "sort_field": "creation",
