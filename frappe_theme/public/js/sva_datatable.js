@@ -23,9 +23,16 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns = [], rows = [], options, frm, cdtfname, doctype, crud = false, render_only = false }) {
+    constructor({ wrapper, columns = [], rows = [], limit = 10, options, frm, cdtfname, doctype, crud = false, render_only = false }) {
         this.rows = rows;
         this.columns = columns;
+
+        // pagination
+        this.page = 1;
+        this.limit = limit;
+        this.total = this.rows.length;
+        // pagination
+
         this.options = options;
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
@@ -40,66 +47,34 @@ class SvaDataTable {
         this.table = null;
         this.permissions = [];
         if (!render_only) {
-            if (this.columns.length > 0 && this.rows.length > 0) {
-                if (!this.childTableFieldName && !this.rows.length) {
-                    this.get_permissions(this.doctype).then(async perms => {
-                        this.permissions = perms;
-                        if (perms.length && perms.includes('read')) {
-                            this.table = this.createTable(this.crud);
-                            if (!this.table_wrapper.querySelector('table')) {
-                                this.table_wrapper.appendChild(this.table);
-                            }
-                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                            if (!this.wrapper.querySelector('#table_wrapper')) {
-                                this.wrapper.appendChild(this.table_wrapper);
-                            }
-                            this.tBody = this.table.querySelector('tbody');
-                            this.setupCreateButton(this.wrapper, this.crud);
-                        } else {
-                            this.handleNoPermission();
+            this.get_permissions(this.doctype).then(async perms => {
+                this.permissions = perms;
+                if (perms.length && perms.includes('read')) {
+                    let settings = await this.getViewSettings(this.doctype);
+                    if (settings?.fields) {
+                        let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                        this.columns = [{
+                            fieldname: 'name',
+                            label: 'ID'
+                        }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
+                        await this.setupTotalCount();
+                        this.rows = await this.getDocList()
+                        this.table = this.createTable(this.crud);
+                        if (!this.table_wrapper.querySelector('table')) {
+                            this.table_wrapper.appendChild(this.table);
                         }
-                    })
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                        if (!this.wrapper.querySelector('#table_wrapper')) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupFooter(this.wrapper, this.crud);
+                    }
                 } else {
-                    this.table = this.createTable(this.crud);
-                    if (!this.table_wrapper.querySelector('table')) {
-                        this.table_wrapper.appendChild(this.table);
-                    }
-                    this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                    if (!this.wrapper.querySelector('#table_wrapper')) {
-                        this.wrapper.appendChild(this.table_wrapper);
-                    }
-                    this.tBody = this.table.querySelector('tbody');
-                    this.setupCreateButton(this.wrapper, this.crud);
+                    this.handleNoPermission();
                 }
-            } else {
-                this.get_permissions(this.doctype).then(async perms => {
-                    this.permissions = perms;
-                    if (perms.length && perms.includes('read')) {
-                        let settings = await this.getViewSettings(this.doctype);
-                        if (settings?.fields) {
-                            let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
-                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
-                            this.columns = [{
-                                fieldname: 'name',
-                                label: 'ID'
-                            }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
-                            this.rows = await this.getDocList(this.doctype, [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]], ['*'])
-                            this.table = this.createTable(this.crud);
-                            if (!this.table_wrapper.querySelector('table')) {
-                                this.table_wrapper.appendChild(this.table);
-                            }
-                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                            if (!this.wrapper.querySelector('#table_wrapper')) {
-                                this.wrapper.appendChild(this.table_wrapper);
-                            }
-                            this.tBody = this.table.querySelector('tbody');
-                            this.setupCreateButton(this.wrapper, this.crud);
-                        }
-                    } else {
-                        this.handleNoPermission();
-                    }
-                })
-            }
+            })
         } else {
             this.table = this.createTable(this.crud);
             if (!this.table_wrapper.querySelector('table')) {
@@ -110,36 +85,165 @@ class SvaDataTable {
                 this.wrapper.appendChild(this.table_wrapper);
             }
             this.tBody = this.table.querySelector('tbody');
-            this.setupCreateButton(this.wrapper, this.crud);
         }
         return this.wrapper;
     }
 
     setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};`;
+        if (!wrapper.querySelector('div#header-element')) {
+            let header = document.createElement('div');
+            header.id = 'header-element';
+            header.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
+            wrapper.appendChild(header);
+        }
+
+        if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+            let count_wrapper = document.createElement('div');
+            count_wrapper.id = 'count-wrapper';
+            wrapper.querySelector('div#header-element').appendChild(count_wrapper);
+        }
         return wrapper;
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
         return tableWrapper;
     }
-    async setupCreateButton(wrapper, crud) {
+    async setupTotalCount() {
+        if (!this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element')) {
+            this.total = await frappe.db.count(this.doctype, { filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]] });
+            let count = document.createElement('span');
+            count.id = 'count-element';
+            count.textContent = `Total records: ${this.total}`;
+            count.style = 'font-size:12px;';
+            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').appendChild(count);
+        } else {
+            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element').textContent = `Total records: ${this.total}`;
+        }
+    }
+    async setupFooter(wrapper, crud) {
         if (crud) {
+            let footer = document.createElement('div');
+            footer.id = 'footer-element';
+            footer.style = 'display:flex;width:100%;height:fit-content;margin-top:10px;align-items:center;justify-content:space-between;';
+            if (!wrapper.querySelector('div#footer-element')) {
+                wrapper.appendChild(footer);
+            }
+            let buttonContainer = document.createElement('div');
+            buttonContainer.id = 'create-button-container';
+            if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
+                wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
+            }
             if (this.permissions.length && this.permissions.includes('create')) {
-                if (!wrapper.querySelector('button#create')) {
+                if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
                     create_button.id = 'create';
                     create_button.textContent = "Create";
-                    create_button.classList.add('btn', 'btn-primary');
-                    create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;';
+                    create_button.classList.add('btn', 'btn-primary', 'btn-sm');
+                    create_button.style = 'width:fit-content;height:fit-content;';
                     create_button.addEventListener('click', async () => {
                         await this.createFormDialog(this.doctype);
                     });
-                    wrapper.appendChild(create_button);
+                    wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
+                }
+            }
+            if (this.total > this.limit) {
+                if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
+                    wrapper.querySelector('div#footer-element').appendChild(await this.setupPagination());
                 }
             }
         }
     }
+    async setupPagination() {
+        let pagination = document.createElement('div');
+        pagination.id = 'pagination-element';
+        pagination.setAttribute('aria-label', 'Page navigation');
+        pagination.setAttribute('style', 'font-size:12px !important;height:33px !important;');
+
+        let paginationList = document.createElement('ul');
+        paginationList.classList.add('pagination', 'justify-content-center');
+        // Previous button
+        let prevBtnItem = document.createElement('li');
+        prevBtnItem.id = 'prevBtnItem';
+        prevBtnItem.classList.add('page-item');
+        let prevBtn = document.createElement('button');
+        prevBtn.classList.add('page-link');
+        prevBtn.textContent = 'Prev';
+        prevBtn.addEventListener('click', async () => {
+            if (this.page > 1) {
+                this.page -= 1;
+                this.rows = await this.getDocList();
+                this.updateTableBody();
+                this.updatePageButtons();
+            }
+        });
+        prevBtnItem.appendChild(prevBtn);
+        paginationList.appendChild(prevBtnItem);
+
+        // Page numbers container
+        this.pageButtonsContainer = paginationList;
+        this.updatePageButtons();
+
+        // Next button
+        let nextBtnItem = document.createElement('li');
+        nextBtnItem.id = 'nextBtnItem';
+        nextBtnItem.classList.add('page-item');
+        let nextBtn = document.createElement('button');
+        nextBtn.classList.add('page-link');
+        nextBtn.textContent = 'Next';
+        nextBtn.addEventListener('click', async () => {
+            if (this.page < Math.ceil(this.total / this.limit)) {
+                this.page += 1;
+                this.rows = await this.getDocList();
+                this.updateTableBody();
+                this.updatePageButtons();
+            }
+        });
+        nextBtnItem.appendChild(nextBtn);
+        paginationList.appendChild(nextBtnItem);
+
+        pagination.appendChild(paginationList);
+        return pagination;
+    }
+
+    updatePageButtons() {
+        // Clear existing page buttons
+        this.pageButtonsContainer.querySelectorAll('.page-item:not(:first-child):not(:last-child)').forEach(el => el.remove());
+        if (this.page !== 1) {
+            this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.remove('disabled');  // Disable if on first page
+        } else {
+            this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.add('disabled');  // Disable if on first page
+        }
+        if (this.page === Math.ceil(this.total / this.limit)) {
+            this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.add('disabled');  // Disable if on last page
+        } else {
+            this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.remove('disabled');  // Disable if on last page
+        }
+        let totalPages = Math.ceil(this.total / this.limit);
+        for (let i = 1; i <= totalPages; i++) {
+            let pageItem = document.createElement('li');
+            pageItem.classList.add('page-item');
+            if (i === this.page) {
+                pageItem.classList.add('active');
+            }
+
+            let pageBtn = document.createElement('button');
+            pageBtn.classList.add('page-link');
+            pageBtn.textContent = i;
+
+            pageBtn.addEventListener('click', async () => {
+                if (i !== this.page) {  // Only update if it's a different page
+                    this.page = i;
+                    this.rows = await this.getDocList();
+                    this.updateTableBody();
+                    this.updatePageButtons();
+                }
+            });
+            pageItem.appendChild(pageBtn);
+            this.pageButtonsContainer.insertBefore(pageItem, this.pageButtonsContainer.children[i]);
+        }
+    }
+
     async get_permissions(doctype) {
         let res = await frappe.call({
             method: 'frappe_theme.api.get_permissions',
@@ -222,6 +326,7 @@ class SvaDataTable {
                 }
                 dialog.clear();
                 dialog.hide();
+                await this.setupTotalCount();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -344,7 +449,11 @@ class SvaDataTable {
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
                     serialTd.style = 'min-width:40px; text-align:center;';
-                    serialTd.textContent = rowIndex + 1;
+                    if (this.page > 1) {
+                        serialTd.textContent = ((this.page - 1) * this.limit) + (rowIndex + 1);
+                    } else {
+                        serialTd.textContent = rowIndex + 1;
+                    }
                     tr.appendChild(serialTd);
                 }
 
@@ -611,23 +720,23 @@ class SvaDataTable {
             }
         }
     }
-    getDocList(doctype, filters, fields = ['*']) {
-        return new Promise((resolve, reject) => {
-            frappe.call({
+    async getDocList() {
+        try {
+            let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {
-                    doctype,
-                    filters,
-                    fields
-                },
-                callback: function (response) {
-                    resolve(response.message);
-                },
-                error: (err) => {
-                    reject(err)
+                    doctype: this.doctype,
+                    filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]],
+                    fields: this.fields || ['*'],
+                    limit_page_length: this.limit,
+                    order_by: 'creation desc',
+                    limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
                 }
             });
-        })
+            return res.message;
+        } catch (error) {
+            return [];
+        }
     }
 
     getViewSettings(doctype) {
