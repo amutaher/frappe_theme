@@ -23,55 +23,239 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns, rows, options, frm, cdtfname, doctype, crud = false }) {
+    constructor({ wrapper, columns = [], rows = [], limit = 10, options, frm, cdtfname, doctype, crud = false, render_only = false }) {
         this.rows = rows;
         this.columns = columns;
+
+        // pagination
+        this.page = 1;
+        this.limit = limit;
+        this.total = this.rows.length;
+        // pagination
+
         this.options = options;
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
         this.crud = crud;
         this.doctype = doctype;
         this.childTableFieldName = cdtfname;
+        this.connection = this.options?.connection;
         this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
-        this.noDataFound = this.createNoDataFoundPage();
         this.table_wrapper = document.createElement('div');
         this.table_wrapper.id = 'table_wrapper';
-        this.table = this.createTable(this.crud);
-        if (!this.table_wrapper.querySelector('table')) {
-            this.table_wrapper.appendChild(this.table);
+        this.table = null;
+        this.permissions = [];
+        if (!render_only) {
+            this.get_permissions(this.doctype).then(async perms => {
+                this.permissions = perms;
+                if (perms.length && perms.includes('read')) {
+                    let settings = await this.getViewSettings(this.doctype);
+                    if (settings?.fields) {
+                        let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                        this.columns = [{
+                            fieldname: 'name',
+                            label: 'ID'
+                        }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
+                        await this.setupTotalCount();
+                        this.rows = await this.getDocList()
+                        this.table = this.createTable(this.crud);
+                        if (!this.table_wrapper.querySelector('table')) {
+                            this.table_wrapper.appendChild(this.table);
+                        }
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+                        if (!this.wrapper.querySelector('#table_wrapper')) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupFooter(this.wrapper, this.crud);
+                    }
+                } else {
+                    this.handleNoPermission();
+                }
+            })
+        } else {
+            this.table = this.createTable(this.crud);
+            if (!this.table_wrapper.querySelector('table')) {
+                this.table_wrapper.appendChild(this.table);
+            }
+            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+            if (!this.wrapper.querySelector('#table_wrapper')) {
+                this.wrapper.appendChild(this.table_wrapper);
+            }
+            this.tBody = this.table.querySelector('tbody');
         }
-        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-        if (!this.wrapper.querySelector('#table_wrapper')) {
-            this.wrapper.appendChild(this.table_wrapper);
-        }
-        this.setupCreateButton(this.wrapper, this.crud);
-        this.tBody = this.table.querySelector('tbody');
         return this.wrapper;
     }
 
     setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};`;
+        if (!wrapper.querySelector('div#header-element')) {
+            let header = document.createElement('div');
+            header.id = 'header-element';
+            header.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
+            wrapper.appendChild(header);
+        }
+
+        if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+            let count_wrapper = document.createElement('div');
+            count_wrapper.id = 'count-wrapper';
+            wrapper.querySelector('div#header-element').appendChild(count_wrapper);
+        }
         return wrapper;
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
         return tableWrapper;
     }
-    setupCreateButton(wrapper, crud) {
+    async setupTotalCount() {
+        if (!this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element')) {
+            this.total = await frappe.db.count(this.doctype, { filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]] });
+            let count = document.createElement('span');
+            count.id = 'count-element';
+            count.textContent = `Total records: ${this.total}`;
+            count.style = 'font-size:12px;';
+            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').appendChild(count);
+        } else {
+            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element').textContent = `Total records: ${this.total}`;
+        }
+    }
+    async setupFooter(wrapper, crud) {
         if (crud) {
-            if (!wrapper.querySelector('button#create')) {
-                const create_button = document.createElement('button');
-                create_button.id = 'create';
-                create_button.textContent = "Create";
-                create_button.classList.add('btn', 'btn-primary');
-                create_button.style = 'width:fit-content;margin-top:10px;margin-bottom:5px;';
-                create_button.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype);
-                });
-                wrapper.appendChild(create_button);
+            let footer = document.createElement('div');
+            footer.id = 'footer-element';
+            footer.style = 'display:flex;width:100%;height:fit-content;margin-top:10px;align-items:center;justify-content:space-between;';
+            if (!wrapper.querySelector('div#footer-element')) {
+                wrapper.appendChild(footer);
+            }
+            let buttonContainer = document.createElement('div');
+            buttonContainer.id = 'create-button-container';
+            if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
+                wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
+            }
+            if (this.permissions.length && this.permissions.includes('create')) {
+                if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
+                    const create_button = document.createElement('button');
+                    create_button.id = 'create';
+                    create_button.textContent = "Create";
+                    create_button.classList.add('btn', 'btn-primary', 'btn-sm');
+                    create_button.style = 'width:fit-content;height:fit-content;';
+                    create_button.addEventListener('click', async () => {
+                        await this.createFormDialog(this.doctype);
+                    });
+                    wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
+                }
+            }
+            if (this.total > this.limit) {
+                if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
+                    wrapper.querySelector('div#footer-element').appendChild(await this.setupPagination());
+                }
             }
         }
+    }
+    async setupPagination() {
+        let pagination = document.createElement('div');
+        pagination.id = 'pagination-element';
+        pagination.setAttribute('aria-label', 'Page navigation');
+        pagination.setAttribute('style', 'font-size:12px !important;height:33px !important;');
+
+        let paginationList = document.createElement('ul');
+        paginationList.classList.add('pagination', 'justify-content-center');
+        // Previous button
+        let prevBtnItem = document.createElement('li');
+        prevBtnItem.id = 'prevBtnItem';
+        prevBtnItem.classList.add('page-item');
+        let prevBtn = document.createElement('button');
+        prevBtn.classList.add('page-link');
+        prevBtn.textContent = 'Prev';
+        prevBtn.addEventListener('click', async () => {
+            if (this.page > 1) {
+                this.page -= 1;
+                this.rows = await this.getDocList();
+                this.updateTableBody();
+                this.updatePageButtons();
+            }
+        });
+        prevBtnItem.appendChild(prevBtn);
+        paginationList.appendChild(prevBtnItem);
+
+        // Page numbers container
+        this.pageButtonsContainer = paginationList;
+        this.updatePageButtons();
+
+        // Next button
+        let nextBtnItem = document.createElement('li');
+        nextBtnItem.id = 'nextBtnItem';
+        nextBtnItem.classList.add('page-item');
+        let nextBtn = document.createElement('button');
+        nextBtn.classList.add('page-link');
+        nextBtn.textContent = 'Next';
+        nextBtn.addEventListener('click', async () => {
+            if (this.page < Math.ceil(this.total / this.limit)) {
+                this.page += 1;
+                this.rows = await this.getDocList();
+                this.updateTableBody();
+                this.updatePageButtons();
+            }
+        });
+        nextBtnItem.appendChild(nextBtn);
+        paginationList.appendChild(nextBtnItem);
+
+        pagination.appendChild(paginationList);
+        return pagination;
+    }
+
+    updatePageButtons() {
+        // Clear existing page buttons
+        this.pageButtonsContainer.querySelectorAll('.page-item:not(:first-child):not(:last-child)').forEach(el => el.remove());
+        if (this.page !== 1) {
+            this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.remove('disabled');  // Disable if on first page
+        } else {
+            this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.add('disabled');  // Disable if on first page
+        }
+        if (this.page === Math.ceil(this.total / this.limit)) {
+            this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.add('disabled');  // Disable if on last page
+        } else {
+            this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.remove('disabled');  // Disable if on last page
+        }
+        let totalPages = Math.ceil(this.total / this.limit);
+        for (let i = 1; i <= totalPages; i++) {
+            let pageItem = document.createElement('li');
+            pageItem.classList.add('page-item');
+            if (i === this.page) {
+                pageItem.classList.add('active');
+            }
+
+            let pageBtn = document.createElement('button');
+            pageBtn.classList.add('page-link');
+            pageBtn.textContent = i;
+
+            pageBtn.addEventListener('click', async () => {
+                if (i !== this.page) {  // Only update if it's a different page
+                    this.page = i;
+                    this.rows = await this.getDocList();
+                    this.updateTableBody();
+                    this.updatePageButtons();
+                }
+            });
+            pageItem.appendChild(pageBtn);
+            this.pageButtonsContainer.insertBefore(pageItem, this.pageButtonsContainer.children[i]);
+        }
+    }
+
+    async get_permissions(doctype) {
+        let res = await frappe.call({
+            method: 'frappe_theme.api.get_permissions',
+            args: { doctype },
+            callback: function (response) {
+                return response.message
+            },
+            error: (err) => {
+                console.error(err);
+            }
+        });
+        return res?.message ?? [];
     }
 
     async createFormDialog(doctype, name = undefined) {
@@ -142,6 +326,7 @@ class SvaDataTable {
                 }
                 dialog.clear();
                 dialog.hide();
+                await this.setupTotalCount();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -220,14 +405,12 @@ class SvaDataTable {
     }
 
     createSortingIcon(th, column) {
-        console.log(column,'column out')
         const sortIcon = document.createElement('span');
         sortIcon.className = 'sort-icon';
         sortIcon.style = 'margin-left:5px; cursor:pointer;';
         sortIcon.innerHTML = (this?.currentSort?.direction == 'desc' && this?.currentSort?.column == column.fieldname) ? '&darr;' : '&uarr;';  // Default icon (up arrow)
         th.appendChild(sortIcon);
         th.addEventListener('click', () => {
-            console.log(column,'column in')
             const direction = this.currentSort?.column === column.fieldname && this.currentSort?.direction === 'asc' ? 'desc' : 'asc';
             this.sortByColumn(column, direction);
             if (direction === 'asc') {
@@ -240,7 +423,7 @@ class SvaDataTable {
 
     createTableBody(crud) {
         if (this.rows.length === 0) {
-            return this.noDataFound;
+            return this.createNoDataFoundPage();
         }
         const tbody = document.createElement('tbody');
         this.tBody = tbody;
@@ -255,7 +438,7 @@ class SvaDataTable {
         if (this.currentSort) {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
-        const renderBatch = () => {
+        const renderBatch = async () => {
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
@@ -266,7 +449,11 @@ class SvaDataTable {
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
                     serialTd.style = 'min-width:40px; text-align:center;';
-                    serialTd.textContent = rowIndex + 1;
+                    if (this.page > 1) {
+                        serialTd.textContent = ((this.page - 1) * this.limit) + (rowIndex + 1);
+                    } else {
+                        serialTd.textContent = rowIndex + 1;
+                    }
                     tr.appendChild(serialTd);
                 }
 
@@ -294,7 +481,6 @@ class SvaDataTable {
                 if (crud) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;';
-
                     const dropdown = document.createElement('div');
                     dropdown.classList.add('dropdown');
 
@@ -307,23 +493,28 @@ class SvaDataTable {
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
 
-                    const editOption = document.createElement('a');
-                    editOption.classList.add('dropdown-item');
-                    editOption.textContent = "Edit";
-                    editOption.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype, primaryKey);
-                    });
-
-                    const deleteOption = document.createElement('a');
-                    deleteOption.classList.add('dropdown-item');
-                    deleteOption.textContent = "Delete";
-                    deleteOption.addEventListener('click', async () => {
-                        await this.deleteRecord(this.doctype, primaryKey);
-                    });
+                    if (this.permissions.length && this.permissions.includes('write')) {
+                        const editOption = document.createElement('a');
+                        editOption.classList.add('dropdown-item');
+                        editOption.textContent = "Edit";
+                        editOption.addEventListener('click', async () => {
+                            await this.createFormDialog(this.doctype, primaryKey);
+                        });
+                        dropdownMenu.appendChild(editOption);
+                    }
+                    if (this.permissions.length && this.permissions.includes('delete')) {
+                        const deleteOption = document.createElement('a');
+                        deleteOption.classList.add('dropdown-item');
+                        deleteOption.textContent = "Delete";
+                        deleteOption.addEventListener('click', async () => {
+                            await this.deleteRecord(this.doctype, primaryKey);
+                        });
+                        dropdownMenu.appendChild(deleteOption);
+                    }
                     frappe.call('frappe_theme.api.get_doctype_fields', { doctype: this.doctype }).then(response => {
                         let doctypeInfo = response?.message;
                         if (doctypeInfo?.links?.length) {
-                            doctypeInfo.links.forEach(link => {
+                            doctypeInfo.links.forEach(async link => {
                                 const linkOption = document.createElement('a');
                                 linkOption.classList.add('dropdown-item');
                                 linkOption.textContent = link.link_doctype;
@@ -334,13 +525,12 @@ class SvaDataTable {
                             });
                         }
                     });
-                    dropdownMenu.appendChild(editOption);
-                    dropdownMenu.appendChild(deleteOption);
                     dropdown.appendChild(dropdownBtn);
                     dropdown.appendChild(dropdownMenu);
                     action_td.appendChild(dropdown);
-
-                    tr.appendChild(action_td);
+                    if (dropdownMenu.children?.length > 0) {
+                        tr.appendChild(action_td);
+                    }
                 }
 
                 this.tBody.appendChild(tr);
@@ -362,7 +552,6 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
-
     async childTableDialog(doctype, primaryKey, primaryKeyValue, parentRow) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
@@ -372,32 +561,26 @@ class SvaDataTable {
                 options: `<div id="${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}"></div>`,
             }],
         });
+        dialog.onhide = async function () {
+            let updated_doc = await frappe.db.get_doc(this.doctype, parentRow.name);
+            let idx = this.rows.findIndex(r => r.name === parentRow.name);
+            this.rows[idx] = updated_doc;
+            this.updateTableBody();
+        }.bind(this);
+        let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
+        $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
-        let settings = await this.getViewSettings(doctype);
-        if (settings?.fields) {
-            let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
-            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: doctype });
-            let _columns = [{
-                fieldname: 'name',
-                label: 'ID'
-            }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
-            let rows = await this.getDocList(doctype, [
-                [doctype, primaryKey, '=', primaryKeyValue]
-            ], ['*'])
-
-            let datatable = new SvaDataTable({
-                wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
-                columns: _columns,
-                rows: rows,
-                doctype: doctype,
-                crud: true,
-                frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
-                options: {
-                    serialNumberColumn: true,
-                    editable: false,
-                }
-            });
-        }
+        let datatable = new SvaDataTable({
+            wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
+            doctype: doctype,
+            crud: true,
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
+            options: {
+                connection: { link_doctype: this.doctype, link_fieldname: primaryKey },
+                serialNumberColumn: true,
+                editable: false,
+            },
+        });
     }
 
     sortByColumn(column, direction, updateTable = true) {
@@ -426,12 +609,12 @@ class SvaDataTable {
 
     updateTableBody() {
         if (this.rows.length === 0) {
-            this.table.replaceChild(this.noDataFound, this.tBody);
+            this.table.replaceChild(this.createNoDataFoundPage(), this.tBody);
             return;
         }
         const oldTbody = this.table.querySelector('tbody');
         const newTbody = this.createTableBody(this.crud);
-        this.table.replaceChild(newTbody, oldTbody || this.noDataFound); // Replace old tbody with new sorted tbody
+        this.table.replaceChild(newTbody, oldTbody || this.table.querySelector('#noDataFoundPage')); // Replace old tbody with new sorted tbody
     }
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
@@ -508,7 +691,7 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (['Link','HTML'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
@@ -521,35 +704,39 @@ class SvaDataTable {
             }
             control.refresh();
         } else {
-            td.textContent = row[column.fieldname] || "";
+            if (columnField.fieldname === 'name') {
+                td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
+            } else {
+                td.textContent = row[column.fieldname] || "";
+            }
             if (columnField?.has_link) {
                 let [doctype, link_field] = columnField.has_link.split('->');
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer' });
+                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer', color: 'blue' });
             } else {
                 $(td).css({ height: '35px', padding: "6px 10px" });
             }
         }
     }
-    getDocList(doctype, filters, fields = ['*']) {
-        return new Promise((resolve, reject) => {
-            frappe.call({
+    async getDocList() {
+        try {
+            let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {
-                    doctype,
-                    filters,
-                    fields
-                },
-                callback: function (response) {
-                    resolve(response.message);
-                },
-                error: (err) => {
-                    reject(err)
+                    doctype: this.doctype,
+                    filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]],
+                    fields: this.fields || ['*'],
+                    limit_page_length: this.limit,
+                    order_by: 'creation desc',
+                    limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
                 }
             });
-        })
+            return res.message;
+        } catch (error) {
+            return [];
+        }
     }
 
     getViewSettings(doctype) {
@@ -572,13 +759,26 @@ class SvaDataTable {
         noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
         noDataFoundPage.style.fontSize = '20px';
         const noDataFoundText = document.createElement('td');
-        noDataFoundText.colSpan = this.columns.length + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
+        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
         noDataFoundText.style.paddingTop = '30px';
         noDataFoundText.style.color = 'grey';
         noDataFoundText.textContent = "No data found!";
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
+    }
+    handleNoPermission() {
+        let noPermissionPage = document.createElement('div');
+        noPermissionPage.id = 'noPermissionPage';
+        noPermissionPage.style.height = '100%';
+        noPermissionPage.style.fontSize = '20px';
+        noPermissionPage.style.textAlign = 'center';
+        noPermissionPage.style.paddingTop = '50px';
+        noPermissionPage.style.color = 'grey';
+        noPermissionPage.textContent = "You do not have permission through role permission to access this resource.";
+        if (!this.wrapper.querySelector('#noPermissionPage')) {
+            this.wrapper.appendChild(noPermissionPage);
+        }
     }
 }
 
