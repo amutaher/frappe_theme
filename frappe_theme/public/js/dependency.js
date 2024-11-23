@@ -26,23 +26,69 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
         };
     }
 }
+
+const tabContent = async (frm, tab_field) => {
+    // debugger;
+    let dtFields = [];
+    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
+        let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+        let tab_fields = []
+        let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
+        if((tab_field_index + 1) > frm.meta?.fields.length){
+            return;
+        }
+        for(let i = (tab_field_index+1); i < frm.meta?.fields.length; i++){
+            let f = frm.meta?.fields[i]
+            if(f.fieldtype == 'Tab Break'){
+                break;
+            }
+            if(f.fieldtype == 'HTML'){
+                tab_fields.push(f.fieldname)
+            }
+        }
+        dtFields = dts.child_doctypes?.filter(f=> tab_fields.includes(f.html_field))
+    }
+    for (let _f of dtFields) {
+        new SvaDataTable({
+            wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+            doctype: _f.link_doctype, // Doctype name
+            crud: true,      // Enable CRUD operations (optional)
+            frm: frm,       // Pass the current form object (optional)
+            options: {
+                connection: _f,
+                serialNumberColumn: true, // Enable serial number column (optional)
+                editable: false,      // Enable editing (optional),
+            }
+        });
+    }
+}
 const mapEvents = (props) => {
     let obj = {};
-    for (let prop of props) {
-        if (prop) {
-            let abc = prop.value.split("->")
-            obj[abc[0]] = function (frm) {
-                apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
-                frm.set_value(prop.field_name, "");
+    if (props.length) {
+        for (let prop of props) {
+            if (prop) {
+                let abc = prop.value.split("->")
+                obj[abc[0]] = function (frm) {
+                    apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+                    frm.set_value(prop.field_name, "");
+                }
             }
         }
     }
     return {
-        refresh: function (frm) {
-            for (let prop of props) {
-                if (prop) {
-                    let abc = prop.value.split("->")
-                    apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+        refresh: async function (frm) {
+            let tab_field = frm.get_active_tab()?.df?.fieldname;
+            tabContent(frm, tab_field)
+            $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
+                let tab_field = frm.get_active_tab()?.df?.fieldname;
+                tabContent(frm, tab_field)
+            });
+            if (props.length) {
+                for (let prop of props) {
+                    if (prop) {
+                        let abc = prop.value.split("->")
+                        apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+                    }
                 }
             }
         },
@@ -52,16 +98,13 @@ const mapEvents = (props) => {
 async function setDynamicProperties() {
     if (cur_frm) {
         try {
-            if(cur_frm.doc.doctype == "DocType"){
-                cur_frm.add_custom_button('Set Property', ()=>{
+            if (cur_frm.doc.doctype == "DocType") {
+                cur_frm.add_custom_button('Set Property', () => {
                     set_properties(cur_frm.doc.name);
-                });      
+                });
             }
             let props = await getData(cur_frm.doc.doctype);
-            if (!props.length) {
-                return;
-            }
-            frappe.ui.form.on(cur_frm.doc.doctype, mapEvents(props));
+            frappe.ui.form.on(cur_frm.doc.doctype, mapEvents(props ?? []));
             frappe.ui.form.trigger(cur_frm.doc.doctype, 'refresh', cur_frm);
         } catch (error) {
             console.error("Error setting dynamic properties:", error);
@@ -92,7 +135,7 @@ const set_properties = async (doctype) => {
         filters: {
             doc_type: doctype
         }
-    }) 
+    })
 
     let list = new frappe.ui.Dialog({
         title: 'Set Property',
@@ -116,15 +159,15 @@ const set_properties = async (doctype) => {
         primary_action: async function () {
             let property_value = list.fields_dict.property_value.get_value()
             list.hide();
-            add_properties(doctype,property_value);
+            add_properties(doctype, property_value);
         }
     })
     list.show();
 }
 
-const add_properties = async (doctype,new_property) => {
+const add_properties = async (doctype, new_property) => {
     let fields = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: 'Property Setter' });
-   
+
     let add = new frappe.ui.Dialog({
         title: 'Add Property',
         fields: fields.message.map(d => {
@@ -133,14 +176,14 @@ const add_properties = async (doctype,new_property) => {
                 fieldname: d.fieldname,
                 fieldtype: d.fieldtype,
                 options: d.options,
-                default: d.fieldname =='property' ? new_property : '',
+                default: d.fieldname == 'property' ? new_property : '',
                 reqd: d.reqd,
-                read_only: d.fieldname =='property' ? 1 : 0,
+                read_only: d.fieldname == 'property' ? 1 : 0,
             }
         }),
         primary_action_label: 'Add',
         primary_action: async function () {
-            let  res = await frappe.call({
+            let res = await frappe.call({
                 method: 'frappe.desk.form.save.savedocs',
                 args: {
                     doc: {
