@@ -101,16 +101,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             fields: fields,
             primary_action_label: __('Save'),
             primary_action: async () => {
-                row.listview_settings = JSON.stringify(listview_fields);
-
-                // frappe.model.set_value("SVADatatable Configuration Child", frm.doc.name, "listview_settings", listview_fields)
                 frappe.model.set_value(cdt,cdn,"listview_settings",JSON.stringify(listview_fields));
-                frm.refresh_field('listview_settings');
-                frm.refresh_field('svadatatable_configuration_child');
                 list_dialog.hide();
             }
         });
-    
         list_dialog.show();
     }
     
