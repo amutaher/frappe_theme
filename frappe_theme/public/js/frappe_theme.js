@@ -309,70 +309,9 @@ const applyTheme = async () => {
         }
         .widget-head, .widget-label, .widget-title, .widget-body,.widget-content div.number{
             color: ${theme.number_card_text_color && theme.number_card_text_color} !important;
-      
-            
+        }   
     `;
     await observer_function(theme);
     document.head.appendChild(style);
 }
 applyTheme()
-
-
-
-
-// const getWorkspaceConfiguration = async () => {
-//     return new Promise((resolve, reject) => {
-//         frappe.call({
-//             method: "frappe_theme.api.get_workspace_configuration",
-//             freeze: true,
-//             callback: function (response) {
-//                 if (response.message) {
-//                     resolve(response.message);
-//                 } else {
-//                     reject('No message in response');
-//                 }
-//             },
-//             freeze_message: __("Getting workspace configuration...")
-//         });
-//     });
-// };
-
-// const updateWorkspaces = async () => {
-//     try {
-//         const workspaceConfigs = await getWorkspaceConfiguration();
-//         console.log(workspaceConfigs, "Workspace Configurations");
-
-//         if (Array.isArray(workspaceConfigs)) {
-//             workspaceConfigs.forEach(config => {
-//                 // Fetch workspace details using custom method
-//                 frappe.call({
-//                     method: 'frappe_theme.api.get_workspace',
-//                     args: { workspace_name: config.workspace_name },
-//                     callback: function (response) {
-//                         const workspace = response.message;
-//                         if (workspace) {
-                            
-                           
-//                         } else {
-//                             console.error(`Workspace "${config.workspace_name}" not found`);
-//                         }
-//                     },
-//                     error: function (error) {
-//                         console.error('Error fetching workspace details:', error);
-//                     }
-//                 });
-//             });
-//         } else {
-//             console.error('Workspace configurations are not in array format');
-//         }
-//     } catch (error) {
-//         console.error('Error updating workspaces:', error);
-//     }
-// };
-
-// // Ensure Frappe is ready before updating workspaces
-
-//     updateWorkspaces();
-
-
-
