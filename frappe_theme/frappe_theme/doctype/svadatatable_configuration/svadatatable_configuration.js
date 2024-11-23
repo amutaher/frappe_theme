@@ -106,6 +106,38 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             }
         });
         list_dialog.show();
-    }
+    },
+    async setup_crud_permissions(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        let prev_permissions = JSON.parse(row.crud_permissions ?? '["read", "write", "create", "delete"]');
+        let fields = ["read", "write", "create", "delete"].map(p => {return {
+            label: p[0].toUpperCase() + p.slice(1),
+            fieldname: p,
+            fieldtype: 'Check',
+            default: prev_permissions.includes(p) || p === "read",
+            read_only: p === "read",
+            onchange: function () {
+                const fieldname = this.df.fieldname;
+                const value = this.get_value();
+                if (value) {
+                    if (!prev_permissions.includes(fieldname)) {
+                        prev_permissions.push(fieldname);
+                    }
+                } else {
+                    prev_permissions = prev_permissions.filter(f => f !== fieldname);
+                }
+            }
+        }});
+        let permissions_dialog = new frappe.ui.Dialog({
+            title: __('CRUD Permissions'),
+            fields: fields,
+            primary_action_label: __('Save'),
+            primary_action: async () => {
+                frappe.model.set_value(cdt,cdn,"crud_permissions",JSON.stringify(prev_permissions));
+                permissions_dialog.hide();
+            }
+        });
+        permissions_dialog.show();
+    },
     
 });
