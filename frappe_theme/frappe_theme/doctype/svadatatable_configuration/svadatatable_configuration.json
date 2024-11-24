@@ -8,7 +8,7 @@
  "field_order": [
   "parent_doctype",
   "child_doctypes",
-  "doctype_links"
+  "child_confs"
  ],
  "fields": [
   {
@@ -28,15 +28,15 @@
    "options": "SVADatatable Configuration Child"
   },
   {
-   "fieldname": "doctype_links",
+   "fieldname": "child_confs",
    "fieldtype": "Table",
-   "label": "DocType Links",
-   "options": "DocType Link"
+   "label": "Child Confs",
+   "options": "SVADatatable Child Conf"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-11-23 10:59:24.381734",
+ "modified": "2024-11-24 11:24:32.009119",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration",
