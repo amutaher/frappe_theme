@@ -23,7 +23,7 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns = [], rows = [], limit = 10, options, frm, cdtfname, doctype, crud = false, render_only = false }) {
+    constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
         this.rows = rows;
         this.columns = columns;
 
@@ -36,10 +36,12 @@ class SvaDataTable {
         this.options = options;
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
-        this.crud = crud;
         this.doctype = doctype;
         this.childTableFieldName = cdtfname;
-        this.connection = this.options?.connection;
+        this.connection = connection;
+        this.conf_perms = JSON.parse(this.connection.crud_permissions ?? '[]');
+        this.header = JSON.parse(this.connection.listview_settings ?? '[]');
+        this.childLinks = childLinks;
         this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.table_wrapper = document.createElement('div');
@@ -47,40 +49,40 @@ class SvaDataTable {
         this.table = null;
         this.permissions = [];
         if (!render_only) {
-            this.get_permissions(this.doctype).then(async perms => {
-                this.permissions = perms;
-                if (perms.length && perms.includes('read')) {
-                    let settings = await this.getViewSettings(this.doctype);
-                    if (settings?.fields) {
-                        let fields = JSON.parse(settings.fields)?.map(e => e.fieldname);
-                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
-                        this.columns = [{
-                            fieldname: 'name',
-                            label: 'ID'
-                        }, ...columns?.message?.filter(f => fields.includes(f.fieldname))]
-                        await this.setupTotalCount();
-                        this.rows = await this.getDocList()
-                        this.table = this.createTable(this.crud);
-                        if (!this.table_wrapper.querySelector('table')) {
-                            this.table_wrapper.appendChild(this.table);
+            if(this.conf_perms.length && this.conf_perms.includes('read')){
+                this.get_permissions(this.doctype).then(async perms => {
+                    this.permissions = perms;
+                    if (perms.length && perms.includes('read')) {
+                        if (this.header.length) {
+                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                            this.columns = [{
+                                fieldname: 'name',
+                                label: 'ID'
+                            }, ...columns?.message?.filter(f => this.header.includes(f.fieldname))]
+                            await this.setupTotalCount();
+                            this.rows = await this.getDocList()
+                            this.table = this.createTable();
+                            if (!this.table_wrapper.querySelector('table')) {
+                                this.table_wrapper.appendChild(this.table);
+                            }
+                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
+                            if (!this.wrapper.querySelector('#table_wrapper')) {
+                                this.wrapper.appendChild(this.table_wrapper);
+                            }
+                            this.tBody = this.table.querySelector('tbody');
+                            this.setupFooter(this.wrapper);
                         }
-                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
-                        if (!this.wrapper.querySelector('#table_wrapper')) {
-                            this.wrapper.appendChild(this.table_wrapper);
-                        }
-                        this.tBody = this.table.querySelector('tbody');
-                        this.setupFooter(this.wrapper, this.crud);
+                    } else {
+                        this.handleNoPermission();
                     }
-                } else {
-                    this.handleNoPermission();
-                }
-            })
+                })
+            }
         } else {
-            this.table = this.createTable(this.crud);
+            this.table = this.createTable();
             if (!this.table_wrapper.querySelector('table')) {
                 this.table_wrapper.appendChild(this.table);
             }
-            this.table_wrapper = this.setupTableWrapper(this.table_wrapper, this.crud);
+            this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
             if (!this.wrapper.querySelector('#table_wrapper')) {
                 this.wrapper.appendChild(this.table_wrapper);
             }
@@ -121,19 +123,19 @@ class SvaDataTable {
             this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element').textContent = `Total records: ${this.total}`;
         }
     }
-    async setupFooter(wrapper, crud) {
-        if (crud) {
-            let footer = document.createElement('div');
-            footer.id = 'footer-element';
-            footer.style = 'display:flex;width:100%;height:fit-content;margin-top:10px;align-items:center;justify-content:space-between;';
-            if (!wrapper.querySelector('div#footer-element')) {
-                wrapper.appendChild(footer);
-            }
-            let buttonContainer = document.createElement('div');
-            buttonContainer.id = 'create-button-container';
-            if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
-                wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
-            }
+    async setupFooter(wrapper) {
+        let footer = document.createElement('div');
+        footer.id = 'footer-element';
+        footer.style = 'display:flex;width:100%;height:fit-content;margin-top:10px;align-items:center;justify-content:space-between;';
+        if (!wrapper.querySelector('div#footer-element')) {
+            wrapper.appendChild(footer);
+        }
+        let buttonContainer = document.createElement('div');
+        buttonContainer.id = 'create-button-container';
+        if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
+            wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
+        }
+        if (this.conf_perms.length && this.conf_perms.includes('create')) {
             if (this.permissions.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
@@ -147,10 +149,10 @@ class SvaDataTable {
                     wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
                 }
             }
-            if (this.total > this.limit) {
-                if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
-                    wrapper.querySelector('div#footer-element').appendChild(await this.setupPagination());
-                }
+        }
+        if (this.total > this.limit) {
+            if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
+                wrapper.querySelector('div#footer-element').appendChild(await this.setupPagination());
             }
         }
     }
@@ -344,16 +346,16 @@ class SvaDataTable {
             this.updateTableBody();
         });
     }
-    createTable(crud) {
+    createTable() {
         const table = document.createElement('table');
         table.classList.add('table', 'table-bordered');
         table.style = 'width:100%; font-size:13px; margin-top:0px !important; position:relative;';
-        table.appendChild(this.createTableHead(crud));
-        table.appendChild(this.createTableBody(crud));
+        table.appendChild(this.createTableHead());
+        table.appendChild(this.createTableBody());
         return table;
     }
 
-    createTableHead(crud) {
+    createTableHead() {
         const thead = document.createElement('thead');
         if (this.options?.additionalTableHeader) {
             thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
@@ -394,7 +396,7 @@ class SvaDataTable {
             tr.appendChild(th);
         });
 
-        if (crud) {
+        if (this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) {
             const action_th = document.createElement('th');
             action_th.style.width = '30px';
             // action_th.textContent = "Actions";
@@ -421,7 +423,7 @@ class SvaDataTable {
         });
     }
 
-    createTableBody(crud) {
+    createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
         }
@@ -478,7 +480,7 @@ class SvaDataTable {
                     tr.appendChild(td);
                 });
 
-                if (crud) {
+                if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;';
                     const dropdown = document.createElement('div');
@@ -492,39 +494,39 @@ class SvaDataTable {
 
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
-
-                    if (this.permissions.length && this.permissions.includes('write')) {
-                        const editOption = document.createElement('a');
-                        editOption.classList.add('dropdown-item');
-                        editOption.textContent = "Edit";
-                        editOption.addEventListener('click', async () => {
-                            await this.createFormDialog(this.doctype, primaryKey);
-                        });
-                        dropdownMenu.appendChild(editOption);
-                    }
-                    if (this.permissions.length && this.permissions.includes('delete')) {
-                        const deleteOption = document.createElement('a');
-                        deleteOption.classList.add('dropdown-item');
-                        deleteOption.textContent = "Delete";
-                        deleteOption.addEventListener('click', async () => {
-                            await this.deleteRecord(this.doctype, primaryKey);
-                        });
-                        dropdownMenu.appendChild(deleteOption);
-                    }
-                    frappe.call('frappe_theme.api.get_doctype_fields', { doctype: this.doctype }).then(response => {
-                        let doctypeInfo = response?.message;
-                        if (doctypeInfo?.links?.length) {
-                            doctypeInfo.links.forEach(async link => {
-                                const linkOption = document.createElement('a');
-                                linkOption.classList.add('dropdown-item');
-                                linkOption.textContent = link.link_doctype;
-                                linkOption.addEventListener('click', async () => {
-                                    await this.childTableDialog(link.link_doctype, link.link_fieldname, primaryKey, row);
-                                });
-                                dropdownMenu.appendChild(linkOption);
+                    if (this.conf_perms.length && this.conf_perms.includes('write')) {
+                        if (this.permissions.length && this.permissions.includes('write')) {
+                            const editOption = document.createElement('a');
+                            editOption.classList.add('dropdown-item');
+                            editOption.textContent = "Edit";
+                            editOption.addEventListener('click', async () => {
+                                await this.createFormDialog(this.doctype, primaryKey);
                             });
+                            dropdownMenu.appendChild(editOption);
                         }
-                    });
+                    }
+                    if (this.conf_perms.length && this.conf_perms.includes('delete')) {
+                        if (this.permissions.length && this.permissions.includes('delete')) {
+                            const deleteOption = document.createElement('a');
+                            deleteOption.classList.add('dropdown-item');
+                            deleteOption.textContent = "Delete";
+                            deleteOption.addEventListener('click', async () => {
+                                await this.deleteRecord(this.doctype, primaryKey);
+                            });
+                            dropdownMenu.appendChild(deleteOption);
+                        }
+                    }
+                    if (this.childLinks?.length) {
+                        this.childLinks.forEach(async link => {
+                            const linkOption = document.createElement('a');
+                            linkOption.classList.add('dropdown-item');
+                            linkOption.textContent = link.link_doctype;
+                            linkOption.addEventListener('click', async () => {
+                                await this.childTableDialog(link.link_doctype, primaryKey, row, link);
+                            });
+                            dropdownMenu.appendChild(linkOption);
+                        });
+                    }
                     dropdown.appendChild(dropdownBtn);
                     dropdown.appendChild(dropdownMenu);
                     action_td.appendChild(dropdown);
@@ -552,7 +554,7 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
-    async childTableDialog(doctype, primaryKey, primaryKeyValue, parentRow) {
+    async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
             fields: [{
@@ -570,13 +572,12 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
-        let datatable = new SvaDataTable({
+        new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
-            crud: true,
+            connection : link,
             frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
             options: {
-                connection: { link_doctype: this.doctype, link_fieldname: primaryKey },
                 serialNumberColumn: true,
                 editable: false,
             },
@@ -613,7 +614,7 @@ class SvaDataTable {
             return;
         }
         const oldTbody = this.table.querySelector('tbody');
-        const newTbody = this.createTableBody(this.crud);
+        const newTbody = this.createTableBody();
         this.table.replaceChild(newTbody, oldTbody || this.table.querySelector('#noDataFoundPage')); // Replace old tbody with new sorted tbody
     }
 
@@ -738,28 +739,13 @@ class SvaDataTable {
             return [];
         }
     }
-
-    getViewSettings(doctype) {
-        return new Promise((resolve, reject) => {
-            frappe.call({
-                method: "frappe.desk.listview.get_list_settings",
-                args: { doctype: doctype },
-                callback: function (response) {
-                    resolve(response.message)
-                },
-                error: (err) => {
-                    reject(err)
-                }
-            });
-        });
-    }
     createNoDataFoundPage() {
         const noDataFoundPage = document.createElement('tr');
         noDataFoundPage.id = 'noDataFoundPage';
         noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
         noDataFoundPage.style.fontSize = '20px';
         const noDataFoundText = document.createElement('td');
-        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + (this.crud ? 1 : 0)); // Ensure columns are defined properly
+        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0)); // Ensure columns are defined properly
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
         noDataFoundText.style.paddingTop = '30px';
         noDataFoundText.style.color = 'grey';

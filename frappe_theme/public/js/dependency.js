@@ -29,7 +29,6 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
 
 const tabContent = async (frm, tab_field) => {
     // debugger;
-    let dtFields = [];
     if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
@@ -46,20 +45,21 @@ const tabContent = async (frm, tab_field) => {
                 tab_fields.push(f.fieldname)
             }
         }
-        dtFields = dts.child_doctypes?.filter(f=> tab_fields.includes(f.html_field))
-    }
-    for (let _f of dtFields) {
-        new SvaDataTable({
-            wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-            doctype: _f.link_doctype, // Doctype name
-            crud: true,      // Enable CRUD operations (optional)
-            frm: frm,       // Pass the current form object (optional)
-            options: {
+        let dtFields = dts.child_doctypes?.filter(f=> tab_fields.includes(f.html_field))
+        for (let _f of dtFields) {
+            let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
+            new SvaDataTable({
+                wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                doctype: _f.link_doctype, // Doctype name
+                frm: frm,       // Pass the current form object (optional)
                 connection: _f,
-                serialNumberColumn: true, // Enable serial number column (optional)
-                editable: false,      // Enable editing (optional),
-            }
-        });
+                childLinks: childLinks,
+                options: {
+                    serialNumberColumn: true, // Enable serial number column (optional)
+                    editable: false,      // Enable editing (optional),
+                }
+            });
+        }
     }
 }
 const mapEvents = (props) => {
