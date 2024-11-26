@@ -12,7 +12,11 @@ def get_property_set(doctype):
 
 @frappe.whitelist()
 def get_doctype_fields(doctype):
-    return frappe.get_doc("DocType", doctype,ignore_permissions=True)
+    custom_fields = frappe.get_all("Custom Field", filters={"dt": doctype}, fields=["*"],ignore_permissions=True)
+    dt = frappe.get_doc("DocType", doctype,ignore_permissions=True)
+    if len(custom_fields) > 0:
+        dt.fields.extend(custom_fields)
+    return dt
 
 @frappe.whitelist()
 def get_my_list_settings(doctype):

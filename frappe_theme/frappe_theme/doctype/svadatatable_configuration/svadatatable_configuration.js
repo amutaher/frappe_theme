@@ -114,6 +114,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             }
         }
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        if (html_fields_2.length) {
+            html_fields = html_fields.concat(html_fields_2);
+        }
         let options = html_fields.map(function (d) { return d.fieldname });
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
