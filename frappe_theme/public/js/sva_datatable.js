@@ -39,8 +39,8 @@ class SvaDataTable {
         this.doctype = doctype;
         this.childTableFieldName = cdtfname;
         this.connection = connection;
-        this.conf_perms = JSON.parse(this.connection.crud_permissions ?? '[]');
-        this.header = JSON.parse(this.connection.listview_settings ?? '[]');
+        this.conf_perms = JSON.parse(this.connection?.crud_permissions ?? '[]');
+        this.header = JSON.parse(this.connection?.listview_settings ?? '[]');
         this.childLinks = childLinks;
         this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
@@ -49,7 +49,7 @@ class SvaDataTable {
         this.table = null;
         this.permissions = [];
         if (!render_only) {
-            if(this.conf_perms.length && this.conf_perms.includes('read')){
+            if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
                     if (perms.length && perms.includes('read')) {
@@ -113,7 +113,14 @@ class SvaDataTable {
     }
     async setupTotalCount() {
         if (!this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element')) {
-            this.total = await frappe.db.count(this.doctype, { filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]] });
+            let filters = []
+            if (this.connection?.connection_type === 'Referenced') {
+                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+            } else {
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+            }
+            this.total = await frappe.db.count(this.doctype, { filters: filters });
             let count = document.createElement('span');
             count.id = 'count-element';
             count.textContent = `Total records: ${this.total}`;
@@ -281,6 +288,22 @@ class SvaDataTable {
                 if (this.frm.doctype == f.options) {
                     f.default = this.frm.doc.name;
                     f.read_only = 1;
+                }
+                if (this.connection?.connection_type === 'Referenced') {
+                    if (f.fieldname === this.connection.dt_reference_field) {
+                        f.default = this.frm.doc.doctype;
+                        f.read_only = 1;
+                    }
+                    if (f.fieldname === this.connection.dn_reference_field) {
+                        f.default = this.frm.doc.name;
+                        f.read_only = 1;
+                    }
+                }
+                if (this.connection?.connection_type === 'Direct') {
+                    if (f.fieldname === this.connection.link_fieldname) {
+                        f.default = this.frm.doc.name;
+                        f.read_only = 1;
+                    }
                 }
                 if (f.fieldtype === 'Link') {
                     f.get_query = () => {
@@ -575,7 +598,7 @@ class SvaDataTable {
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
-            connection : link,
+            connection: link,
             frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
             options: {
                 serialNumberColumn: true,
@@ -704,12 +727,8 @@ class SvaDataTable {
                 control.set_value(row[column.fieldname]);
             }
             control.refresh();
+            return;
         } else {
-            if (columnField.fieldname === 'name') {
-                td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
-            } else {
-                td.textContent = row[column.fieldname] || "";
-            }
             if (columnField?.has_link) {
                 let [doctype, link_field] = columnField.has_link.split('->');
                 td.addEventListener('click', async () => {
@@ -719,15 +738,39 @@ class SvaDataTable {
             } else {
                 $(td).css({ height: '35px', padding: "6px 10px" });
             }
+            if (columnField.fieldtype === 'Attach') {
+                td.innerHTML = `<a href="${row[column.fieldname]}" target="_blank">${row[column.fieldname]}</a>`;
+                return;
+            }
+            if (columnField.fieldtype === 'Attach Image') {
+                console.log(row[column.fieldname]);
+                if (row[column.fieldname]) {
+                    td.innerHTML = `<img src="${row[column.fieldname]}" style="width:30px;border-radius:50%;height:30px;object-fit:cover;" />`;
+                    return;
+                }
+            }
+            if (columnField.fieldname === 'name') {
+                td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
+                return;
+            } else {
+                td.textContent = row[column.fieldname] || "";
+            }
         }
     }
     async getDocList() {
         try {
+            let filters = []
+            if (this.connection?.connection_type === 'Referenced') {
+                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+            } else {
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+            }
             let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {
                     doctype: this.doctype,
-                    filters: [[this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]],
+                    filters: filters,
                     fields: this.fields || ['*'],
                     limit_page_length: this.limit,
                     order_by: 'creation desc',

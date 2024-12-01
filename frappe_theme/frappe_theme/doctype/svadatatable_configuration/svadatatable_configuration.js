@@ -21,7 +21,7 @@ const set_list_settings = async (frm, cdt, cdn) => {
 
     let dtmeta = await frappe.call({
         method: 'frappe_theme.api.get_meta_fields',
-        args: { doctype: row.link_doctype }
+        args: { doctype: row.connection_type == "Docrect" ? row.link_doctype : row.referenced_link_doctype }
     });
 
     if (!dtmeta.message) {
@@ -29,7 +29,7 @@ const set_list_settings = async (frm, cdt, cdn) => {
         return;
     }
 
-    let fields = dtmeta.message.map(f => {
+    let fields = dtmeta.message?.filter((f) => f.hidden == 0)?.map(f => {
         return {
             label: f.label,
             fieldname: f.fieldname,
@@ -46,9 +46,8 @@ const set_list_settings = async (frm, cdt, cdn) => {
                     listview_fields = listview_fields.filter(f => f !== fieldname);
                 }
             }
-        };
+        }
     });
-
     let list_dialog = new frappe.ui.Dialog({
         title: __('List Settings'),
         fields: fields,
@@ -94,25 +93,51 @@ const set_crud_permissiions = (frm, cdt, cdn) => {
     });
     permissions_dialog.show();
 }
-var response_dts = [];
+var final_dt_options = [];
 frappe.ui.form.on("SVADatatable Configuration Child", {
-    async form_render(frm) {
-        response_dts = await frappe.db.get_list('DocField',
-            {
-                filters: [
-                    ['DocField', 'options', '=', frm.doc.parent_doctype],
-                    ['DocField', 'parenttype', '=', "DocType"]
-                ],
-                fields: ['parent', 'fieldname', 'label']
-            }
-        );
-        frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
-            return {
-                filters: {
-                    'name': ['in', response_dts ? response_dts.map(d => d.parent) : []]
+    async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.connection_type === 'Direct') {
+            frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
+                return {
+                    filters: [
+                        ['DocField', 'options', '=', frm.doc.parent_doctype],
+                        ['DocField', 'parenttype', '=', "DocType"]
+                    ],
+                    limit_page_length: 100
                 }
             }
         }
+        if (row.connection_type === 'Referenced') {
+            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            let dts = await frappe.db.get_list('DocType', {
+                filters: [
+                    ['DocType', 'module', 'IN', modules],
+                    ['DocField', 'options', '=', "DocType"],
+                    ['DocType', 'istable', '=', 0],
+                ],
+                pluck: 'name'
+            });
+            let dts_2 = await frappe.db.get_list('Custom Field', {
+                filters: [
+                    ['Custom Field', 'options', '=', "DocType"]
+                ],
+                fields: ['dt', 'fieldname']
+            });
+            let dt_options = [];
+            if (dts.length) {
+                dt_options = dts;
+                final_dt_options = dts.map(d => { return { 'dt': d, 'parent': "DocType" } });
+            }
+            if (dts_2.length) {
+                dt_options = dt_options.concat(dts_2?.map(d => d.dt));
+                final_dt_options = final_dt_options.concat(dts_2.map(d => { return { 'dt': d.dt, 'fieldname': d.fieldname, 'parent': "Custom Field" } }));
+            }
+            if (dt_options.length) {
+                frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
+            }
+        }
+
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         if (html_fields_2.length) {
@@ -121,15 +146,97 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
         let options = html_fields.map(function (d) { return d.fieldname });
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
+    connection_type: async function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.connection_type === 'Direct') {
+            frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
+                return {
+                    filters: [
+                        ['DocField', 'options', '=', frm.doc.parent_doctype],
+                        ['DocField', 'parenttype', '=', "DocType"]
+                    ],
+                    limit_page_length: 100
+                }
+            }
+        }
+        if (row.connection_type === 'Referenced') {
+            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            let dts = await frappe.db.get_list('DocType', {
+                filters: [
+                    ['DocType', 'module', 'IN', modules],
+                    ['DocField', 'options', '=', "DocType"],
+                    ['DocType', 'istable', '=', 0],
+                ],
+                pluck: 'name'
+            });
+            let dts_2 = await frappe.db.get_list('Custom Field', {
+                filters: [
+                    ['Custom Field', 'options', '=', "DocType"]
+                ],
+                fields: ['dt', 'fieldname']
+            });
+            let dt_options = [];
+            if (dts.length) {
+                dt_options = dts;
+                final_dt_options = dts.map(d => { return { 'dt': d, 'parent': "DocType" } });
+            }
+            if (dts_2.length) {
+                dt_options = dt_options.concat(dts_2?.map(d => d.dt));
+                final_dt_options = final_dt_options.concat(dts_2.map(d => { return { 'dt': d.dt, 'fieldname': d.fieldname, 'parent': "Custom Field" } }));
+            }
+            if (dt_options.length) {
+                frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
+            }
+        }
+    },
     link_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.link_doctype) {
-            let field = response_dts.find(d => d.parent === row.link_doctype);
+            let fields = await frappe.db.get_list("DocField", {
+                filters: [
+                    ['DocField', 'options', '=', frm.doc.parent_doctype],
+                    ['DocField', 'parenttype', '=', "DocType"],
+                    ['DocField', 'parent', '=', row.link_doctype]
+                ],
+                fields: ['fieldname', 'label', 'parent']
+            });
+            let field = fields[0];
             if (field) {
                 frappe.model.set_value(cdt, cdn, 'link_fieldname', field.fieldname);
             }
         } else {
             frappe.model.set_value(cdt, cdn, 'link_fieldname', '');
+        }
+    },
+    referenced_link_doctype: async function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.referenced_link_doctype) {
+            let dt = final_dt_options.find(d => d.dt === row.referenced_link_doctype);
+            let ref_dt_field = '';
+            let ref_dn_field = '';
+            if (dt.parent === "Custom Field") {
+                ref_dt_field = dt.fieldname;
+                let ref_dn_fields = await frappe.db.get_list('Custom Field', { filters: { 'dt': row.referenced_link_doctype, 'fieldtype': 'Dynamic Link', 'options': ref_dt_field }, fields: ['fieldname'] });
+                if (ref_dn_fields.length) {
+                    ref_dn_field = ref_dn_fields[0].fieldname;
+                }
+            } else {
+                let ref_dt_fields = await frappe.db.get_list('DocField', { filters: { 'parent': row.referenced_link_doctype, 'fieldtype': 'Link', 'options': "DocType" }, fields: ['fieldname'] });
+                if (ref_dt_fields.length) {
+                    ref_dt_field = ref_dt_fields[0].fieldname;
+                }
+                let ref_dn_fields = await frappe.db.get_list('DocField', { filters: { 'parent': row.referenced_link_doctype, 'fieldtype': 'Dynamic Link', 'options': ref_dt_field }, fields: ['fieldname'] });
+                if (ref_dn_fields.length) {
+                    ref_dn_field = ref_dn_fields[0].fieldname;
+                }
+            }
+            if (ref_dt_field && ref_dn_field) {
+                frappe.model.set_value(cdt, cdn, 'dt_reference_field', ref_dt_field);
+                frappe.model.set_value(cdt, cdn, 'dn_reference_field', ref_dn_field);
+            }
+        } else {
+            frappe.model.set_value(cdt, cdn, 'dt_reference_field', '');
+            frappe.model.set_value(cdt, cdn, 'dn_reference_field', '');
         }
     },
     async setup_list_settings(frm, cdt, cdn) {

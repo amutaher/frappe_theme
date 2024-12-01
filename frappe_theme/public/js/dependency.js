@@ -28,7 +28,6 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
 }
 
 const tabContent = async (frm, tab_field) => {
-    // debugger;
     if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
@@ -50,7 +49,7 @@ const tabContent = async (frm, tab_field) => {
             let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
             new SvaDataTable({
                 wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-                doctype: _f.link_doctype, // Doctype name
+                doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
                 frm: frm,       // Pass the current form object (optional)
                 connection: _f,
                 childLinks: childLinks,
