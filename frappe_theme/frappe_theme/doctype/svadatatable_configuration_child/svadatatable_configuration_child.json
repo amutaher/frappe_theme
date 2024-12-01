@@ -5,8 +5,12 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "connection_type",
   "link_doctype",
   "link_fieldname",
+  "referenced_link_doctype",
+  "dt_reference_field",
+  "dn_reference_field",
   "html_field",
   "listview_settings",
   "setup_list_settings",
@@ -44,26 +48,58 @@
    "read_only": 1
   },
   {
+   "depends_on": "eval:doc.connection_type ==\"Direct\"",
    "fieldname": "link_doctype",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Link DocType",
-   "options": "DocType",
-   "reqd": 1
+   "mandatory_depends_on": "eval:doc.connection_type ==\"Direct\"",
+   "options": "DocType"
   },
   {
+   "depends_on": "eval:doc.connection_type ==\"Direct\"",
    "fieldname": "link_fieldname",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Link Fieldname",
-   "read_only": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Connection Type",
+   "options": "Direct\nReferenced",
    "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Referenced\"",
+   "fieldname": "dt_reference_field",
+   "fieldtype": "Data",
+   "label": "Dt Reference Field",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Referenced\"",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Referenced\"",
+   "fieldname": "dn_reference_field",
+   "fieldtype": "Data",
+   "label": "Dn Reference Field",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Referenced\"",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Referenced\"",
+   "fieldname": "referenced_link_doctype",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Referenced Link DocType",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Referenced\""
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-11-23 16:44:03.604801",
+ "modified": "2024-12-01 12:24:29.387526",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
