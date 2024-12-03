@@ -743,7 +743,6 @@ class SvaDataTable {
                 return;
             }
             if (columnField.fieldtype === 'Attach Image') {
-                console.log(row[column.fieldname]);
                 if (row[column.fieldname]) {
                     td.innerHTML = `<img src="${row[column.fieldname]}" style="width:30px;border-radius:50%;height:30px;object-fit:cover;" />`;
                     return;
