@@ -32,32 +32,48 @@ const tabContent = async (frm, tab_field) => {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
         let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
-        if((tab_field_index + 1) > frm.meta?.fields.length){
+        if ((tab_field_index + 1) > frm.meta?.fields.length) {
             return;
         }
-        for(let i = (tab_field_index+1); i < frm.meta?.fields.length; i++){
+        for (let i = (tab_field_index + 1); i < frm.meta?.fields.length; i++) {
             let f = frm.meta?.fields[i]
-            if(f.fieldtype == 'Tab Break'){
+            if (f.fieldtype == 'Tab Break') {
                 break;
             }
-            if(f.fieldtype == 'HTML'){
+            if (f.fieldtype == 'HTML') {
                 tab_fields.push(f.fieldname)
             }
         }
-        let dtFields = dts.child_doctypes?.filter(f=> tab_fields.includes(f.html_field))
+        let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
         for (let _f of dtFields) {
-            let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-            new SvaDataTable({
-                wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-                doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
-                frm: frm,       // Pass the current form object (optional)
-                connection: _f,
-                childLinks: childLinks,
-                options: {
-                    serialNumberColumn: true, // Enable serial number column (optional)
-                    editable: false,      // Enable editing (optional),
+            if (_f?.connection_type == "Is Custom Design") {
+                if (_f?.template == "Gallery") {
+                    gallery_image(frm, _f.html_field);
                 }
-            });
+                if (_f?.template == "Email") {
+                    communication(frm, _f.html_field);
+                }
+                if (_f?.template == "Tasks") {
+                    getTaskList(frm, _f.html_field);
+                }
+                if (_f?.template == "Timeline") {
+                    showTimelines(frm, _f.html_field);
+                }
+
+            } else {
+                let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
+                new SvaDataTable({
+                    wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                    doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
+                    frm: frm,       // Pass the current form object (optional)
+                    connection: _f,
+                    childLinks: childLinks,
+                    options: {
+                        serialNumberColumn: true, // Enable serial number column (optional)
+                        editable: false,      // Enable editing (optional),
+                    }
+                });
+            }
         }
     }
 }
@@ -122,6 +138,7 @@ frappe.router.on('change', async () => {
 
         // Condition: Stop if the desired value exists in cur_frm
         if (cur_frm || elapsedTime >= maxTime) {
+            $('.form-footer').remove();
             clearInterval(interval);
             await setDynamicProperties();
             return;
