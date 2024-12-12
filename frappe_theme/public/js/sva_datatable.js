@@ -112,7 +112,7 @@ class SvaDataTable {
         return tableWrapper;
     }
     async setupTotalCount() {
-        if (!this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element')) {
+        if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
             let filters = []
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
@@ -125,9 +125,17 @@ class SvaDataTable {
             count.id = 'count-element';
             count.textContent = `Total records: ${this.total}`;
             count.style = 'font-size:12px;';
-            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').appendChild(count);
+            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
         } else {
-            this.wrapper.querySelector('div#header-element').querySelector('div#count-wrapper').querySelector('span#count-element').textContent = `Total records: ${this.total}`;
+            let filters = []
+            if (this.connection?.connection_type === 'Referenced') {
+                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+            } else {
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+            }
+            this.total = await frappe.db.count(this.doctype, { filters: filters });
+            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').textContent = `Total records: ${this.total}`;
         }
     }
     async setupFooter(wrapper) {
