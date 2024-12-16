@@ -31,22 +31,40 @@ const getElement = async (selector, waitSeconds=2) => {
         }, 500);
     });
 }
+// const getTheme = async () => { 
+//     return new Promise((resolve, reject) => {
+//         frappe.call({
+//             method: "frappe_theme.api.get_my_theme",
+//             freeze: true,
+//             callback: async function (response) {
+//                 if(response?.message || response){
+//                     resolve(response?.message || response)
+//                 }else{
+//                     reject('No message in response');
+//                 }
+//             },
+//             // freeze_message: __("Getting theme...")
+//         });
+//     })
+// }
+
 const getTheme = async () => {
-    return new Promise((resolve, reject) => {
-        frappe.call({
-            method: "frappe_theme.api.get_my_theme",
-            freeze: true,
-            callback: async function (response) {
-                if(response?.message || response){
-                    resolve(response?.message || response)
-                }else{
-                    reject('No message in response');
-                }
-            },
-            // freeze_message: __("Getting theme...")
+    try {
+        const response = await fetch('/api/method/frappe_theme.api.get_my_theme', {
+            method: 'GET',
         });
-    })
-}
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data?.message || data || 'No message in response';
+    } catch (error) {
+        throw new Error(error.message || 'Error fetching theme');
+    }
+};
+
 const getUserRoles = (theme) => {
     let currentUser = frappe?.boot?.user?.roles;
     if(!currentUser){
