@@ -123,7 +123,7 @@ class SvaDataTable {
             this.total = await frappe.db.count(this.doctype, { filters: filters });
             let count = document.createElement('span');
             count.id = 'count-element';
-            count.textContent = `Total records: ${this.total}`;
+            count.innerHTML = `<span>Total records: ${this.total}</span>`;
             count.style = 'font-size:12px;';
             this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
         } else {
@@ -135,7 +135,7 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });
-            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').textContent = `Total records: ${this.total}`;
+            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
         }
     }
     async setupFooter(wrapper) {
