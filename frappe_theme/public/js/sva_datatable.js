@@ -48,10 +48,18 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
+        this.mgrant_settings = {};
         if (!render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
+                    this.mgrant_settings = await frappe.db.get_doc('mGrant Settings', 'mGrant Settings');
+                    if (this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise",this.frm.doc.name)){
+                        let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise",this.frm.doc.name)
+                        if (msgw){
+                            this.mgrant_settings = msgw
+                        }
+                    }
                     if (perms.length && perms.includes('read')) {
                         if (this.header.length) {
                             let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
@@ -223,6 +231,86 @@ class SvaDataTable {
         return pagination;
     }
 
+    manipulateFieldLabels(field) {
+        const year_type = this.mgrant_settings?.year_type || "Financial Year";
+        let new_label = false;
+
+        if (year_type === "Financial Year") {
+            if (field.fieldname.startsWith('q1_')) {
+                new_label = field.label + ' (Apr-Jun)';
+            } else if (field.fieldname.startsWith('q2_')) {
+                new_label = field.label + ' (Jul-Sep)';
+            } else if (field.fieldname.startsWith('q3_')) {
+                new_label = field.label + ' (Oct-Dec)';
+            } else if (field.fieldname.startsWith('q4_')) {
+                new_label = field.label + ' (Jan-Mar)';
+            }
+        } else if (year_type === "Calendar Year") {
+            if (field.fieldname.startsWith('q1_')) {
+                new_label = field.label + ' (Jan-Mar)';
+            } else if (field.fieldname.startsWith('q2_')) {
+                new_label = field.label + ' (Apr-Jun)';
+            } else if (field.fieldname.startsWith('q3_')) {
+                new_label = field.label + ' (Jul-Sep)';
+            } else if (field.fieldname.startsWith('q4_')) {
+                new_label = field.label + ' (Oct-Dec)';
+            }
+        }
+    
+        return new_label;
+    }
+    
+    sortFields(fields) {
+        const calendarYearOrder = [
+            "q1_", "jan_", "feb_", "mar_", 
+            "q2_", "apr_", "may_", "jun_", 
+            "q3_", "jul_", "aug_", "sep_", 
+            "q4_", "oct_", "nov_", "dec_"
+        ];
+    
+        // Separate target and achievement fields for sorting
+        const targetFields = [];
+        const achievementFields = [];
+        const fieldPositions = []; // To track original order of all fields
+    
+        fields.forEach((field, index) => {
+            if (field.fieldname.includes("target")) {
+                targetFields.push(field);
+            } else if (field.fieldname.includes("achievement")) {
+                achievementFields.push(field);
+            } else {
+                fieldPositions.push({ field, index }); // Store other fields with their positions
+            }
+        });
+    
+        // Sort target and achievement fields based on the calendar year order
+        const sortedTargets = targetFields.sort((a, b) => {
+            const aIndex = calendarYearOrder.findIndex(prefix => a.fieldname.startsWith(prefix));
+            const bIndex = calendarYearOrder.findIndex(prefix => b.fieldname.startsWith(prefix));
+            return aIndex - bIndex;
+        });
+    
+        const sortedAchievements = achievementFields.sort((a, b) => {
+            const aIndex = calendarYearOrder.findIndex(prefix => a.fieldname.startsWith(prefix));
+            const bIndex = calendarYearOrder.findIndex(prefix => b.fieldname.startsWith(prefix));
+            return aIndex - bIndex;
+        });
+    
+        // Replace target and achievement fields in their original positions
+        let targetIndex = 0, achievementIndex = 0;
+        return fields.map(field => {
+            if (field.fieldname.includes("target")) {
+                return sortedTargets[targetIndex++];
+            } else if (field.fieldname.includes("achievement")) {
+                return sortedAchievements[achievementIndex++];
+            } else {
+                return field; // Keep other fields in their original positions
+            }
+        });
+    }
+    
+    
+
     updatePageButtons() {
         // Clear existing page buttons
         this.pageButtonsContainer.querySelectorAll('.page-item:not(:first-child):not(:last-child)').forEach(el => el.remove());
@@ -278,15 +366,25 @@ class SvaDataTable {
     async createFormDialog(doctype, name = undefined) {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
+        let year_type = this.mgrant_settings?.year_type || "Financial Year";
+        if (year_type === "Calendar Year" && ['Input','Output','Outcome','Impact'].includes(doctype)) {
+            fields = this.sortFields(fields);
+        }
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
             fields.forEach(async f => {
+                if(this.manipulateFieldLabels(f)){
+                    f.label = this.manipulateFieldLabels(f);
+                };
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                 }
             })
         } else {
             await fields.forEach(async f => {
+                if(this.manipulateFieldLabels(f)){
+                    f.label = this.manipulateFieldLabels(f);
+                };
                 if (this.frm.parentRow) {
                     if (this.frm.parentRow[f.fieldname]) {
                         f.default = this.frm.parentRow[f.fieldname];
@@ -410,6 +508,9 @@ class SvaDataTable {
         let freezeColumnsAtLeft = 1;
 
         this.columns.forEach(column => {
+            if(this.manipulateFieldLabels(column)){
+                column.label = this.manipulateFieldLabels(f);
+            };
             const th = document.createElement('th');
             th.textContent = column.label || column.name;
 
