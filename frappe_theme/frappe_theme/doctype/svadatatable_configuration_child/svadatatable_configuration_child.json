@@ -106,13 +106,13 @@
    "fieldtype": "Select",
    "label": "Template",
    "mandatory_depends_on": "eval:doc.connection_type == \"Is Custom Design\"",
-   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes"
+   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes\nComments"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-12-22 11:02:21.107197",
+ "modified": "2024-12-22 19:04:07.116105",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",

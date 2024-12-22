@@ -62,6 +62,9 @@ const tabContent = async (frm, tab_field) => {
                 if (_f?.template == "Notes") {
                     await render_note(frm,_f.html_field);
                 }
+                if (_f?.template == "Comments") {
+                    await renderComment(frm,_f.html_field);
+                }
             } else {
                 let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
                 new SvaDataTable({
