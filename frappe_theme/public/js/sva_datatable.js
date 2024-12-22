@@ -163,8 +163,8 @@ class SvaDataTable {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
                     create_button.id = 'create';
-                    create_button.textContent = "Create";
-                    create_button.classList.add('btn', 'btn-primary', 'btn-sm');
+                    create_button.textContent = "Add row";
+                    create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
                     create_button.style = 'width:fit-content;height:fit-content;';
                     create_button.addEventListener('click', async () => {
                         await this.createFormDialog(this.doctype);
