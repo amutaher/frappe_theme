@@ -144,6 +144,7 @@ frappe.router.on('change', async () => {
         // Condition: Stop if the desired value exists in cur_frm
         if (cur_frm || elapsedTime >= maxTime) {
             $('.form-footer').remove();
+            $('.layout-side-section').remove();
             clearInterval(interval);
             await setDynamicProperties();
             return;
