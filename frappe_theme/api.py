@@ -32,7 +32,7 @@ def get_meta_fields(doctype):
                                       filters={'doc_type': doctype}, 
                                       fields=['field_name', 'property', 'value'],ignore_permissions=True)
     # Convert meta_fields into mutable dictionaries if necessary
-    fields_dict = [f.as_dict() for f in meta_fields if f.fieldtype not in ['Section Break','Table','Tab Break','Column Break',"HTML","HTML Editor"]]
+    fields_dict = [f.as_dict() for f in meta_fields if f.fieldtype not in ['Table','Tab Break',"HTML"]]
     # Apply property setter values to the meta fields
     for field in fields_dict:
         for ps in property_setters:
