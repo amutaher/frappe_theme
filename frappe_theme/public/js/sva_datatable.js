@@ -476,6 +476,7 @@ class SvaDataTable {
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
         });
+        frappe.show_alert({ message: `Successfully deleted ${doctype}`, indicator: 'green'});
     }
     createTable() {
         const table = document.createElement('table');
