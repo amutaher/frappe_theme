@@ -46,38 +46,43 @@ const tabContent = async (frm, tab_field) => {
         }
         let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
         for (let _f of dtFields) {
-            if (_f?.connection_type == "Is Custom Design") {
-                if (_f?.template == "Gallery") {
-                    gallery_image(frm, _f.html_field);
-                }
-                if (_f?.template == "Email") {
-                    communication(frm, _f.html_field);
-                }
-                if (_f?.template == "Tasks") {
-                    getTaskList(frm, _f.html_field);
-                }
-                if (_f?.template == "Timeline") {
-                    showTimelines(frm, _f.html_field);
-                }
-                if (_f?.template == "Notes") {
-                    await render_note(frm,_f.html_field);
-                }
-                if (_f?.template == "Comments") {
-                    await renderComment(frm,_f.html_field);
-                }
+            if (frm.is_new()) {
+                document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div class="text-muted" style="height:400px;width:100%;display:flex;justify-content:center;align-items:center;">Please save the document to view the content</div>`;
             } else {
-                let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-                new SvaDataTable({
-                    wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-                    doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
-                    frm: frm,       // Pass the current form object (optional)
-                    connection: _f,
-                    childLinks: childLinks,
-                    options: {
-                        serialNumberColumn: true, // Enable serial number column (optional)
-                        editable: false,      // Enable editing (optional),
+                document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = "";
+                if (_f?.connection_type == "Is Custom Design") {
+                    if (_f?.template == "Gallery") {
+                        gallery_image(frm, _f.html_field);
                     }
-                });
+                    if (_f?.template == "Email") {
+                        communication(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Tasks") {
+                        getTaskList(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Timeline") {
+                        showTimelines(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Notes") {
+                        await render_note(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Comments") {
+                        await renderComment(frm, _f.html_field);
+                    }
+                } else {
+                    let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
+                    new SvaDataTable({
+                        wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                        doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
+                        frm: frm,       // Pass the current form object (optional)
+                        connection: _f,
+                        childLinks: childLinks,
+                        options: {
+                            serialNumberColumn: true, // Enable serial number column (optional)
+                            editable: false,      // Enable editing (optional),
+                        }
+                    });
+                }
             }
         }
     }
