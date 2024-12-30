@@ -331,13 +331,11 @@ class SvaDataTable {
             if (i === this.page) {
                 pageItem.classList.add('active');
             }
-
             let pageBtn = document.createElement('button');
             pageBtn.classList.add('page-link');
             pageBtn.textContent = i;
-
             pageBtn.addEventListener('click', async () => {
-                if (i !== this.page) {  // Only update if it's a different page
+                if (i !== this.page) {
                     this.page = i;
                     this.rows = await this.getDocList();
                     this.updateTableBody();
@@ -362,7 +360,120 @@ class SvaDataTable {
         });
         return res?.message ?? [];
     }
-
+    handleFrequencyField() {
+        let frequency = cur_dialog?.fields_dict?.frequency?.value;
+        const year_type = this.mgrant_settings?.year_type || "Financial Year";
+        if (!frequency) {
+            return;
+        }
+        let start_date = cur_dialog?.fields_dict?.start_date?.value;
+        let end_date = cur_dialog?.fields_dict?.end_date?.value;
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        if (cur_dialog) {
+            cur_dialog.fields_dict.planning_table.df.data = [];
+            cur_dialog.fields_dict.planning_table.grid.refresh();
+        }
+        if (frequency === "Lump Sum") {
+            if (cur_dialog) {
+                cur_dialog.fields_dict.planning_table.df.data = [];
+                cur_dialog.fields_dict.planning_table.grid.refresh();
+            }
+            return;
+        } else if (frequency === "Monthly") {
+            let start = new Date(start_date);
+            let end = new Date(end_date);
+            let month = start.getMonth();
+            let year = start.getFullYear();
+            let index = 0;
+            while (start < end) {
+                let month_name = monthNames[month];
+                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${month_name} (${year})`;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.month = month;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('month');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
+                month++;
+                if (month > 11) {
+                    month = 0;
+                    year++;
+                }
+                start = new Date(year, month, 1);
+                index++;
+            }
+        } else if (frequency === "Quarterly") {
+            let start = new Date(start_date);
+            const end = new Date(end_date);
+            let index = 0;
+            const getQuarterLabel = (quarter) => {
+                if (year_type === "Financial Year") {
+                    switch (quarter) {
+                        case 1: return "Q1 (Apr-Jun)";
+                        case 2: return "Q2 (Jul-Sep)";
+                        case 3: return "Q3 (Oct-Dec)";
+                        case 4: return "Q4 (Jan-Mar)";
+                    }
+                } else if (year_type === "Calendar Year") {
+                    switch (quarter) {
+                        case 1: return "Q1 (Jan-Mar)";
+                        case 2: return "Q2 (Apr-Jun)";
+                        case 3: return "Q3 (Jul-Sep)";
+                        case 4: return "Q4 (Oct-Dec)";
+                    }
+                }
+                return "";
+            };
+            const getFiscalQuarter = (date) => {
+                const month = date.getMonth(); // getMonth() returns 0-11
+                if (month >= 3 && month <= 5) return 1;
+                if (month >= 6 && month <= 8) return 2;
+                if (month >= 9 && month <= 11) return 3;
+                return 4; // January to March
+            };
+            const getFiscalYear = (date) => {
+                const month = date.getMonth();
+                const year = date.getFullYear();
+                return month >= 3 ? year : year - 1;
+            };
+            while (start <= end) {
+                let quarter, year;
+                // actual_year = start.getFullYear();
+                if (year_type === "Financial Year") {
+                    quarter = getFiscalQuarter(start);
+                    year = getFiscalYear(start);
+                } else {
+                    quarter = Math.floor((start.getMonth() + 3) / 3);
+                    year = start.getFullYear();
+                }
+                const timespan = `${getQuarterLabel(quarter)} (${year})`;
+                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = timespan;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.quarter = quarter;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('quarter');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
+                if (year_type === "Financial Year") {
+                    if (quarter === 4) {
+                        start = new Date(year + 1, 3, 1);
+                    } else {
+                        start = new Date(year, (quarter * 3) + 3, 1);
+                    }
+                } else {
+                    if (quarter === 4) {
+                        start = new Date(year + 1, 0, 1);
+                    } else {
+                        start = new Date(year, quarter * 3, 1);
+                    }
+                }
+                index++;
+            }
+        }
+    }
     async createFormDialog(doctype, name = undefined) {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
@@ -372,26 +483,60 @@ class SvaDataTable {
         }
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
-            fields.forEach(async f => {
-                if (this.manipulateFieldLabels(f)) {
-                    f.label = this.manipulateFieldLabels(f);
-                };
+            for (const f of fields) {
+                if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                    if (f.fieldname === 'frequency') {
+                        f.onchange = function () {
+                            this.handleFrequencyField();
+                        }.bind(this);
+                    }
+                }
+                if (f.fieldtype === "Table") {
+                    let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                    let tableFields = res?.message;
+                    f.fields = tableFields;
+                    if (doc[f.fieldname].length) {
+                        f.data = doc[f.fieldname].map((row) => {
+                            let old_name = row.name;
+                            delete row.name;
+                            return { ...row, old_name };
+                        });
+                    }
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                 }
-            })
+                if (f?.fetch_from && !f.default) {
+                    let fetch_from = f.fetch_from.split('.');
+                    let [parentfield, fieldname] = fetch_from;
+                    let parentf = fields.find(f => f.fieldname === parentfield);
+                    if (parentf?.options && parentf?.default) {
+                        let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                        f.default = doc[fieldname];
+                    }
+                    f.read_only = 1;
+                }
+                if (f.set_only_once && doc[f.fieldname]) {
+                    f.read_only = 1;
+                }
+            }
         } else {
-            await fields.forEach(async f => {
-                if (this.manipulateFieldLabels(f)) {
-                    f.label = this.manipulateFieldLabels(f);
-                };
+            for (const f of fields) {
+                if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                    if (f.fieldname === 'frequency') {
+                        f.onchange = function () {
+                            this.handleFrequencyField();
+                        }.bind(this);
+                    }
+                }
                 if (this.frm.parentRow) {
                     if (this.frm.parentRow[f.fieldname]) {
                         f.default = this.frm.parentRow[f.fieldname];
                         f.read_only = 1;
                     }
                 }
-                if (this.frm.doctype == f.options) {
+                if (this.frm.doctype === f.options) {
                     f.default = this.frm.doc.name;
                     f.read_only = 1;
                 }
@@ -411,25 +556,45 @@ class SvaDataTable {
                         f.read_only = 1;
                     }
                 }
+
                 if (f.fieldtype === 'Link') {
                     f.get_query = () => {
-                        const filters = []
+                        const filters = [];
                         if (this.uniqueness.column.length) {
                             if (this.uniqueness.column.includes(f.fieldname)) {
-                                let existing_options = this.rows?.map((item) => { return item[f.fieldname] })
-                                filters.push([f.options, 'name', 'not in', existing_options])
+                                let existing_options = this.rows?.map((item) => item[f.fieldname]);
+                                filters.push([f.options, 'name', 'not in', existing_options]);
                             }
                         }
                         if (f.link_filter) {
                             const [parentfield, filter_key] = f.link_filter.split("->");
                             filters.push([
-                                f.options, filter_key, '=', dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`
-                            ])
+                                f.options,
+                                filter_key,
+                                '=',
+                                dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                            ]);
                         }
-                        return { filters }
-                    }
+                        return { filters };
+                    };
                 }
-            })
+                if (f.fieldtype === "Table") {
+                    let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                    let tableFields = res?.message;
+                    f.fields = tableFields;
+                    continue;
+                }
+                if (f?.fetch_from) {
+                    let fetch_from = f.fetch_from.split('.');
+                    let [parentfield, fieldname] = fetch_from;
+                    let parentf = fields.find(f => f.fieldname === parentfield);
+                    if (parentf?.options && parentf?.default) {
+                        let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                        f.default = doc[fieldname];
+                    }
+                    f.read_only = 1;
+                }
+            }
         }
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
@@ -446,15 +611,28 @@ class SvaDataTable {
                     if (response) {
                         this.rows.push(response);
                         this.updateTableBody();
-                        frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green'});
+                        frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green' });
                     }
                 } else {
-                    let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: values });
+                    let updated_values = {};
+                    for (const key in values) {
+                        if (Array.isArray(values[key])) {
+                            updated_values[key] = values[key].map((item) => {
+                                if (item.old_name) {
+                                    return { ...item, name: item.old_name };
+                                }
+                                return item;
+                            });
+                        } else {
+                            updated_values[key] = values[key];
+                        }
+                    }
+                    let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: updated_values });
                     if (response) {
                         let rowIndex = this.rows.findIndex(r => r.name === name);
                         this.rows[rowIndex] = response;
                         this.updateTableBody();
-                        frappe.show_alert({ message: `Successfully updated ${doctype}`, indicator: 'green'});
+                        frappe.show_alert({ message: `Successfully updated ${doctype}`, indicator: 'green' });
                     }
                 }
                 dialog.clear();
@@ -475,8 +653,8 @@ class SvaDataTable {
             let rowIndex = this.rows.findIndex(r => r.name === name);
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
+            frappe.show_alert({ message: `Successfully deleted ${doctype}`, indicator: 'green' });
         });
-        frappe.show_alert({ message: `Successfully deleted ${doctype}`, indicator: 'green'});
     }
     createTable() {
         const table = document.createElement('table');
@@ -537,6 +715,8 @@ class SvaDataTable {
             // action_th.textContent = "Actions";
             tr.appendChild(action_th);
         }
+
+
         thead.appendChild(tr);
         return thead;
     }
@@ -669,6 +849,7 @@ class SvaDataTable {
                         tr.appendChild(action_td);
                     }
                 }
+
 
                 this.tBody.appendChild(tr);
                 rowIndex++;
