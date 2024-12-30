@@ -29,7 +29,7 @@ const set_list_settings = async (frm, cdt, cdn) => {
         return;
     }
 
-    let fields = dtmeta.message?.filter((f) => f.hidden == 0)?.map(f => {
+    let fields = dtmeta.message?.filter((f) => f.hidden == 0 && !['Tab Break','Section Break','Column Break','Table'].includes(f.fieldtype))?.map(f => {
         return {
             label: f.label,
             fieldname: f.fieldname,
