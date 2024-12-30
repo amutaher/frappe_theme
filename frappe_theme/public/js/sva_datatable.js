@@ -49,10 +49,17 @@ class SvaDataTable {
         this.table = null;
         this.permissions = [];
         this.mgrant_settings = {};
+        this.workflow = []
         if (!render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
+                    // ================================ Workflow  ================================
+                    this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
+                    if (this.workflow.message.name) {
+                        this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
+                    }
+                    // ================================ Workflow End ================================
                     this.mgrant_settings = await frappe.db.get_doc('mGrant Settings', 'mGrant Settings');
                     if (this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
                         let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
@@ -708,7 +715,14 @@ class SvaDataTable {
 
             tr.appendChild(th);
         });
-
+        // ========================= Workflow ======================
+        if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+            const addColumn = document.createElement('th');
+            addColumn.textContent = 'WF Action';
+            addColumn.style = 'background-color:#F3F3F3; text-align:center; cursor:pointer';
+            tr.appendChild(addColumn);
+        }
+        // ========================= Workflow End ======================
         if (this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) {
             const action_th = document.createElement('th');
             action_th.style.width = '30px';
@@ -794,7 +808,51 @@ class SvaDataTable {
                     }
                     tr.appendChild(td);
                 });
+                // ========================= Workflow ===================
+                if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
 
+                    const wf_action_td = document.createElement('td');
+                    wf_action_td.style = 'min-width:100px; text-align:center;';
+                    const wf_dropdown = document.createElement('div');
+                    wf_dropdown.classList.add('dropdown');
+
+                    const wf_dropdownBtn = document.createElement('span');
+                    wf_dropdownBtn.classList.add('h4');
+                    wf_dropdownBtn.style = 'cursor:pointer;';
+                    wf_dropdownBtn.setAttribute('data-toggle', 'dropdown');
+                    wf_dropdownBtn.innerHTML = "&#8942;";
+
+                    const wf_dropdownMenu = document.createElement('div');
+                    wf_dropdownMenu.classList.add('dropdown-menu');
+
+                    this.workflow?.transitions?.forEach(async link => {
+                        const linkOption = document.createElement('a');
+                        linkOption.classList.add('dropdown-item');
+                        linkOption.textContent = link.action;
+                        linkOption.addEventListener('click', async (e) => {
+                            frappe.confirm(
+                                `Are you sure you want to perform the action: ${link.action} ?`,
+                                async () => {
+                                    await this.wf_action(link, primaryKey);
+                                },
+                                () => {
+                                    frappe.show_alert({
+                                        message: "Action canceled.",
+                                        indicator: "orange"
+                                    });
+                                }
+                            );
+                        });
+                        wf_dropdownMenu.appendChild(linkOption);
+                    });
+
+                    wf_dropdown.appendChild(wf_dropdownBtn);
+                    wf_dropdown.appendChild(wf_dropdownMenu);
+                    wf_action_td.appendChild(wf_dropdown);
+                    tr.appendChild(wf_action_td);
+                }
+
+                // ========================= Workflow End ===================
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;';
@@ -849,13 +907,10 @@ class SvaDataTable {
                         tr.appendChild(action_td);
                     }
                 }
-
-
                 this.tBody.appendChild(tr);
                 rowIndex++;
             }
         };
-
         const handleScroll = () => {
             const scrollTop = this.table_wrapper.scrollTop;
             if (scrollTop > this.lastScrollTop) {
@@ -870,13 +925,35 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
+    // ================================ Workflow Action ================================
+
+    async wf_action(link, primaryKey) {
+        console.log('this.doctype :>> ', this.doctype);
+        console.log('primaryKey :>> ', primaryKey);
+        console.log('workflow_state_field :>> ', this.workflow.workflow_state_field);
+        console.log('link :>> ', link.next_state);
+        await frappe.db.set_value(this.doctype, primaryKey, this.workflow.workflow_state_field, link.next_state, (response) => {
+            if (!response.exc) {
+                frappe.show_alert({
+                    message: `${`${link.next_state} successfully`}`,
+                    indicator: "green"
+                });
+            } else {
+                frappe.show_alert({
+                    message: "An error occurred while updating the status.",
+                    indicator: "red"
+                });
+            }
+        });
+    }
+    // ================================ Workflow Action End ================================
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
             fields: [{
                 fieldname: 'table',
                 fieldtype: 'HTML',
-                options: `<div id="${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}"></div>`,
+                options: `< div id = "${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}" ></ > `,
             }],
         });
         dialog.onhide = async function () {
@@ -899,6 +976,7 @@ class SvaDataTable {
             },
         });
     }
+
 
     sortByColumn(column, direction, updateTable = true) {
         const columnName = column.fieldname || column;
@@ -936,8 +1014,8 @@ class SvaDataTable {
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
-            ? `position:sticky; left:${left}px; z-index:2; background-color:white; min-width:${column.width}px; max-width:${column.width}px; padding:0px`
-            : `min-width:${column.width}px; max-width:${column.width}px; padding:0px;`;
+            ? `position: sticky; left:${left} px; z - index: 2; background - color: white; min - width:${column.width} px; max - width:${column.width} px; padding: 0px`
+            : `min - width:${column.width} px; max - width:${column.width} px; padding: 0px; `;
     }
 
     createEditableField(td, column, row) {
@@ -1032,17 +1110,17 @@ class SvaDataTable {
                 $(td).css({ height: '35px', padding: "6px 10px" });
             }
             if (columnField.fieldtype === 'Attach') {
-                td.innerHTML = `<a href="${row[column.fieldname]}" target="_blank">${row[column.fieldname]}</a>`;
+                td.innerHTML = `<a href = "${row[column.fieldname]}" target = "_blank" > ${row[column.fieldname]}</a> `;
                 return;
             }
             if (columnField.fieldtype === 'Attach Image') {
                 if (row[column.fieldname]) {
-                    td.innerHTML = `<img src="${row[column.fieldname]}" style="width:30px;border-radius:50%;height:30px;object-fit:cover;" />`;
+                    td.innerHTML = `<img src = "${row[column.fieldname]}" style = "width:30px;border-radius:50%;height:30px;object-fit:cover;" /> `;
                     return;
                 }
             }
-            if (columnField.fieldname === 'name') {
-                td.innerHTML = `<a href="/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}">${row[column.fieldname]}</a>`;
+            if (columnField.fieldname == 'name') {
+                td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
                 return;
             } else {
                 td.textContent = row[column.fieldname] || "";
