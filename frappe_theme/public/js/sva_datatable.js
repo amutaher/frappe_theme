@@ -238,86 +238,6 @@ class SvaDataTable {
         return pagination;
     }
 
-    manipulateFieldLabels(field) {
-        const year_type = this.mgrant_settings?.year_type || "Financial Year";
-        let new_label = false;
-
-        if (year_type === "Financial Year") {
-            if (field.fieldname.startsWith('q1_')) {
-                new_label = field.label + ' (Apr-Jun)';
-            } else if (field.fieldname.startsWith('q2_')) {
-                new_label = field.label + ' (Jul-Sep)';
-            } else if (field.fieldname.startsWith('q3_')) {
-                new_label = field.label + ' (Oct-Dec)';
-            } else if (field.fieldname.startsWith('q4_')) {
-                new_label = field.label + ' (Jan-Mar)';
-            }
-        } else if (year_type === "Calendar Year") {
-            if (field.fieldname.startsWith('q1_')) {
-                new_label = field.label + ' (Jan-Mar)';
-            } else if (field.fieldname.startsWith('q2_')) {
-                new_label = field.label + ' (Apr-Jun)';
-            } else if (field.fieldname.startsWith('q3_')) {
-                new_label = field.label + ' (Jul-Sep)';
-            } else if (field.fieldname.startsWith('q4_')) {
-                new_label = field.label + ' (Oct-Dec)';
-            }
-        }
-
-        return new_label;
-    }
-
-    sortFields(fields) {
-        const calendarYearOrder = [
-            "q1_", "jan_", "feb_", "mar_",
-            "q2_", "apr_", "may_", "jun_",
-            "q3_", "jul_", "aug_", "sep_",
-            "q4_", "oct_", "nov_", "dec_"
-        ];
-
-        // Separate target and achievement fields for sorting
-        const targetFields = [];
-        const achievementFields = [];
-        const fieldPositions = []; // To track original order of all fields
-
-        fields.forEach((field, index) => {
-            if (field.fieldname.includes("target")) {
-                targetFields.push(field);
-            } else if (field.fieldname.includes("achievement")) {
-                achievementFields.push(field);
-            } else {
-                fieldPositions.push({ field, index }); // Store other fields with their positions
-            }
-        });
-
-        // Sort target and achievement fields based on the calendar year order
-        const sortedTargets = targetFields.sort((a, b) => {
-            const aIndex = calendarYearOrder.findIndex(prefix => a.fieldname.startsWith(prefix));
-            const bIndex = calendarYearOrder.findIndex(prefix => b.fieldname.startsWith(prefix));
-            return aIndex - bIndex;
-        });
-
-        const sortedAchievements = achievementFields.sort((a, b) => {
-            const aIndex = calendarYearOrder.findIndex(prefix => a.fieldname.startsWith(prefix));
-            const bIndex = calendarYearOrder.findIndex(prefix => b.fieldname.startsWith(prefix));
-            return aIndex - bIndex;
-        });
-
-        // Replace target and achievement fields in their original positions
-        let targetIndex = 0, achievementIndex = 0;
-        return fields.map(field => {
-            if (field.fieldname.includes("target")) {
-                return sortedTargets[targetIndex++];
-            } else if (field.fieldname.includes("achievement")) {
-                return sortedAchievements[achievementIndex++];
-            } else {
-                return field; // Keep other fields in their original positions
-            }
-        });
-    }
-
-
-
     updatePageButtons() {
         // Clear existing page buttons
         this.pageButtonsContainer.querySelectorAll('.page-item:not(:first-child):not(:last-child)').forEach(el => el.remove());
@@ -485,9 +405,6 @@ class SvaDataTable {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
         let year_type = this.mgrant_settings?.year_type || "Financial Year";
-        if (year_type === "Calendar Year" && ['Input', 'Output', 'Outcome', 'Impact'].includes(doctype)) {
-            fields = this.sortFields(fields);
-        }
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
             for (const f of fields) {
@@ -696,9 +613,6 @@ class SvaDataTable {
         let freezeColumnsAtLeft = 1;
 
         this.columns.forEach(column => {
-            if (this.manipulateFieldLabels(column)) {
-                column.label = this.manipulateFieldLabels(f);
-            };
             const th = document.createElement('th');
             th.textContent = column.label || column.name;
 
@@ -953,7 +867,7 @@ class SvaDataTable {
             fields: [{
                 fieldname: 'table',
                 fieldtype: 'HTML',
-                options: `< div id = "${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}" ></ > `,
+                options: `<div id = "${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}" ></div > `,
             }],
         });
         dialog.onhide = async function () {
@@ -1110,7 +1024,7 @@ class SvaDataTable {
                 $(td).css({ height: '35px', padding: "6px 10px" });
             }
             if (columnField.fieldtype === 'Attach') {
-                td.innerHTML = `<a href = "${row[column.fieldname]}" target = "_blank" > ${row[column.fieldname]}</a> `;
+                td.innerHTML = `<a href = "${row[column.fieldname]}" target = "_blank" >${row[column.fieldname]}</a> `;
                 return;
             }
             if (columnField.fieldtype === 'Attach Image') {
