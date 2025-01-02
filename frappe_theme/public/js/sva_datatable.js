@@ -423,6 +423,10 @@ class SvaDataTable {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
+                    if(f.fieldname === 'planning_table'){
+                        f.cannot_add_rows = 1;
+                        f.cannot_delete_rows = 1;
+                    }
                     if (doc[f.fieldname].length) {
                         f.data = doc[f.fieldname].map((row) => {
                             let old_name = row.name;
@@ -506,9 +510,14 @@ class SvaDataTable {
                     };
                 }
                 if (f.fieldtype === "Table") {
+
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
+                    if(f.fieldname === 'planning_table'){
+                        f.cannot_add_rows = 1;
+                        f.cannot_delete_rows = 1;
+                    }
                     continue;
                 }
                 if (f?.fetch_from) {
@@ -574,7 +583,6 @@ class SvaDataTable {
         });
         dialog.show();
         for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
-            console.log(field, 'field')
             if (field?.df?.min_max_depends_on) {
                 let splitted = field.df.min_max_depends_on.split('->');
                 let fn = splitted[0].split('.')[0];
