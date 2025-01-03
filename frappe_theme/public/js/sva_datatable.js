@@ -419,11 +419,12 @@ class SvaDataTable {
                         continue;
                     }
                 }
+                
                 if (f.fieldtype === "Table") {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
-                    if(f.fieldname === 'planning_table'){
+                    if (f.fieldname === 'planning_table') {
                         f.cannot_add_rows = 1;
                         f.cannot_delete_rows = 1;
                     }
@@ -451,6 +452,27 @@ class SvaDataTable {
                     }
                     f.read_only = 1;
                 }
+                if (f.fieldtype === 'Link') {
+                    f.get_query = () => {
+                        const filters = [];
+                        if (this.uniqueness.column.length) {
+                            if (this.uniqueness.column.includes(f.fieldname)) {
+                                let existing_options = this.rows?.map((item) => item[f.fieldname]);
+                                filters.push([f.options, 'name', 'not in', existing_options]);
+                            }
+                        }
+                        if (f.link_filter) {
+                            const [parentfield, filter_key] = f.link_filter.split("->");
+                            filters.push([
+                                f.options,
+                                filter_key,
+                                '=',
+                                dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                            ]);
+                        }
+                        return { filters };
+                    };
+                }
             }
         } else {
             for (const f of fields) {
@@ -459,6 +481,22 @@ class SvaDataTable {
                         f.onchange = function () {
                             this.handleFrequencyField();
                         }.bind(this);
+                    }
+                    if (f.fieldname === 'financial_years'){
+                        let start_date = cur_dialog?.fields_dict?.start_date?.value;
+                        let end_date = cur_dialog?.fields_dict?.end_date?.value;
+                        let start = new Date(start_date);
+                        let end = new Date(end_date);
+                        let year = start.getFullYear();
+                        let index = 0;
+                        let financial_years = [];
+                        while (start <= end) {
+                            financial_years.push({'financial_year':year});
+                            year++;
+                            start = new Date(year, 0, 1);
+                            index++;
+                        }
+                        console.log(financial_years,'financial_years');
                     }
                 }
                 if (this.frm.parentRow) {
@@ -510,11 +548,10 @@ class SvaDataTable {
                     };
                 }
                 if (f.fieldtype === "Table") {
-
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
-                    if(f.fieldname === 'planning_table'){
+                    if (f.fieldname === 'planning_table') {
                         f.cannot_add_rows = 1;
                         f.cannot_delete_rows = 1;
                     }
@@ -582,6 +619,30 @@ class SvaDataTable {
             }
         });
         dialog.show();
+        if(!name){
+            if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                let financial_years_field = dialog?.fields_dict?.financial_years;
+                if (financial_years_field){
+                    let start_date = dialog.get_value('start_date');
+                    let end_date = dialog.get_value('end_date');
+                    console.log(start_date,end_date,'start_date,end_date');
+                    let start = new Date(start_date);
+                    let end = new Date(end_date);
+                    let year = start.getFullYear();
+                    let index = 0;
+                    let financial_years = [];
+                    while (start <= end) {
+                        financial_years.push(year);
+                        year++;
+                        start = new Date(year, 0, 1);
+                        index++;
+                    }
+                    let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] },pluck:'name' });
+                    financial_years_field.value = selected_financial_years?.map(f => {return {'financial_year':f}});
+                    financial_years_field.refresh();
+                }
+            }
+        }
         for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
             if (field?.df?.min_max_depends_on) {
                 let splitted = field.df.min_max_depends_on.split('->');
