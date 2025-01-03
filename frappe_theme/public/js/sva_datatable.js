@@ -404,7 +404,6 @@ class SvaDataTable {
     async createFormDialog(doctype, name = undefined) {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
-        let year_type = this.mgrant_settings?.year_type || "Financial Year";
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
             for (const f of fields) {
@@ -413,12 +412,22 @@ class SvaDataTable {
                         f.onchange = function () {
                             this.handleFrequencyField();
                         }.bind(this);
+                        if (doc[f.fieldname]) {
+                            f.default = doc[f.fieldname];
+                            f.read_only = 1;
+                        }
+                        continue;
                     }
                 }
+                
                 if (f.fieldtype === "Table") {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
+                    if (f.fieldname === 'planning_table') {
+                        f.cannot_add_rows = 1;
+                        f.cannot_delete_rows = 1;
+                    }
                     if (doc[f.fieldname].length) {
                         f.data = doc[f.fieldname].map((row) => {
                             let old_name = row.name;
@@ -431,18 +440,38 @@ class SvaDataTable {
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                 }
-                if (f?.fetch_from && !f.default) {
-                    let fetch_from = f.fetch_from.split('.');
-                    let [parentfield, fieldname] = fetch_from;
-                    let parentf = fields.find(f => f.fieldname === parentfield);
-                    if (parentf?.options && parentf?.default) {
-                        let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
-                        f.default = doc[fieldname];
+                if (f?.fetch_from) {
+                    if (!f.default) {
+                        let fetch_from = f.fetch_from.split('.');
+                        let [parentfield, fieldname] = fetch_from;
+                        let parentf = fields.find(f => f.fieldname === parentfield);
+                        if (parentf?.options && parentf?.default) {
+                            let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                            f.default = doc[fieldname];
+                        }
                     }
                     f.read_only = 1;
                 }
-                if (f.set_only_once && doc[f.fieldname]) {
-                    f.read_only = 1;
+                if (f.fieldtype === 'Link') {
+                    f.get_query = () => {
+                        const filters = [];
+                        if (this.uniqueness.column.length) {
+                            if (this.uniqueness.column.includes(f.fieldname)) {
+                                let existing_options = this.rows?.map((item) => item[f.fieldname]);
+                                filters.push([f.options, 'name', 'not in', existing_options]);
+                            }
+                        }
+                        if (f.link_filter) {
+                            const [parentfield, filter_key] = f.link_filter.split("->");
+                            filters.push([
+                                f.options,
+                                filter_key,
+                                '=',
+                                dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                            ]);
+                        }
+                        return { filters };
+                    };
                 }
             }
         } else {
@@ -506,6 +535,10 @@ class SvaDataTable {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
+                    if (f.fieldname === 'planning_table') {
+                        f.cannot_add_rows = 1;
+                        f.cannot_delete_rows = 1;
+                    }
                     continue;
                 }
                 if (f?.fetch_from) {
@@ -570,6 +603,51 @@ class SvaDataTable {
             }
         });
         dialog.show();
+        if(!name){
+            if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                let financial_years_field = dialog?.fields_dict?.financial_years;
+                if (financial_years_field){
+                    let start_date = dialog.get_value('start_date');
+                    let end_date = dialog.get_value('end_date');
+                    let start = new Date(start_date);
+                    let end = new Date(end_date);
+                    let year = start.getFullYear();
+                    let index = 0;
+                    let financial_years = [];
+                    while (start <= end) {
+                        financial_years.push(year);
+                        year++;
+                        start = new Date(year, 0, 1);
+                        index++;
+                    }
+                    let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] },pluck:'name' });
+                    financial_years_field.value = selected_financial_years?.map(f => {return {'financial_year':f}});
+                    financial_years_field.refresh();
+                }
+            }
+        }
+        for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
+            if (field?.df?.min_max_depends_on) {
+                let splitted = field.df.min_max_depends_on.split('->');
+                let fn = splitted[0].split('.')[0];
+                let doctype = splitted[0].split('.')[1];
+                let min_field = splitted[1];
+                let max_field = splitted[2] ? splitted[2] : '';
+                if (dialog.get_value(fieldname)) {
+                    if (frappe.db.exists(doctype, dialog.get_value(fn))) {
+                        let doc = await frappe.db.get_doc(doctype, dialog.get_value(fn));
+                        let option = {};
+                        if (min_field && doc[min_field]) {
+                            option['minDate'] = new Date(doc[min_field]);
+                        }
+                        if (max_field && doc[max_field]) {
+                            option['maxDate'] = new Date(doc[max_field]);
+                        }
+                        dialog.fields_dict[fieldname].$input.datepicker(option);
+                    }
+                }
+            }
+        }
     }
     async deleteRecord(doctype, name) {
         frappe.confirm(`Are you sure you want to delete this ${doctype}?`, async () => {
