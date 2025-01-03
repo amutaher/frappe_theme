@@ -50,6 +50,7 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = {};
         this.workflow = []
+        this.workflow_state_bg = []
         if (!render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.get_permissions(this.doctype).then(async perms => {
@@ -58,6 +59,9 @@ class SvaDataTable {
                     this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
                     if (this.workflow.message.name) {
                         this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
+                        this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
+                            fields: ['name', 'style']
+                        });
                     }
                     // ================================ Workflow End ================================
                     this.mgrant_settings = await frappe.db.get_doc('mGrant Settings', 'mGrant Settings');
@@ -419,7 +423,7 @@ class SvaDataTable {
                         continue;
                     }
                 }
-                
+
                 if (f.fieldtype === "Table") {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
@@ -603,10 +607,10 @@ class SvaDataTable {
             }
         });
         dialog.show();
-        if(!name){
+        if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
-                if (financial_years_field){
+                if (financial_years_field) {
                     let start_date = dialog.get_value('start_date');
                     let end_date = dialog.get_value('end_date');
                     let start = new Date(start_date);
@@ -620,8 +624,8 @@ class SvaDataTable {
                         start = new Date(year, 0, 1);
                         index++;
                     }
-                    let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] },pluck:'name' });
-                    financial_years_field.value = selected_financial_years?.map(f => {return {'financial_year':f}});
+                    let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] }, pluck: 'name' });
+                    financial_years_field.value = selected_financial_years?.map(f => { return { 'financial_year': f } });
                     financial_years_field.refresh();
                 }
             }
@@ -801,46 +805,38 @@ class SvaDataTable {
                     tr.appendChild(td);
                 });
                 // ========================= Workflow ===================
-                if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+                if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
+                    const wf_select = document.createElement('select');
+                    wf_select.classList.add('form-select', 'rounded');
+                    // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
+                    wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
+                        this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
-                    const wf_action_td = document.createElement('td');
-                    wf_action_td.style = 'min-width:100px; text-align:center;';
-                    const wf_dropdown = document.createElement('div');
-                    wf_dropdown.classList.add('dropdown');
+                    wf_select.style = 'min-width:100px; text-align:center; padding:2px 5px;';
 
-                    const wf_dropdownBtn = document.createElement('span');
-                    wf_dropdownBtn.classList.add('h4');
-                    wf_dropdownBtn.style = 'cursor:pointer;';
-                    wf_dropdownBtn.setAttribute('data-toggle', 'dropdown');
-                    wf_dropdownBtn.innerHTML = "&#8942;";
+                    const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
+                    wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
 
-                    const wf_dropdownMenu = document.createElement('div');
-                    wf_dropdownMenu.classList.add('dropdown-menu');
+                    wf_select.innerHTML = `<option value="" selected disabled>${row['workflow_state']}</option>` +
+                        this.workflow.transitions
+                            .filter(link => frappe.user_roles.includes(link.allowed))
+                            .map(link => `<option value="${link.action}" class="bg-white text-black rounded p-1">${link.action}</option>`)
+                            .join('');
 
-                    this.workflow?.transitions?.forEach(async link => {
-                        const linkOption = document.createElement('a');
-                        linkOption.classList.add('dropdown-item');
-                        linkOption.textContent = link.action;
-                        linkOption.addEventListener('click', async (e) => {
+                    wf_select.addEventListener('change', async (event) => {
+                        const action = event.target.value;
+                        const link = this.workflow.transitions.find(l => l.action === action);
+                        if (link) {
                             frappe.confirm(
-                                `Are you sure you want to perform the action: ${link.action} ?`,
-                                async () => {
-                                    await this.wf_action(link, primaryKey);
-                                },
-                                () => {
-                                    frappe.show_alert({
-                                        message: "Action canceled.",
-                                        indicator: "orange"
-                                    });
-                                }
+                                `Are you sure you want to perform the action: ${action}?`,
+                                async () => await this.wf_action(link, primaryKey),
+                                () => frappe.show_alert({ message: "Action canceled.", indicator: "orange" })
                             );
-                        });
-                        wf_dropdownMenu.appendChild(linkOption);
+                        }
                     });
 
-                    wf_dropdown.appendChild(wf_dropdownBtn);
-                    wf_dropdown.appendChild(wf_dropdownMenu);
-                    wf_action_td.appendChild(wf_dropdown);
+                    const wf_action_td = document.createElement('td');
+                    wf_action_td.appendChild(wf_select);
                     tr.appendChild(wf_action_td);
                 }
 
@@ -920,12 +916,12 @@ class SvaDataTable {
     // ================================ Workflow Action ================================
 
     async wf_action(link, primaryKey) {
-        console.log('this.doctype :>> ', this.doctype);
-        console.log('primaryKey :>> ', primaryKey);
-        console.log('workflow_state_field :>> ', this.workflow.workflow_state_field);
-        console.log('link :>> ', link.next_state);
         await frappe.db.set_value(this.doctype, primaryKey, this.workflow.workflow_state_field, link.next_state, (response) => {
             if (!response.exc) {
+                let row = this.rows.find((row) => row.name == primaryKey)
+                row[this.workflow.workflow_state_field] = link.next_state
+                this.rows[row.rowIndex] = row;
+                this.updateTableBody()
                 frappe.show_alert({
                     message: `${`${link.next_state} successfully`}`,
                     indicator: "green"
