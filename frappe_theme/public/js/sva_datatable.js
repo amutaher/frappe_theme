@@ -482,22 +482,6 @@ class SvaDataTable {
                             this.handleFrequencyField();
                         }.bind(this);
                     }
-                    if (f.fieldname === 'financial_years'){
-                        let start_date = cur_dialog?.fields_dict?.start_date?.value;
-                        let end_date = cur_dialog?.fields_dict?.end_date?.value;
-                        let start = new Date(start_date);
-                        let end = new Date(end_date);
-                        let year = start.getFullYear();
-                        let index = 0;
-                        let financial_years = [];
-                        while (start <= end) {
-                            financial_years.push({'financial_year':year});
-                            year++;
-                            start = new Date(year, 0, 1);
-                            index++;
-                        }
-                        console.log(financial_years,'financial_years');
-                    }
                 }
                 if (this.frm.parentRow) {
                     if (this.frm.parentRow[f.fieldname]) {
@@ -625,7 +609,6 @@ class SvaDataTable {
                 if (financial_years_field){
                     let start_date = dialog.get_value('start_date');
                     let end_date = dialog.get_value('end_date');
-                    console.log(start_date,end_date,'start_date,end_date');
                     let start = new Date(start_date);
                     let end = new Date(end_date);
                     let year = start.getFullYear();
