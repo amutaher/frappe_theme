@@ -754,7 +754,7 @@ class SvaDataTable {
         // ========================= Workflow ======================
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
-            addColumn.textContent = 'WF Action';
+            addColumn.textContent = 'Approval';
             addColumn.style = 'background-color:#F3F3F3; text-align:center; cursor:pointer';
             tr.appendChild(addColumn);
         }
@@ -1114,14 +1114,20 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML', 'Currency', 'Int', 'Float'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
                 render_input: true,
-                only_input: true,
+                only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
             });
-            $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+            if (['Currency', 'Int', 'Float'].includes(columnField.fieldtype)) {
+                control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
+                $(control.label_area).css({ display: 'none' })
+                $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
+            } else {
+                $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+            }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
             }
