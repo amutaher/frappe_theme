@@ -717,11 +717,11 @@ class SvaDataTable {
             thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
         }
         thead.style = `
-            color:${this.options?.style?.tableHeader?.color || 'black'};
+            color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
             position:sticky; top: 0px; background-color:#F3F3F3; 
-            text-align:center; z-index:3; font-weight:200 !important;white-space: nowrap;`
+            z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
 
@@ -755,7 +755,7 @@ class SvaDataTable {
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
-            addColumn.style = 'background-color:#F3F3F3; text-align:center; cursor:pointer';
+            addColumn.style = 'background-color:#F3F3F3; cursor:pointer';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
@@ -1126,9 +1126,9 @@ class SvaDataTable {
             if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none',fontSize:'12px',color:'#525252', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px',fontSize:'12px',color:'#525252', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1160,7 +1160,7 @@ class SvaDataTable {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                 }) || 0;
-                td.style = 'text-align:right';
+                td.style = 'text-align:right;';
                 return;
             }
             if (columnField.fieldname == 'name') {
