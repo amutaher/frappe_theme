@@ -55,7 +55,7 @@ class SvaDataTable {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
-                    // ================================ Workflow  ================================
+                    // ================================ Workflow Logic  ================================
                     this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
                     if (this.workflow.message.name) {
                         this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
@@ -751,7 +751,7 @@ class SvaDataTable {
 
             tr.appendChild(th);
         });
-        // ========================= Workflow ======================
+        // ========================= Workflow Logic ======================
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
@@ -845,7 +845,7 @@ class SvaDataTable {
                     }
                     tr.appendChild(td);
                 });
-                // ========================= Workflow ===================
+                // ========================= Workflow Logic ===================
                 if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
                     const wf_select = document.createElement('select');
                     wf_select.classList.add('form-select', 'rounded');
@@ -853,7 +853,7 @@ class SvaDataTable {
                     wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
-                    wf_select.style = 'min-width:100px; text-align:center; padding:2px 5px;';
+                    wf_select.style = 'min-width:100px;  padding:2px 5px;';
 
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
                     wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
@@ -877,6 +877,7 @@ class SvaDataTable {
                     });
 
                     const wf_action_td = document.createElement('td');
+                    wf_action_td.style = "text-align: center;";
                     wf_action_td.appendChild(wf_select);
                     tr.appendChild(wf_action_td);
                 }
@@ -954,7 +955,7 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
-    // ================================ Workflow Action ================================
+    // ================================ Workflow Action  Logic ================================
 
     async wf_action(link, primaryKey) {
         await frappe.db.set_value(this.doctype, primaryKey, this.workflow.workflow_state_field, link.next_state, (response) => {
@@ -1125,9 +1126,9 @@ class SvaDataTable {
             if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
-                $(control.input).css({ width: '100%',minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1154,7 +1155,7 @@ class SvaDataTable {
                     return;
                 }
             }
-            if(['Int','Float'].includes(columnField.fieldtype)){
+            if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname].toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
