@@ -25,6 +25,11 @@ const updateThemeLinks = async () => {
                 if (path) {
                     e.setAttribute('href', path)
                     // console.log('Path:', path);
+                }else{
+                    let url = e.getAttribute('href');
+                    if(url?.includes('/app/')){
+                        e.setAttribute('target', 'self');
+                    }
                 }
             });
         }
