@@ -1196,7 +1196,7 @@ class SvaDataTable {
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
         noDataFoundText.style.paddingTop = '30px';
         noDataFoundText.style.color = 'grey';
-        noDataFoundText.textContent = "No data found!";
+        noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
     }
