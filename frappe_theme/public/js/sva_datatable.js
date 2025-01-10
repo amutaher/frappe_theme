@@ -607,25 +607,65 @@ class SvaDataTable {
             }
         });
         dialog.show();
+        // if (!name) {
+        //     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+        //         let financial_years_field = dialog?.fields_dict?.financial_years;
+        //         if (financial_years_field) {
+        //             let start_date = dialog.get_value('start_date');
+        //             let end_date = dialog.get_value('end_date');
+        //             let start = new Date(start_date);
+        //             let end = new Date(end_date);
+        //             let year = start.getFullYear();
+        //             let index = 0;
+        //             let financial_years = [];
+        //             while (start <= end) {
+        //                 financial_years.push(year);
+        //                 year++;
+        //                 start = new Date(year, 0, 1);
+        //                 index++;
+        //             }
+        //             let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] }, pluck: 'name' });
+        //             financial_years_field.value = selected_financial_years?.map(f => { return { 'financial_year': f } });
+        //             financial_years_field.refresh();
+        //         }
+        //     }
+        // }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
                 if (financial_years_field) {
                     let start_date = dialog.get_value('start_date');
                     let end_date = dialog.get_value('end_date');
+                    let year_type = this.mgrant_settings?.year_type || 'Financial Year'; // Get year type from the dialog
                     let start = new Date(start_date);
                     let end = new Date(end_date);
-                    let year = start.getFullYear();
-                    let index = 0;
                     let financial_years = [];
                     while (start <= end) {
-                        financial_years.push(year);
-                        year++;
-                        start = new Date(year, 0, 1);
-                        index++;
+                        if (year_type === "Financial Year") {
+                            let year = start.getFullYear();
+                            let financial_year = start.getMonth() < 3
+                                ? `${year - 1}` // Before April
+                                : `${year + 1}`; // From April onwards
+                            if (!financial_years.includes(financial_year)) {
+                                financial_years.push(financial_year);
+                            }
+                        } else {
+                            let year = start.getFullYear();
+                            if (!financial_years.includes(year)) {
+                                financial_years.push(year);
+                            }
+                        }
+                        start.setMonth(start.getMonth() + 1);
                     }
-                    let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] }, pluck: 'name' });
-                    financial_years_field.value = selected_financial_years?.map(f => { return { 'financial_year': f } });
+                    let selected_financial_years = await frappe.db.get_list('Financial Year', {
+                        filters: {
+                            'financial_year_name': ['in', financial_years]
+                        },
+                        pluck: 'name'
+                    });
+                    financial_years_field.value = selected_financial_years?.map(f => {
+                        return { 'financial_year': f };
+                    });
                     financial_years_field.refresh();
                 }
             }
@@ -681,7 +721,7 @@ class SvaDataTable {
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
             position:sticky; top: 0px; background-color:#F3F3F3; 
-            text-align:center; z-index:3; font-weight:200 !important;`
+            text-align:center; z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
 
@@ -714,7 +754,7 @@ class SvaDataTable {
         // ========================= Workflow ======================
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
-            addColumn.textContent = 'WF Action';
+            addColumn.textContent = 'Approval';
             addColumn.style = 'background-color:#F3F3F3; text-align:center; cursor:pointer';
             tr.appendChild(addColumn);
         }
@@ -760,7 +800,8 @@ class SvaDataTable {
             font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
             color:${this.options?.style?.tableBody?.color || 'black'};
-            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};`
+            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};
+            white-space: nowrap;`
             ;
         if (this.currentSort) {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
@@ -1002,8 +1043,8 @@ class SvaDataTable {
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
-            ? `position: sticky; left:${left} px; z - index: 2; background - color: white; min - width:${column.width} px; max - width:${column.width} px; padding: 0px`
-            : `min - width:${column.width} px; max - width:${column.width} px; padding: 0px; `;
+            ? `position: sticky; left:${left} px; z-index: 2; background-color: white; min-width:${column.width} px; max-width:${column.width} px; padding: 0px`
+            : `min-width:${column.width || 150} px; max-width:${column.width} px; padding: 0px; `;
     }
 
     createEditableField(td, column, row) {
@@ -1074,14 +1115,20 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
                 render_input: true,
-                only_input: true,
+                only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
             });
-            $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+            if (['Currency'].includes(columnField.fieldtype)) {
+                control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
+                $(control.label_area).css({ display: 'none' })
+                $(control.input).css({ width: '100%',minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
+            } else {
+                $(control.input).css({ width: '100%', minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+            }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
             }
@@ -1106,6 +1153,14 @@ class SvaDataTable {
                     td.innerHTML = `<img src = "${row[column.fieldname]}" style = "width:30px;border-radius:50%;height:30px;object-fit:cover;" /> `;
                     return;
                 }
+            }
+            if(['Int','Float'].includes(columnField.fieldtype)){
+                td.innerText = row[column.fieldname].toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }) || 0;
+                td.style = 'text-align:right';
+                return;
             }
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
@@ -1150,7 +1205,7 @@ class SvaDataTable {
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
         noDataFoundText.style.paddingTop = '30px';
         noDataFoundText.style.color = 'grey';
-        noDataFoundText.textContent = "No data found!";
+        noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
     }
