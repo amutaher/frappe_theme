@@ -721,7 +721,7 @@ class SvaDataTable {
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
             position:sticky; top: 0px; background-color:#F3F3F3; 
-            text-align:center; z-index:3; font-weight:200 !important;`
+            text-align:center; z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
 
@@ -800,7 +800,8 @@ class SvaDataTable {
             font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
             color:${this.options?.style?.tableBody?.color || 'black'};
-            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};`
+            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};
+            white-space: nowrap;`
             ;
         if (this.currentSort) {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
@@ -1042,8 +1043,8 @@ class SvaDataTable {
 
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
-            ? `position: sticky; left:${left} px; z - index: 2; background - color: white; min - width:${column.width} px; max - width:${column.width} px; padding: 0px`
-            : `min - width:${column.width} px; max - width:${column.width} px; padding: 0px; `;
+            ? `position: sticky; left:${left} px; z-index: 2; background-color: white; min-width:${column.width} px; max-width:${column.width} px; padding: 0px`
+            : `min-width:${column.width || 150} px; max-width:${column.width} px; padding: 0px; `;
     }
 
     createEditableField(td, column, row) {
@@ -1114,19 +1115,19 @@ class SvaDataTable {
             ...column,
             read_only: 1
         };
-        if (['Link', 'HTML', 'Currency', 'Int', 'Float'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
                 render_input: true,
                 only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
             });
-            if (['Currency', 'Int', 'Float'].includes(columnField.fieldtype)) {
+            if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
-                $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
+                $(control.input).css({ width: '100%',minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth:'150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1152,6 +1153,14 @@ class SvaDataTable {
                     td.innerHTML = `<img src = "${row[column.fieldname]}" style = "width:30px;border-radius:50%;height:30px;object-fit:cover;" /> `;
                     return;
                 }
+            }
+            if(['Int','Float'].includes(columnField.fieldtype)){
+                td.innerText = row[column.fieldname].toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }) || 0;
+                td.style = 'text-align:right';
+                return;
             }
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
