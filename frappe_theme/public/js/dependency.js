@@ -46,38 +46,50 @@ const tabContent = async (frm, tab_field) => {
         }
         let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
         for (let _f of dtFields) {
-            if (_f?.connection_type == "Is Custom Design") {
-                if (_f?.template == "Gallery") {
-                    gallery_image(frm, _f.html_field);
+            if(frm.doc.__islocal){
+                if(!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
+                    document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;"><img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>Please save the document to view the child table</div>`;
                 }
-                if (_f?.template == "Email") {
-                    communication(frm, _f.html_field);
+            }else{
+                if(document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
+                    document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
                 }
-                if (_f?.template == "Tasks") {
-                    getTaskList(frm, _f.html_field);
-                }
-                if (_f?.template == "Timeline") {
-                    showTimelines(frm, _f.html_field);
-                }
-                if (_f?.template == "Notes") {
-                    await render_note(frm,_f.html_field);
-                }
-                if (_f?.template == "Comments") {
-                    await renderComment(frm,_f.html_field);
-                }
-            } else {
-                let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-                new SvaDataTable({
-                    wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-                    doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
-                    frm: frm,       // Pass the current form object (optional)
-                    connection: _f,
-                    childLinks: childLinks,
-                    options: {
-                        serialNumberColumn: true, // Enable serial number column (optional)
-                        editable: false,      // Enable editing (optional),
+                if (_f?.connection_type == "Is Custom Design") {
+                    if (_f?.template == "Gallery") {
+                        gallery_image(frm, _f.html_field);
                     }
-                });
+                    if (_f?.template == "Email") {
+                        communication(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Tasks") {
+                        getTaskList(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Timeline") {
+                        showTimelines(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Notes") {
+                        await render_note(frm, _f.html_field);
+                    }
+                    if (_f?.template == "Comments") {
+                        await renderComment(frm, _f.html_field);
+                    }
+                } else {
+                    let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
+                    // if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).children.length > 0) {
+                    //     document.querySelector(`[data-fieldname="${_f.html_field}"]`).ch;
+                    // }
+                    new SvaDataTable({
+                        wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                        doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
+                        frm: frm,       // Pass the current form object (optional)
+                        connection: _f,
+                        childLinks: childLinks,
+                        options: {
+                            serialNumberColumn: true, // Enable serial number column (optional)
+                            editable: false,      // Enable editing (optional),
+                        }
+                    });
+                }
             }
         }
     }
@@ -144,7 +156,7 @@ frappe.router.on('change', async () => {
         // Condition: Stop if the desired value exists in cur_frm
         if (cur_frm || elapsedTime >= maxTime) {
             $('.form-footer').remove();
-            $('.layout-side-section').remove();
+            // $('.layout-side-section').remove();
             clearInterval(interval);
             await setDynamicProperties();
             return;
