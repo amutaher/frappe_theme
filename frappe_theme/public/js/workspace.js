@@ -38,4 +38,6 @@ const updateThemeLinks = async () => {
     }
 }
 
-updateThemeLinks();
+frappe.router.on('change', () => {
+    updateThemeLinks();
+});
