@@ -1,0 +1,26 @@
+.layout-main {
+    max-width: 1700px !important;
+}
+
+.page-head.container {
+    max-width: 1700px !important;
+    padding: 0px 27px !important;
+}
+
+.page-head .container {
+    max-width: 1700px !important;
+    padding: 0px 27px !important;
+}
+
+.section-body {
+    max-width: 1700px !important;
+    padding: 0px 27px !important;
+}
+
+.section-head {
+    max-width: 1700px !important;
+    padding: 0px 27px !important;
+}
+.page-title{
+    padding-left: 0px !important;
+}
