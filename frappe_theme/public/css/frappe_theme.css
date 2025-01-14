@@ -1,26 +1,30 @@
 .layout-main {
-    max-width: 1700px !important;
+    max-width: 2100px !important;
 }
 
 .page-head.container {
-    max-width: 1700px !important;
+    max-width: 2100px !important;
     padding: 0px 27px !important;
 }
 
 .page-head .container {
-    max-width: 1700px !important;
+    max-width: 2100px !important;
     padding: 0px 27px !important;
 }
 
 .section-body {
-    max-width: 1700px !important;
-    padding: 0px 27px !important;
+    max-width: 2100px !important;
+    padding: 0px 0px !important;
 }
 
 .section-head {
-    max-width: 1700px !important;
-    padding: 0px 27px !important;
+    max-width: 2100px !important;
+    padding: 0px 15px !important;
 }
 .page-title{
     padding-left: 0px !important;
+}
+
+.form-section.card-section{
+    padding: 0px 0px !important;
 }
