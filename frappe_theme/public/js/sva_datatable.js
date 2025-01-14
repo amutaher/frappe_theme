@@ -849,24 +849,26 @@ class SvaDataTable {
                 if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
                     const wf_select = document.createElement('select');
                     wf_select.classList.add('form-select', 'rounded');
+                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
+
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
                     wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
-                    wf_select.style = 'min-width:100px;  padding:2px 5px;';
+                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
 
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
                     wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
 
-                    wf_select.innerHTML = `<option value="" selected disabled>${row['workflow_state']}</option>` +
+                    wf_select.innerHTML = `<option value="" title="Test Tooltip" style="color:black" selected disabled>${row['workflow_state']}</option>` +
                         this.workflow.transitions
                             .filter(link => frappe.user_roles.includes(link.allowed))
-                            .map(link => `<option value="${link.action}" class="bg-white text-black rounded p-1">${link.action}</option>`)
+                            .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
                             .join('');
 
                     wf_select.addEventListener('change', async (event) => {
                         const action = event.target.value;
-                        const link = this.workflow.transitions.find(l => l.action === action);
+                        const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
                         if (link) {
                             frappe.confirm(
                                 `Are you sure you want to perform the action: ${action}?`,
@@ -1126,9 +1128,9 @@ class SvaDataTable {
             if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none',fontSize:'12px',color:'#525252', textAlign: 'right' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', fontSize: '12px', color: '#525252', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px',fontSize:'12px',color:'#525252', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: '#525252', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);

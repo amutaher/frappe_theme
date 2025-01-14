@@ -70,9 +70,6 @@ const tabContent = async (frm, tab_field) => {
                     if (_f?.template == "Notes") {
                         await render_note(frm, _f.html_field);
                     }
-                    if (_f?.template == "Comments") {
-                        await renderComment(frm, _f.html_field);
-                    }
                 } else {
                     let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
                     // if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).children.length > 0) {
@@ -109,6 +106,14 @@ const mapEvents = (props) => {
     }
     return {
         refresh: async function (frm) {
+            if (!frm.doc.__islocal) {
+                frm.add_custom_button('💬', () => {
+                    const commentSection = document.querySelector('.comment-box');
+                    if (commentSection) {
+                        commentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            }
             let tab_field = frm.get_active_tab()?.df?.fieldname;
             tabContent(frm, tab_field)
             $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
@@ -143,7 +148,6 @@ async function setDynamicProperties() {
         }
     }
 }
-// console.log(frappe,'frappe');
 frappe.router.on('change', async () => {
     let interval;
     let elapsedTime = 0;
@@ -155,7 +159,6 @@ frappe.router.on('change', async () => {
 
         // Condition: Stop if the desired value exists in cur_frm
         if (cur_frm || elapsedTime >= maxTime) {
-            $('.form-footer').remove();
             // $('.layout-side-section').remove();
             clearInterval(interval);
             await setDynamicProperties();
