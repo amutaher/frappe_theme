@@ -106,6 +106,14 @@ const mapEvents = (props) => {
     }
     return {
         refresh: async function (frm) {
+            if (!frm.doc.__islocal) {
+                frm.add_custom_button('💬', () => {
+                    const commentSection = document.querySelector('.comment-box');
+                    if (commentSection) {
+                        commentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            }
             let tab_field = frm.get_active_tab()?.df?.fieldname;
             tabContent(frm, tab_field)
             $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
