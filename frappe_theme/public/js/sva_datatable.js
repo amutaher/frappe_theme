@@ -849,16 +849,18 @@ class SvaDataTable {
                 if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
                     const wf_select = document.createElement('select');
                     wf_select.classList.add('form-select', 'rounded');
+                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
+
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
                     wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
-                    wf_select.style = 'min-width:100px;  padding:2px 5px;';
+                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
 
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
                     wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
 
-                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
+                    wf_select.innerHTML = `<option value="" title="Test Tooltip" style="color:black" selected disabled>${row['workflow_state']}</option>` +
                         this.workflow.transitions
                             .filter(link => frappe.user_roles.includes(link.allowed))
                             .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
