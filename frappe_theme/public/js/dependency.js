@@ -110,7 +110,7 @@ const mapEvents = (props) => {
                 frm.add_custom_button('💬', () => {
                     const commentSection = document.querySelector('.comment-box');
                     if (commentSection) {
-                        commentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        commentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 });
             }
