@@ -79,7 +79,7 @@ class SvaDataTable {
                                 fieldname: 'name',
                                 label: 'ID'
                             }, ...columns?.message?.filter(f => this.header.includes(f.fieldname))]
-                            await this.setupTotalCount();
+                            // await this.setupTotalCount();
                             this.rows = await this.getDocList()
                             this.table = this.createTable();
                             if (!this.table_wrapper.querySelector('table')) {
@@ -131,33 +131,33 @@ class SvaDataTable {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
         return tableWrapper;
     }
-    async setupTotalCount() {
-        if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
-            let filters = []
-            if (this.connection?.connection_type === 'Referenced') {
-                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-            } else {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-            }
-            this.total = await frappe.db.count(this.doctype, { filters: filters });
-            let count = document.createElement('span');
-            count.id = 'count-element';
-            count.innerHTML = `<span>Total records: ${this.total}</span>`;
-            count.style = 'font-size:12px;';
-            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
-        } else {
-            let filters = []
-            if (this.connection?.connection_type === 'Referenced') {
-                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-            } else {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-            }
-            this.total = await frappe.db.count(this.doctype, { filters: filters });
-            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
-        }
-    }
+    // async setupTotalCount() {
+    //     if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
+    //         let filters = []
+    //         if (this.connection?.connection_type === 'Referenced') {
+    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+    //         } else {
+    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+    //         }
+    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
+    //         let count = document.createElement('span');
+    //         count.id = 'count-element';
+    //         count.innerHTML = `<span>Total records: ${this.total}</span>`;
+    //         count.style = 'font-size:12px;';
+    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
+    //     } else {
+    //         let filters = []
+    //         if (this.connection?.connection_type === 'Referenced') {
+    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+    //         } else {
+    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+    //         }
+    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
+    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
+    //     }
+    // }
     async setupFooter(wrapper) {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
@@ -601,7 +601,7 @@ class SvaDataTable {
                 }
                 dialog.clear();
                 dialog.hide();
-                await this.setupTotalCount();
+                // await this.setupTotalCount();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
