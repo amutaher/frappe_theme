@@ -25,6 +25,8 @@ class SvaDataTable {
 
     constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
         wrapper.innerHTML = '';
+        // console.log("SvaDataTable:constructor");
+
         this.rows = rows;
         this.columns = columns;
 
@@ -999,6 +1001,8 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
+        // console.log("SvaDataTable:childTableDialog");
+
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
