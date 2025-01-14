@@ -575,8 +575,10 @@ class SvaDataTable {
                         frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green' });
                     }
                 } else {
+                    let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
                     let updated_values = {};
-                    for (const key in values) {
+                    for (let field of value_fields) {
+                        let key = field.fieldname;
                         if (Array.isArray(values[key])) {
                             updated_values[key] = values[key].map((item) => {
                                 if (item.old_name) {
@@ -585,7 +587,7 @@ class SvaDataTable {
                                 return item;
                             });
                         } else {
-                            updated_values[key] = values[key];
+                            updated_values[key] = values[key] || '';
                         }
                     }
                     let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: updated_values });
@@ -850,7 +852,6 @@ class SvaDataTable {
                     const wf_select = document.createElement('select');
                     wf_select.classList.add('form-select', 'rounded');
                     wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
-
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
                     wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
@@ -860,7 +861,7 @@ class SvaDataTable {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
                     wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
 
-                    wf_select.innerHTML = `<option value="" title="Test Tooltip" style="color:black" selected disabled>${row['workflow_state']}</option>` +
+                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
                         this.workflow.transitions
                             .filter(link => frappe.user_roles.includes(link.allowed))
                             .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
