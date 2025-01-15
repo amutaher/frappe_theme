@@ -25,7 +25,7 @@ class SvaDataTable {
 
     constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
         wrapper.innerHTML = '';
-        // console.log("SvaDataTable:constructor");
+        console.log("SvaDataTable:constructor");
 
         this.rows = rows;
         this.columns = columns;
@@ -1212,9 +1212,13 @@ class SvaDataTable {
         const noDataFoundText = document.createElement('td');
         noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0)); // Ensure columns are defined properly
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
-        noDataFoundText.style.paddingTop = '30px';
+        noDataFoundText.style.paddingTop = '100px';
         noDataFoundText.style.color = 'grey';
-        noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
+        // noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
+        let message = document.createElement('p');
+        message.textContent = "You haven't created a record yet";
+        message.style.color = 'grey';
+        noDataFoundText.appendChild(message)
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
     }
