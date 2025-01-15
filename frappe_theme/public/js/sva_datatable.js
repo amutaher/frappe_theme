@@ -24,6 +24,9 @@ class SvaDataTable {
      */
 
     constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
+        wrapper.innerHTML = '';
+        // console.log("SvaDataTable:constructor");
+
         this.rows = rows;
         this.columns = columns;
 
@@ -78,7 +81,7 @@ class SvaDataTable {
                                 fieldname: 'name',
                                 label: 'ID'
                             }, ...columns?.message?.filter(f => this.header.includes(f.fieldname))]
-                            await this.setupTotalCount();
+                            // await this.setupTotalCount();
                             this.rows = await this.getDocList()
                             this.table = this.createTable();
                             if (!this.table_wrapper.querySelector('table')) {
@@ -130,33 +133,33 @@ class SvaDataTable {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
         return tableWrapper;
     }
-    async setupTotalCount() {
-        if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
-            let filters = []
-            if (this.connection?.connection_type === 'Referenced') {
-                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-            } else {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-            }
-            this.total = await frappe.db.count(this.doctype, { filters: filters });
-            let count = document.createElement('span');
-            count.id = 'count-element';
-            count.innerHTML = `<span>Total records: ${this.total}</span>`;
-            count.style = 'font-size:12px;';
-            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
-        } else {
-            let filters = []
-            if (this.connection?.connection_type === 'Referenced') {
-                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-            } else {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-            }
-            this.total = await frappe.db.count(this.doctype, { filters: filters });
-            this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
-        }
-    }
+    // async setupTotalCount() {
+    //     if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
+    //         let filters = []
+    //         if (this.connection?.connection_type === 'Referenced') {
+    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+    //         } else {
+    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+    //         }
+    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
+    //         let count = document.createElement('span');
+    //         count.id = 'count-element';
+    //         count.innerHTML = `<span>Total records: ${this.total}</span>`;
+    //         count.style = 'font-size:12px;';
+    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
+    //     } else {
+    //         let filters = []
+    //         if (this.connection?.connection_type === 'Referenced') {
+    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
+    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+    //         } else {
+    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+    //         }
+    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
+    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
+    //     }
+    // }
     async setupFooter(wrapper) {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
@@ -600,7 +603,7 @@ class SvaDataTable {
                 }
                 dialog.clear();
                 dialog.hide();
-                await this.setupTotalCount();
+                // await this.setupTotalCount();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -722,7 +725,7 @@ class SvaDataTable {
             color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-            position:sticky; top: 0px; background-color:#F3F3F3; 
+            position:sticky; top: 0px; background-color:#F3F3F3;
             z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
@@ -998,6 +1001,8 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
+        // console.log("SvaDataTable:childTableDialog");
+
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
