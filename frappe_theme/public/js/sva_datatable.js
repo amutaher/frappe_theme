@@ -24,6 +24,9 @@ class SvaDataTable {
      */
 
     constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
+        wrapper.innerHTML = '';
+        // console.log("SvaDataTable:constructor");
+
         this.rows = rows;
         this.columns = columns;
 
@@ -722,7 +725,7 @@ class SvaDataTable {
             color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-            position:sticky; top: 0px; background-color:#F3F3F3; 
+            position:sticky; top: 0px; background-color:#F3F3F3;
             z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
@@ -998,6 +1001,8 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
+        // console.log("SvaDataTable:childTableDialog");
+
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,

@@ -28,6 +28,9 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
 }
 
 const tabContent = async (frm, tab_field) => {
+    // console.log("tabContent");
+
+    // debugger
     if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
@@ -105,6 +108,8 @@ const mapEvents = (props) => {
         }
     }
     return {
+        onload(frm) {
+        },
         refresh: async function (frm) {
             if (!frm.doc.__islocal) {
                 frm.add_custom_button('💬', () => {
@@ -114,12 +119,6 @@ const mapEvents = (props) => {
                     }
                 });
             }
-            let tab_field = frm.get_active_tab()?.df?.fieldname;
-            tabContent(frm, tab_field)
-            $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
-                let tab_field = frm.get_active_tab()?.df?.fieldname;
-                tabContent(frm, tab_field)
-            });
             if (props.length) {
                 for (let prop of props) {
                     if (prop) {
@@ -128,6 +127,18 @@ const mapEvents = (props) => {
                     }
                 }
             }
+            if (!frm.__tabEventAttached) {
+                let tab_field = frm.get_active_tab()?.df?.fieldname;
+                // console.log("tab_field",tab_field);
+                tabContent(frm, tab_field)
+                $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
+                    let tab_field = frm.get_active_tab()?.df?.fieldname;
+                    tabContent(frm, tab_field);
+                });
+                frm.__tabEventAttached = true;
+            }
+        },
+        onload_post_render:async function (frm) {
         },
         ...obj
     }
@@ -153,14 +164,17 @@ frappe.router.on('change', async () => {
     let elapsedTime = 0;
     const checkInterval = 500; // Check every 500 ms
     const maxTime = 10000; // 10 seconds in milliseconds
+    // console.log(window.location.pathname,cur_frm);
 
     interval = setInterval(async function () {
         elapsedTime += checkInterval;
 
         // Condition: Stop if the desired value exists in cur_frm
-        if (cur_frm || elapsedTime >= maxTime) {
+        if ((cur_frm && !cur_list) || elapsedTime >= maxTime) {
             // $('.layout-side-section').remove();
             clearInterval(interval);
+            // console.log("route:chnage");
+
             await setDynamicProperties();
             return;
         }
@@ -201,10 +215,8 @@ const set_properties = async (doctype) => {
     })
     list.show();
 }
-
 const add_properties = async (doctype, new_property) => {
     let fields = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: 'Property Setter' });
-
     let add = new frappe.ui.Dialog({
         title: 'Add Property',
         fields: fields.message.map(d => {
