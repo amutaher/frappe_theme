@@ -21,7 +21,7 @@ const set_list_settings = async (frm, cdt, cdn) => {
 
     let dtmeta = await frappe.call({
         method: 'frappe_theme.api.get_meta_fields',
-        args: { doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype }
+        args: { doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
     });
 
     if (!dtmeta.message) {
