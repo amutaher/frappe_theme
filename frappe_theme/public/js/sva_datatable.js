@@ -1130,6 +1130,9 @@ class SvaDataTable {
                 render_input: true,
                 only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
             });
+            setTimeout(() => {
+                control.input?.classList?.remove('bold');
+            }, 0);
             if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
