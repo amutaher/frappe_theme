@@ -25,7 +25,7 @@ class SvaDataTable {
 
     constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
         wrapper.innerHTML = '';
-        console.log("SvaDataTable:constructor");
+        // console.log("SvaDataTable:constructor");
 
         this.rows = rows;
         this.columns = columns;
@@ -172,7 +172,7 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-        if (this.conf_perms.length && this.conf_perms.includes('create')) {
+        if (this.frm.doc.docstatus == 0 && this.conf_perms.length && this.conf_perms.includes('create')) {
             if (this.permissions.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
@@ -764,7 +764,7 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) {
+        if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style.width = '30px';
             // action_th.textContent = "Actions";
@@ -856,7 +856,8 @@ class SvaDataTable {
                     wf_select.classList.add('form-select', 'rounded');
                     wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-                    wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
+                    
+                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
                     wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
@@ -903,7 +904,7 @@ class SvaDataTable {
 
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
-                    if (this.conf_perms.length && this.conf_perms.includes('write')) {
+                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write'))) {
                         if (this.permissions.length && this.permissions.includes('write')) {
                             const editOption = document.createElement('a');
                             editOption.classList.add('dropdown-item');
@@ -914,7 +915,7 @@ class SvaDataTable {
                             dropdownMenu.appendChild(editOption);
                         }
                     }
-                    if (this.conf_perms.length && this.conf_perms.includes('delete')) {
+                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete'))) {
                         if (this.permissions.length && this.permissions.includes('delete')) {
                             const deleteOption = document.createElement('a');
                             deleteOption.classList.add('dropdown-item');
@@ -1001,13 +1002,11 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
-        // console.log("SvaDataTable:childTableDialog");
-
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
             connection: link,
-            frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue,docstatus:parentRow.docstatus }, parentRow },
             options: {
                 serialNumberColumn: true,
                 editable: false,
