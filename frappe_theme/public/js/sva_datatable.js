@@ -172,7 +172,7 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-        if (this.conf_perms.length && this.conf_perms.includes('create')) {
+        if (this.frm.doc.docstatus == 0 && this.conf_perms.length && this.conf_perms.includes('create')) {
             if (this.permissions.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
@@ -764,7 +764,7 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) {
+        if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style.width = '30px';
             // action_th.textContent = "Actions";
@@ -856,7 +856,8 @@ class SvaDataTable {
                     wf_select.classList.add('form-select', 'rounded');
                     wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-                    wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']) ||
+                    
+                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
                     wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
@@ -903,7 +904,7 @@ class SvaDataTable {
 
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
-                    if (this.conf_perms.length && this.conf_perms.includes('write')) {
+                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write'))) {
                         if (this.permissions.length && this.permissions.includes('write')) {
                             const editOption = document.createElement('a');
                             editOption.classList.add('dropdown-item');
@@ -914,7 +915,7 @@ class SvaDataTable {
                             dropdownMenu.appendChild(editOption);
                         }
                     }
-                    if (this.conf_perms.length && this.conf_perms.includes('delete')) {
+                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete'))) {
                         if (this.permissions.length && this.permissions.includes('delete')) {
                             const deleteOption = document.createElement('a');
                             deleteOption.classList.add('dropdown-item');
@@ -1001,13 +1002,11 @@ class SvaDataTable {
         let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
-        // console.log("SvaDataTable:childTableDialog");
-
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
             connection: link,
-            frm: { doctype: this.doctype, doc: { name: primaryKeyValue }, parentRow },
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue,docstatus:parentRow.docstatus }, parentRow },
             options: {
                 serialNumberColumn: true,
                 editable: false,
@@ -1131,6 +1130,9 @@ class SvaDataTable {
                 render_input: true,
                 only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
             });
+            setTimeout(() => {
+                control.input?.classList?.remove('bold');
+            }, 0);
             if (['Currency'].includes(columnField.fieldtype)) {
                 control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
                 $(control.label_area).css({ display: 'none' })
@@ -1212,9 +1214,13 @@ class SvaDataTable {
         const noDataFoundText = document.createElement('td');
         noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0)); // Ensure columns are defined properly
         noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
-        noDataFoundText.style.paddingTop = '30px';
+        noDataFoundText.style.paddingTop = '100px';
         noDataFoundText.style.color = 'grey';
-        noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
+        // noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
+        let message = document.createElement('p');
+        message.textContent = "You haven't created a record yet";
+        message.style.color = 'grey';
+        noDataFoundText.appendChild(message)
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
     }
