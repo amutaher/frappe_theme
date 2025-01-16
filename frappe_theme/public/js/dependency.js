@@ -130,7 +130,7 @@ const mapEvents = (props) => {
                     }
                 }
             }
-            if (!frm.__tabEventAttached) {
+            // if (!frm.__tabEventAttached) {
                 let tab_field = frm.get_active_tab()?.df?.fieldname;
                 // console.log("tab_field",tab_field);
                 tabContent(frm, tab_field)
@@ -138,8 +138,8 @@ const mapEvents = (props) => {
                     let tab_field = frm.get_active_tab()?.df?.fieldname;
                     tabContent(frm, tab_field);
                 });
-                frm.__tabEventAttached = true;
-            }
+            //     frm.__tabEventAttached = true;
+            // }
         },
         onload_post_render:async function (frm) {
         },
