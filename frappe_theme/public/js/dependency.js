@@ -114,8 +114,6 @@ const mapEvents = (props) => {
         onload(frm) {
         },
         refresh: async function (frm) {
-            console.log("refresh");
-
             if (!frm.doc.__islocal) {
                 frm.add_custom_button('💬', () => {
                     const commentSection = document.querySelector('.comment-box');
@@ -164,9 +162,7 @@ async function setDynamicProperties() {
         }
     }
 }
-frappe.router.on('change', async (a,b,c) => {
-    console.log("chnage:",a,b,c);
-
+frappe.router.on('change', async () => {
     let interval;
     let elapsedTime = 0;
     const checkInterval = 500; // Check every 500 ms
