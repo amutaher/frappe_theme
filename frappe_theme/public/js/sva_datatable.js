@@ -27,7 +27,7 @@ class SvaDataTable {
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
-        onFieldClick=()=>{}, onFieldValueChange=()=>{}
+        onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
         wrapper.innerHTML = '';
         // console.log("SvaDataTable:constructor");
@@ -861,10 +861,8 @@ class SvaDataTable {
                         if (link) {
                             await this.wf_action(link, primaryKey, wf_select, originalState)
                             // If proceed is false (Cancel clicked), reset the select element
-                            if (!proceed) {
-                                wf_select.value = "";
-                                wf_select.title = originalState;
-                            }
+                            wf_select.value = "";
+                            wf_select.title = originalState;
                         }
                     });
 
@@ -990,6 +988,7 @@ class SvaDataTable {
             if (response?.exc) throw new Error("Update failed");
             const row = this.rows.find((r) => r.name === primaryKey);
             row[this.workflow.workflow_state_field] = link.next_state;
+            row.wf_comment = comment;
             this.rows[row.rowIndex] = row;
             this.updateTableBody();
             frappe.show_alert({ message: `${link.next_state} successfully`, indicator: "green" });
@@ -1139,7 +1138,7 @@ class SvaDataTable {
         let columnField = {
             ...column,
             read_only: 1,
-            description:''
+            description: ''
         };
         if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
@@ -1199,7 +1198,7 @@ class SvaDataTable {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
                 return;
             }
-            if(columnField.fieldtype == 'Button'){
+            if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
                 btn.className = 'primary';
                 btn.setAttribute('data-dt', this.doctype);
@@ -1208,7 +1207,7 @@ class SvaDataTable {
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
-            }else {
+            } else {
                 td.textContent = row[column.fieldname] || "";
             }
         }
