@@ -205,8 +205,9 @@ const applyTheme = async () => {
         .navbar.container ,.navbar-brand{
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
         }
-        .navbar-toggler , .navbar-toggler span svg,.navbar svg.es-icon.icon-sm use {
-            stroke:${theme.navbar_text_color && theme.navbar_text_color} !important;
+        .navbar-toggler , .navbar-toggler span svg,.navbar svg.es-icon.icon-sm use, .notifications-seen > .es-icon{
+            fill:${theme.navbar_text_color && theme.navbar_text_color} !important;
+            stroke-width: 0;
         }
         #navbar-breadcrumbs li a::before {
             content: '›';
