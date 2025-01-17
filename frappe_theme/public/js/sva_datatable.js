@@ -879,8 +879,15 @@ class SvaDataTable {
                     wf_select.addEventListener('change', async (event) => {
                         const action = event.target.value;
                         const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                        // Store the current state to reset later if needed
+                        const originalState = wf_select.getAttribute('title');
                         if (link) {
-                            await this.wf_action(link, primaryKey)
+                            await this.wf_action(link, primaryKey, wf_select, originalState)
+                            // If proceed is false (Cancel clicked), reset the select element
+                            if (!proceed) {
+                                wf_select.value = "";
+                                wf_select.title = originalState;
+                            }
                         }
                     });
 
@@ -964,7 +971,7 @@ class SvaDataTable {
         return tbody;
     }
     // ================================ Workflow Action  Logic ================================
-    async wf_action(link, primaryKey) {
+    async wf_action(link, primaryKey, wf_select, originalState) {
         const bg = this.workflow_state_bg?.find(bg => bg.name === link.next_state && bg?.style);
         const isCommentRequired = ["Reject", "Review"].includes(link.action);
         const popupFields = [
@@ -990,6 +997,8 @@ class SvaDataTable {
                 secondary_action_label: "Cancel",
                 secondary_action: () => {
                     dialog.hide();
+                    wf_select.value = ""; // Reset dropdown value
+                    wf_select.title = originalState;
                     frappe.show_alert({ message: `${link.action} Action has been cancelled.`, indicator: "orange" });
                 },
             });
