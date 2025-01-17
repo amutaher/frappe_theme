@@ -23,7 +23,12 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
+    constructor({
+        wrapper, columns = [], rows = [], limit = 10,
+        childLinks = [], connection, options,
+        frm, cdtfname, doctype, render_only = false,
+        onFieldClick=()=>{}, onFieldValueChange=()=>{}
+    }) {
         wrapper.innerHTML = '';
         // console.log("SvaDataTable:constructor");
 
@@ -110,6 +115,8 @@ class SvaDataTable {
             }
             this.tBody = this.table.querySelector('tbody');
         }
+        this.onFieldValueChange = onFieldValueChange;
+        this.onFieldClick = onFieldClick;
         return this.wrapper;
     }
 
@@ -836,13 +843,11 @@ class SvaDataTable {
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
-
                     if (this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-
-                    td.textContent = row[column.fieldname] || "";
+                    td.textContent = row[column.fieldname] || "ff";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
@@ -1143,6 +1148,7 @@ class SvaDataTable {
     }
 
     createNonEditableField(td, column, row) {
+        // console.log("this.rows",this.onFieldClick);
         td.textContent = "";
         let columnField = {
             ...column,
@@ -1201,7 +1207,17 @@ class SvaDataTable {
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
                 return;
-            } else {
+            }
+            if(columnField.fieldtype == 'Button'){
+                let btn = document.createElement('button');
+                btn.className = 'primary';
+                btn.setAttribute('data-dt', this.doctype);
+                btn.setAttribute('data-dn', row.name);
+                btn.setAttribute('data-fieldname', columnField.fieldname);
+                btn.onclick = this.onFieldClick;
+                btn.textContent = columnField.label;
+                td.appendChild(btn)
+            }else {
                 td.textContent = row[column.fieldname] || "";
             }
         }
