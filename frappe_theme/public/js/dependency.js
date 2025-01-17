@@ -28,7 +28,7 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
 }
 
 const tabContent = async (frm, tab_field) => {
-    // console.log("tabContent");
+    // console.log("tabContent", frm.events);
 
     // debugger
     if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
@@ -81,6 +81,7 @@ const tabContent = async (frm, tab_field) => {
                     // if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).children.length > 0) {
                     //     document.querySelector(`[data-fieldname="${_f.html_field}"]`).ch;
                     // }
+
                     new SvaDataTable({
                         wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
                         doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
@@ -90,6 +91,16 @@ const tabContent = async (frm, tab_field) => {
                         options: {
                             serialNumberColumn: true, // Enable serial number column (optional)
                             editable: false,      // Enable editing (optional),
+                        },
+                        onFieldClick:(e)=>{
+                            if(e && window?.onFieldClick){
+                                let obj = {
+                                    dt:e?.target?.getAttribute('data-dt'),
+                                    dn:e?.target?.getAttribute('data-dn'),
+                                    fieldname:e?.target?.getAttribute('data-fieldname')
+                                }
+                                window?.onFieldClick(obj);
+                            }
                         }
                     });
                 }
@@ -167,6 +178,7 @@ async function setDynamicProperties() {
     }
 }
 frappe.router.on('change', async () => {
+    window.onFieldClick = undefined
     let interval;
     let elapsedTime = 0;
     const checkInterval = 500; // Check every 500 ms

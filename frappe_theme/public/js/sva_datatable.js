@@ -23,7 +23,12 @@ class SvaDataTable {
      * @param {Array<string>} params.options.additionalTableHeader - Additional HTML table headers to be added.
      */
 
-    constructor({ wrapper, columns = [], rows = [], limit = 10, childLinks = [], connection, options, frm, cdtfname, doctype, render_only = false }) {
+    constructor({
+        wrapper, columns = [], rows = [], limit = 10,
+        childLinks = [], connection, options,
+        frm, cdtfname, doctype, render_only = false,
+        onFieldClick=()=>{}, onFieldValueChange=()=>{}
+    }) {
         wrapper.innerHTML = '';
         // console.log("SvaDataTable:constructor");
 
@@ -110,6 +115,8 @@ class SvaDataTable {
             }
             this.tBody = this.table.querySelector('tbody');
         }
+        this.onFieldValueChange = onFieldValueChange;
+        this.onFieldClick = onFieldClick;
         return this.wrapper;
     }
 
@@ -836,13 +843,11 @@ class SvaDataTable {
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
-
                     if (this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-
-                    td.textContent = row[column.fieldname] || "";
+                    td.textContent = row[column.fieldname] || "ff";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
@@ -856,7 +861,7 @@ class SvaDataTable {
                     wf_select.classList.add('form-select', 'rounded');
                     wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
                     // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-                    
+
                     wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
                         this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
 
@@ -874,12 +879,15 @@ class SvaDataTable {
                     wf_select.addEventListener('change', async (event) => {
                         const action = event.target.value;
                         const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                        // Store the current state to reset later if needed
+                        const originalState = wf_select.getAttribute('title');
                         if (link) {
-                            frappe.confirm(
-                                `Are you sure you want to perform the action: ${action}?`,
-                                async () => await this.wf_action(link, primaryKey),
-                                () => frappe.show_alert({ message: "Action canceled.", indicator: "orange" })
-                            );
+                            await this.wf_action(link, primaryKey, wf_select, originalState)
+                            // If proceed is false (Cancel clicked), reset the select element
+                            if (!proceed) {
+                                wf_select.value = "";
+                                wf_select.title = originalState;
+                            }
                         }
                     });
 
@@ -963,26 +971,57 @@ class SvaDataTable {
         return tbody;
     }
     // ================================ Workflow Action  Logic ================================
-
-    async wf_action(link, primaryKey) {
-        await frappe.db.set_value(this.doctype, primaryKey, this.workflow.workflow_state_field, link.next_state, (response) => {
-            if (!response.exc) {
-                let row = this.rows.find((row) => row.name == primaryKey)
-                row[this.workflow.workflow_state_field] = link.next_state
-                this.rows[row.rowIndex] = row;
-                this.updateTableBody()
-                frappe.show_alert({
-                    message: `${`${link.next_state} successfully`}`,
-                    indicator: "green"
-                });
-            } else {
-                frappe.show_alert({
-                    message: "An error occurred while updating the status.",
-                    indicator: "red"
-                });
-            }
+    async wf_action(link, primaryKey, wf_select, originalState) {
+        const bg = this.workflow_state_bg?.find(bg => bg.name === link.next_state && bg?.style);
+        const isCommentRequired = ["Reject", "Review"].includes(link.action);
+        const popupFields = [
+            {
+                label: "Action Test",
+                fieldname: "action_test",
+                fieldtype: "HTML",
+                options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${link.action}</span></p>`,
+            },
+            ...(isCommentRequired
+                ? [{ label: "Comment", fieldname: "comment", fieldtype: "Small Text", reqd: 1 }]
+                : []),
+        ];
+        const comment = await new Promise((resolve) => {
+            const dialog = new frappe.ui.Dialog({
+                title: "Confirm",
+                fields: popupFields,
+                primary_action_label: "Proceed",
+                primary_action: (values) => {
+                    dialog.hide();
+                    resolve(values.comment || null);
+                },
+                secondary_action_label: "Cancel",
+                secondary_action: () => {
+                    dialog.hide();
+                    wf_select.value = ""; // Reset dropdown value
+                    wf_select.title = originalState;
+                    frappe.show_alert({ message: `${link.action} Action has been cancelled.`, indicator: "orange" });
+                },
+            });
+            dialog.show();
         });
+        try {
+            const updateFields = {
+                [this.workflow.workflow_state_field]: link.next_state,
+                ...(comment && { wf_comment: comment }),
+            };
+            const response = await frappe.db.set_value(this.doctype, primaryKey, updateFields);
+            if (response?.exc) throw new Error("Update failed");
+            const row = this.rows.find((r) => r.name === primaryKey);
+            row[this.workflow.workflow_state_field] = link.next_state;
+            this.rows[row.rowIndex] = row;
+            this.updateTableBody();
+            frappe.show_alert({ message: `${link.next_state} successfully`, indicator: "green" });
+        } catch (error) {
+            frappe.show_alert({ message: "An error occurred.", indicator: "red" });
+            console.error(error);
+        }
     }
+
     // ================================ Workflow Action End ================================
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
@@ -1006,7 +1045,7 @@ class SvaDataTable {
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
             connection: link,
-            frm: { doctype: this.doctype, doc: { name: primaryKeyValue,docstatus:parentRow.docstatus }, parentRow },
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue, docstatus: parentRow.docstatus }, parentRow },
             options: {
                 serialNumberColumn: true,
                 editable: false,
@@ -1118,6 +1157,7 @@ class SvaDataTable {
     }
 
     createNonEditableField(td, column, row) {
+        // console.log("this.rows",this.onFieldClick);
         td.textContent = "";
         let columnField = {
             ...column,
@@ -1181,7 +1221,17 @@ class SvaDataTable {
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
                 return;
-            } else {
+            }
+            if(columnField.fieldtype == 'Button'){
+                let btn = document.createElement('button');
+                btn.className = 'primary';
+                btn.setAttribute('data-dt', this.doctype);
+                btn.setAttribute('data-dn', row.name);
+                btn.setAttribute('data-fieldname', columnField.fieldname);
+                btn.onclick = this.onFieldClick;
+                btn.textContent = columnField.label;
+                td.appendChild(btn)
+            }else {
                 td.textContent = row[column.fieldname] || "";
             }
         }
