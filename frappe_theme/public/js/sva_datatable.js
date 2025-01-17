@@ -1121,7 +1121,8 @@ class SvaDataTable {
         td.textContent = "";
         let columnField = {
             ...column,
-            read_only: 1
+            read_only: 1,
+            description:''
         };
         if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
@@ -1171,6 +1172,10 @@ class SvaDataTable {
                     maximumFractionDigits: 2,
                 }) || 0;
                 td.style = 'text-align:right;';
+                return;
+            }
+            if (['Date'].includes(columnField.fieldtype)) {
+                td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
                 return;
             }
             if (columnField.fieldname == 'name') {
