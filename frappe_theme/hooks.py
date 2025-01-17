@@ -19,7 +19,8 @@ app_include_js = [
     f"/assets/frappe_theme/js/dependency.js?ver={time.time()}",
     f"/assets/frappe_theme/js/mobile_view.js?ver={time.time()}",
     f"/assets/frappe_theme/js/workspace.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}"
+    f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}"
 ]
 # include js, css files in header of web template
 # web_include_css = "/assets/frappe_theme/css/frappe_theme.css"

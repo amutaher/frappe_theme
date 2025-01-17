@@ -619,29 +619,6 @@ class SvaDataTable {
             }
         });
         dialog.show();
-        // if (!name) {
-        //     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-        //         let financial_years_field = dialog?.fields_dict?.financial_years;
-        //         if (financial_years_field) {
-        //             let start_date = dialog.get_value('start_date');
-        //             let end_date = dialog.get_value('end_date');
-        //             let start = new Date(start_date);
-        //             let end = new Date(end_date);
-        //             let year = start.getFullYear();
-        //             let index = 0;
-        //             let financial_years = [];
-        //             while (start <= end) {
-        //                 financial_years.push(year);
-        //                 year++;
-        //                 start = new Date(year, 0, 1);
-        //                 index++;
-        //             }
-        //             let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] }, pluck: 'name' });
-        //             financial_years_field.value = selected_financial_years?.map(f => { return { 'financial_year': f } });
-        //             financial_years_field.refresh();
-        //         }
-        //     }
-        // }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -1161,7 +1138,8 @@ class SvaDataTable {
         td.textContent = "";
         let columnField = {
             ...column,
-            read_only: 1
+            read_only: 1,
+            description:''
         };
         if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
@@ -1211,6 +1189,10 @@ class SvaDataTable {
                     maximumFractionDigits: 2,
                 }) || 0;
                 td.style = 'text-align:right;';
+                return;
+            }
+            if (['Date'].includes(columnField.fieldtype)) {
+                td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
                 return;
             }
             if (columnField.fieldname == 'name') {
