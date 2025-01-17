@@ -8,7 +8,9 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
-
+# fixtures = [
+#     "SVADatatable Configuration"
+# ]
 # include js, css files in header of desk.html
 import time
 app_include_css = f"/assets/frappe_theme/css/frappe_theme.css?ver={time.time()}"
