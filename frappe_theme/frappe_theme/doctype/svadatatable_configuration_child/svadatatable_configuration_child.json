@@ -46,13 +46,6 @@
    "label": "Setup Crud Permissions"
   },
   {
-   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
-   "fieldname": "listview_settings",
-   "fieldtype": "JSON",
-   "label": "Listview Settings",
-   "read_only": 1
-  },
-  {
    "depends_on": "eval:doc.connection_type ==\"Direct\"",
    "fieldname": "link_doctype",
    "fieldtype": "Link",
@@ -107,12 +100,19 @@
    "label": "Template",
    "mandatory_depends_on": "eval:doc.connection_type == \"Is Custom Design\"",
    "options": "Tasks\nEmail\nTimeline\nGallery\nNotes"
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "listview_settings",
+   "fieldtype": "Code",
+   "label": "Listview Settings",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-01-14 13:13:07.080670",
+ "modified": "2025-01-21 13:14:05.898918",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",

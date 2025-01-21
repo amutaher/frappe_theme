@@ -58,3 +58,8 @@ def get_permissions(doctype):
     if frappe.has_permission(doctype,'cancel'):
         permissions.append('cancel')
     return permissions
+
+@frappe.whitelist() 
+def get_meta(doctype):
+    frappe.flags.ignore_permissions = True
+    return frappe.get_meta(doctype).as_dict()

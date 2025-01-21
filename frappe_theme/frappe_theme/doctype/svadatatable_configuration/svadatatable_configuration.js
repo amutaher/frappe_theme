@@ -7,57 +7,19 @@
 // });
 const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
-    let listview_fields = [];
-    let prev_settings = [];
-    try {
-        prev_settings = JSON.parse(row.listview_settings || '[]');
-    } catch (e) {
-        console.error('Invalid listview_setting JSON', e);
-    }
-
-    if (Array.isArray(prev_settings)) {
-        listview_fields = [...prev_settings];
-    }
-
     let dtmeta = await frappe.call({
-        method: 'frappe_theme.api.get_meta_fields',
+        method: 'frappe_theme.api.get_meta',
         args: { doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
     });
-
-    if (!dtmeta.message) {
-        frappe.msgprint(__('No fields found for the selected Doctype.'));
-        return;
-    }
-
-    let fields = dtmeta.message?.filter((f) => f.hidden == 0 && !['Tab Break','Section Break','Column Break','Table'].includes(f.fieldtype))?.map(f => {
-        return {
-            label: f.label,
-            fieldname: f.fieldname,
-            fieldtype: 'Check',
-            default: prev_settings.includes(f.fieldname),
-            onchange: function () {
-                const fieldname = this.df.fieldname;
-                const value = this.get_value();
-                if (value) {
-                    if (!listview_fields.includes(fieldname)) {
-                        listview_fields.push(fieldname);
-                    }
-                } else {
-                    listview_fields = listview_fields.filter(f => f !== fieldname);
-                }
-            }
+    new ListSettings({
+        doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype,
+        meta: dtmeta.message,
+        settings: row,
+        dialog_primary_action: async (listview_settings) => {
+            frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_settings));
+            frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
         }
     });
-    let list_dialog = new frappe.ui.Dialog({
-        title: __('List Settings'),
-        fields: fields,
-        primary_action_label: __('Save'),
-        primary_action: async () => {
-            frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_fields));
-            list_dialog.hide();
-        }
-    });
-    list_dialog.show();
 }
 const set_crud_permissiions = (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
