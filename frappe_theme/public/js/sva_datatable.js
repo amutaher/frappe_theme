@@ -85,13 +85,21 @@ class SvaDataTable {
                         }
                     }
                     if (perms.length && perms.includes('read')) {
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                         if (this.header.length) {
-                            this.columns = [{
-                                fieldname: 'name',
-                                label: 'ID'
-                            }, ...this.header.filter(f => f.fieldname !== 'name')];
+                            this.columns = [
+                                {
+                                    fieldname: 'name',
+                                    label: 'ID'
+                                }
+                            ];
+                            for (let h of this.header) {
+                                let field = columns.message.find(f => f.fieldname === h.fieldname);
+                                if(field) {
+                                    this.columns.push(field);
+                                }
+                            }
                         } else {
-                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                             this.columns = [{
                                 fieldname: 'name',
                                 label: 'ID'
@@ -1257,7 +1265,7 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.className = 'primary';
+                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);

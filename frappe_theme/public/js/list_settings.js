@@ -251,7 +251,7 @@ class ListSettings {
 	get_doctype_fields(meta, fields) {
 		let multiselect_fields = [];
 		meta.fields.forEach((field) => {
-			if (!frappe.model.no_value_type.includes(field.fieldtype)) {
+			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype) && !field.hidden)) {
 				multiselect_fields.push({
 					label: __(field.label, null, field.doctype),
 					value: field.fieldname,
