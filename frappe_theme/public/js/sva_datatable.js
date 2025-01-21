@@ -31,16 +31,16 @@ class SvaDataTable {
     }) {
         wrapper.innerHTML = '';
         // console.log("SvaDataTable:constructor");
-
+        
         this.rows = rows;
         this.columns = columns;
-
+        
         // pagination
         this.page = 1;
         this.limit = limit;
         this.total = this.rows.length;
         // pagination
-
+        
         this.options = options;
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
@@ -61,6 +61,7 @@ class SvaDataTable {
         this.workflow_state_bg = []
         if (!render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
+                isLoading(true, this.wrapper);
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
                     // ================================ Workflow Logic  ================================
@@ -102,9 +103,11 @@ class SvaDataTable {
                     } else {
                         this.handleNoPermission();
                     }
+                    isLoading(false, this.wrapper);
                 })
             }
         } else {
+            isLoading(true, this.wrapper);
             this.table = this.createTable();
             if (!this.table_wrapper.querySelector('table')) {
                 this.table_wrapper.appendChild(this.table);
@@ -114,6 +117,7 @@ class SvaDataTable {
                 this.wrapper.appendChild(this.table_wrapper);
             }
             this.tBody = this.table.querySelector('tbody');
+            isLoading(false, this.wrapper);
         }
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
