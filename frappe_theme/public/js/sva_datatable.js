@@ -30,17 +30,15 @@ class SvaDataTable {
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
         wrapper.innerHTML = '';
-        // console.log("SvaDataTable:constructor");
-        
         this.rows = rows;
         this.columns = columns;
-        
+
         // pagination
         this.page = 1;
         this.limit = limit;
         this.total = this.rows.length;
         // pagination
-        
+
         this.options = options;
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
@@ -59,7 +57,13 @@ class SvaDataTable {
         this.mgrant_settings = {};
         this.workflow = []
         this.workflow_state_bg = []
-        if (!render_only) {
+        this.render_only = render_only;
+        this.reloadTable();
+        this.onFieldValueChange = onFieldValueChange;
+        this.onFieldClick = onFieldClick;
+    }
+    reloadTable(reset = false) {
+        if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 isLoading(true, this.wrapper);
                 this.get_permissions(this.doctype).then(async perms => {
@@ -81,25 +85,41 @@ class SvaDataTable {
                         }
                     }
                     if (perms.length && perms.includes('read')) {
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                         if (this.header.length) {
-                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                            this.columns = [
+                                {
+                                    fieldname: 'name',
+                                    label: 'ID'
+                                }
+                            ];
+                            for (let h of this.header) {
+                                let field = columns.message.find(f => f.fieldname === h.fieldname);
+                                if(field) {
+                                    this.columns.push(field);
+                                }
+                            }
+                        } else {
                             this.columns = [{
                                 fieldname: 'name',
                                 label: 'ID'
-                            }, ...columns?.message?.filter(f => this.header.includes(f.fieldname))]
-                            // await this.setupTotalCount();
-                            this.rows = await this.getDocList()
-                            this.table = this.createTable();
-                            if (!this.table_wrapper.querySelector('table')) {
-                                this.table_wrapper.appendChild(this.table);
-                            }
-                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
-                            if (!this.wrapper.querySelector('#table_wrapper')) {
-                                this.wrapper.appendChild(this.table_wrapper);
-                            }
-                            this.tBody = this.table.querySelector('tbody');
-                            this.setupFooter(this.wrapper);
+                            }, ...columns.message.filter(f => f.in_list_view)];
                         }
+                        this.rows = await this.getDocList()
+                        this.table = this.createTable();
+                        if (!this.table_wrapper.querySelector('table') && !reset) {
+                            this.table_wrapper.appendChild(this.table);
+                        } else {
+                            this.table_wrapper.querySelector('table').replaceWith(this.table);
+                        }
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
+                        if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        } else {
+                            this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupFooter(this.wrapper);
                     } else {
                         this.handleNoPermission();
                     }
@@ -119,13 +139,9 @@ class SvaDataTable {
             this.tBody = this.table.querySelector('tbody');
             isLoading(false, this.wrapper);
         }
-        this.onFieldValueChange = onFieldValueChange;
-        this.onFieldClick = onFieldClick;
-        return this.wrapper;
     }
-
     setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0px !important;`;
         if (!wrapper.querySelector('div#header-element')) {
             let header = document.createElement('div');
             header.id = 'header-element';
@@ -138,7 +154,52 @@ class SvaDataTable {
             count_wrapper.id = 'count-wrapper';
             wrapper.querySelector('div#header-element').appendChild(count_wrapper);
         }
+        if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
+            let options_wrapper = document.createElement('div');
+            options_wrapper.id = 'options-wrapper';
+            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
+            wrapper.querySelector('div#header-element').appendChild(options_wrapper);
+        }
+
+        if (!wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
+            let list_view_settings = document.createElement('button');
+            list_view_settings.id = 'list_view_settings';
+            list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
+            list_view_settings.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+            </svg>`;
+            list_view_settings.onclick = async () => {
+                list_view_settings.disabled = true;
+                await this.setupListviewSettings();
+                list_view_settings.disabled = false;
+            }
+            wrapper.querySelector('div#options-wrapper').appendChild(list_view_settings);
+        }
         return wrapper;
+    }
+    async setupListviewSettings() {
+        let dtmeta = await frappe.call({
+            method: 'frappe_theme.api.get_meta',
+            args: { doctype: this.doctype },
+        });
+        new ListSettings({
+            doctype: this.doctype,
+            meta: dtmeta.message,
+            settings: this.connection,
+            dialog_primary_action: async (listview_settings) => {
+                await frappe.xcall('frappe.client.set_value', {
+                    doctype: this.connection.doctype,
+                    name: this.connection.name,
+                    fieldname: 'listview_settings',
+                    value: JSON.stringify(listview_settings ?? []),
+                });
+                this.header = listview_settings;
+                this.reloadTable(true);
+                frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+            }
+        });
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
@@ -1204,7 +1265,7 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.className = 'primary';
+                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
