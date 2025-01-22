@@ -58,6 +58,7 @@ class SvaDataTable {
         this.workflow = []
         this.workflow_state_bg = []
         this.render_only = render_only;
+        this.additional_list_filters = [];
         this.reloadTable();
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
@@ -95,7 +96,7 @@ class SvaDataTable {
                             ];
                             for (let h of this.header) {
                                 let field = columns.message.find(f => f.fieldname === h.fieldname);
-                                if(field) {
+                                if (field) {
                                     this.columns.push(field);
                                 }
                             }
@@ -157,11 +158,31 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
             let options_wrapper = document.createElement('div');
             options_wrapper.id = 'options-wrapper';
-            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
+            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
             wrapper.querySelector('div#header-element').appendChild(options_wrapper);
         }
 
-        if (!wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
+        if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
+            let list_filter = document.createElement('div');
+            list_filter.id = 'list_filter';
+            new CustomFilterArea({
+                wrapper: list_filter,
+                doctype: this.doctype,
+                on_change: (filters) => {
+                    if (filters.length == 0) {
+                        if (this.additional_list_filters.length) {
+                            this.additional_list_filters = []
+                            this.reloadTable(true);
+                        }
+                    } else {
+                        this.additional_list_filters = filters
+                        this.reloadTable(true);
+                    }
+                }
+            })
+            wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
+        }
+        if (frappe.user_roles.includes("Administrator") && !wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
             let list_view_settings = document.createElement('button');
             list_view_settings.id = 'list_view_settings';
             list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
@@ -1290,7 +1311,7 @@ class SvaDataTable {
                 method: "frappe.client.get_list",
                 args: {
                     doctype: this.doctype,
-                    filters: filters,
+                    filters: [...filters, ...this.additional_list_filters],
                     fields: this.fields || ['*'],
                     limit_page_length: this.limit,
                     order_by: 'creation desc',
