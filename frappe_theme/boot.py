@@ -1,5 +1,5 @@
 import frappe
-def boot_session(bootinfo):
+def boot_theme(bootinfo):
     bootinfo.my_theme = frappe.get_single("My Theme")
     # bootinfo.submittable_doctypes = frappe.get_all("DocType", filters={"is_submittable": 1}, pluck="name")
     # metas = frappe.get_all("DocType", pluck='name', filters={'module': ['NOT IN', ['Website','Workflow','Printing','Social','Automation' ,'Integrations', 'Custom', 'Core','Email']],'issingle':0})
