@@ -15,7 +15,6 @@ app_license = "mit"
 import time
 app_include_css = f"/assets/frappe_theme/css/frappe_theme.css?ver={time.time()}"
 app_include_js = [
-
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/filters/filter_area.js?ver={time.time()}",
     f"/assets/frappe_theme/js/filters/filter_list.js?ver={time.time()}",
@@ -28,7 +27,7 @@ app_include_js = [
     f"/assets/frappe_theme/js/workspace.js?ver={time.time()}",
     f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}",
     f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}",
-    f"assets/frappe_theme/js/number_card.js?ver={time.time()}",
+    f"assets/frappe_theme/js/number_card.js?ver={time.time()}"
 ]
 extend_bootinfo = "frappe_theme.boot.boot_session"
 # include js, css files in header of web template
