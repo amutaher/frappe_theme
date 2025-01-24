@@ -1,90 +1,89 @@
 // <select> widget with all fields of a doctype as options
-class CustomFieldSelect  extends frappe.ui.FieldSelect {
+class CustomFieldSelect{
 	// opts parent, doctype, filter_fields, with_blank, select
 	constructor(opts) {
-		super(opts);
-		// var me = this;
-		// $.extend(this, opts);
-		// this.fields_by_name = {};
-		// this.options = [];
-		// this.$input = $('<input class="form-control">')
-		// 	.appendTo(this.parent)
-		// 	.on("click", function () {
-		// 		$(this).select();
-		// 	});
-		// this.input_class && this.$input.addClass(this.input_class);
-		// this.select_input = this.$input.get(0);
-		// this.awesomplete = new Awesomplete(this.select_input, {
-		// 	minChars: 0,
-		// 	maxItems: 99,
-		// 	autoFirst: true,
-		// 	list: me.options,
-		// 	item(item) {
-		// 		return $(repl('<li class="filter-field-select"><p>%(label)s</p></li>', item))
-		// 			.data("item.autocomplete", item)
-		// 			.get(0);
-		// 	},
-		// });
-		// this.$input.on("awesomplete-select", function (e) {
-		// 	var o = e.originalEvent;
-		// 	var value = o.text.value;
-		// 	var item = me.awesomplete.get_item(value);
-		// 	me.selected_doctype = item.doctype;
-		// 	me.selected_fieldname = item.fieldname;
-		// 	if (me.select) me.select(item.doctype, item.fieldname);
-		// });
-		// this.$input.on("awesomplete-selectcomplete", function (e) {
-		// 	var o = e.originalEvent;
-		// 	var value = o.text.value;
-		// 	var item = me.awesomplete.get_item(value);
-		// 	me.$input.val(item.label);
-		// });
+		var me = this;
+		$.extend(this, opts);
+		this.fields_by_name = {};
+		this.options = [];
+		this.$input = $('<input class="form-control">')
+			.appendTo(this.parent)
+			.on("click", function () {
+				$(this).select();
+			});
+		this.input_class && this.$input.addClass(this.input_class);
+		this.select_input = this.$input.get(0);
+		this.awesomplete = new Awesomplete(this.select_input, {
+			minChars: 0,
+			maxItems: 99,
+			autoFirst: true,
+			list: me.options,
+			item(item) {
+				return $(repl('<li class="filter-field-select"><p>%(label)s</p></li>', item))
+					.data("item.autocomplete", item)
+					.get(0);
+			},
+		});
+		this.$input.on("awesomplete-select", function (e) {
+			var o = e.originalEvent;
+			var value = o.text.value;
+			var item = me.awesomplete.get_item(value);
+			me.selected_doctype = item.doctype;
+			me.selected_fieldname = item.fieldname;
+			if (me.select) me.select(item.doctype, item.fieldname);
+		});
+		this.$input.on("awesomplete-selectcomplete", function (e) {
+			var o = e.originalEvent;
+			var value = o.text.value;
+			var item = me.awesomplete.get_item(value);
+			me.$input.val(item.label);
+		});
 
-		// if (this.filter_fields) {
-		// 	for (var i in this.filter_fields) this.add_field_option(this.filter_fields[i]);
-		// } else {
-		// 	this.build_options();
-		// }
-		// this.set_value(this.doctype, "name");
+		if (this.filter_fields) {
+			for (var i in this.filter_fields) this.add_field_option(this.filter_fields[i]);
+		} else {
+			this.build_options();
+		}
+		this.set_value(this.doctype, "name");
 	}
-	// get_value() {
-	// 	return this.selected_doctype
-	// 		? this.selected_doctype + "." + this.selected_fieldname
-	// 		: null;
-	// }
-	// val(value) {
-	// 	if (value === undefined) {
-	// 		return this.get_value();
-	// 	} else {
-	// 		this.set_value(value);
-	// 	}
-	// }
-	// clear() {
-	// 	this.selected_doctype = null;
-	// 	this.selected_fieldname = null;
-	// 	this.$input.val("");
-	// }
-	// set_value(doctype, fieldname) {
-	// 	var me = this;
-	// 	this.clear();
-	// 	if (!doctype) return;
+	get_value() {
+		return this.selected_doctype
+			? this.selected_doctype + "." + this.selected_fieldname
+			: null;
+	}
+	val(value) {
+		if (value === undefined) {
+			return this.get_value();
+		} else {
+			this.set_value(value);
+		}
+	}
+	clear() {
+		this.selected_doctype = null;
+		this.selected_fieldname = null;
+		this.$input.val("");
+	}
+	set_value(doctype, fieldname) {
+		var me = this;
+		this.clear();
+		if (!doctype) return;
 
-	// 	// old style
-	// 	if (doctype.indexOf(".") !== -1) {
-	// 		var parts = doctype.split(".");
-	// 		doctype = parts[0];
-	// 		fieldname = parts[1];
-	// 	}
+		// old style
+		if (doctype.indexOf(".") !== -1) {
+			var parts = doctype.split(".");
+			doctype = parts[0];
+			fieldname = parts[1];
+		}
 
-	// 	$.each(this.options, function (i, v) {
-	// 		if (v.doctype === doctype && v.fieldname === fieldname) {
-	// 			me.selected_doctype = doctype;
-	// 			me.selected_fieldname = fieldname;
-	// 			me.$input.val(v.label);
-	// 			return false;
-	// 		}
-	// 	});
-	// }
+		$.each(this.options, function (i, v) {
+			if (v.doctype === doctype && v.fieldname === fieldname) {
+				me.selected_doctype = doctype;
+				me.selected_fieldname = fieldname;
+				me.$input.val(v.label);
+				return false;
+			}
+		});
+	}
 	build_options() {
 		var me = this;
 		me.table_fields = [];

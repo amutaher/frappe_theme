@@ -162,26 +162,26 @@ class SvaDataTable {
             wrapper.querySelector('div#header-element').appendChild(options_wrapper);
         }
 
-        if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
-            let list_filter = document.createElement('div');
-            list_filter.id = 'list_filter';
-            new CustomFilterArea({
-                wrapper: list_filter,
-                doctype: this.doctype,
-                on_change: (filters) => {
-                    if (filters.length == 0) {
-                        if (this.additional_list_filters.length) {
-                            this.additional_list_filters = []
-                            this.reloadTable(true);
-                        }
-                    } else {
-                        this.additional_list_filters = filters
-                        this.reloadTable(true);
-                    }
-                }
-            })
-            wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
-        }
+        // if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
+        //     let list_filter = document.createElement('div');
+        //     list_filter.id = 'list_filter';
+        //     new CustomFilterArea({
+        //         wrapper: list_filter,
+        //         doctype: this.doctype,
+        //         on_change: (filters) => {
+        //             if (filters.length == 0) {
+        //                 if (this.additional_list_filters.length) {
+        //                     this.additional_list_filters = []
+        //                     this.reloadTable(true);
+        //                 }
+        //             } else {
+        //                 this.additional_list_filters = filters
+        //                 this.reloadTable(true);
+        //             }
+        //         }
+        //     })
+        //     wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
+        // }
         if (frappe.user_roles.includes("Administrator") && !wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
             let list_view_settings = document.createElement('button');
             list_view_settings.id = 'list_view_settings';
