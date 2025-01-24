@@ -88,23 +88,20 @@ class SvaDataTable {
                     if (perms.length && perms.includes('read')) {
                         let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                         if (this.header.length) {
-                            this.columns = [
-                                {
-                                    fieldname: 'name',
-                                    label: 'ID'
-                                }
-                            ];
+                            this.columns = [];
                             for (let h of this.header) {
-                                let field = columns.message.find(f => f.fieldname === h.fieldname);
-                                if (field) {
-                                    this.columns.push(field);
+                                if(h.fieldname === 'name'){
+                                    this.columns.push({fieldname: 'name', label: 'ID'});
+                                    continue;
+                                }else{
+                                    let field = columns.message.find(f => f.fieldname === h.fieldname);
+                                    if (field) {
+                                        this.columns.push(field);
+                                    }
                                 }
                             }
                         } else {
-                            this.columns = [{
-                                fieldname: 'name',
-                                label: 'ID'
-                            }, ...columns.message.filter(f => f.in_list_view)];
+                            this.columns = [...columns.message.filter(f => f.in_list_view)];
                         }
                         this.rows = await this.getDocList()
                         this.table = this.createTable();
@@ -802,7 +799,8 @@ class SvaDataTable {
 
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
-            serialTh.style = 'width:40px';
+            serialTh.textContent = '#';
+            serialTh.style = 'width:40px;text-align:center;';
             tr.appendChild(serialTh);
         }
 
@@ -893,9 +891,9 @@ class SvaDataTable {
                     const serialTd = document.createElement('td');
                     serialTd.style = 'min-width:40px; text-align:center;';
                     if (this.page > 1) {
-                        serialTd.textContent = ((this.page - 1) * this.limit) + (rowIndex + 1);
+                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
                     } else {
-                        serialTd.textContent = rowIndex + 1;
+                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${rowIndex + 1}</a>`;
                     }
                     tr.appendChild(serialTd);
                 }
@@ -910,7 +908,7 @@ class SvaDataTable {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-                    td.textContent = row[column.fieldname] || "ff";
+                    td.textContent = row[column.fieldname] || "";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
