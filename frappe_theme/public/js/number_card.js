@@ -278,7 +278,7 @@ class SVANumberCard {
             .number-card-container {
                 background: var(--card-bg);
                 border-radius: 8px;
-                padding: 20px;
+                padding: 16px;
                 box-shadow: var(--card-shadow);
                 transition: transform 0.2s, box-shadow 0.2s;
                 border: 1px solid var(--border-color);
@@ -307,8 +307,8 @@ class SVANumberCard {
                 margin-bottom: 12px;
             }
             .number-card-icon {
-                width: 36px;
-                height: 36px;
+                width: 24px;
+                height: 24px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -318,7 +318,7 @@ class SVANumberCard {
                 flex-shrink: 0;
             }
             .number-card-icon i {
-                font-size: 16px;
+                font-size: 12px;
                 color: var(--text-color);
             }
             .number-card-content {
@@ -329,7 +329,7 @@ class SVANumberCard {
             }
             .number-card-title {
                 margin: 0;
-                font-size: 14px;
+                font-size: 13px;
                 color: var(--text-muted);
                 font-weight: 500;
                 white-space: nowrap;
@@ -339,17 +339,17 @@ class SVANumberCard {
                 line-height: 1.4;
             }
             .number-card-value {
-                font-size: 28px;
+                font-size: 20px;
                 font-weight: 600;
                 color: var(--text-color);
-                margin: 12px 0;
+                margin: 4px 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 line-height: 1.2;
             }
             .number-card-subtitle {
-                font-size: 12px;
+                font-size: 11px;
                 color: var(--text-muted);
                 margin-top: auto;
                 padding-top: 8px;
