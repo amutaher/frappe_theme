@@ -26,18 +26,25 @@ class SVANumberCard {
 
             try {
                 for (let cardName of this.numberCards) {
-                    const cardData = await this.fetchNumberCardData(cardName);
-                    if (cardData) {
-                        const card = this.createCard({
-                            title: cardData.label || cardData.name,
-                            value: cardData.result,
-                            options: {
-                                color: 'blue',
-                                icon: 'fa fa-chart-line',
-                                subtitle: cardData.document_type
-                            }
-                        });
-                        container.appendChild(card);
+                    try {
+                        const cardData = await this.fetchNumberCardData(cardName);
+                        if (cardData) {
+                            const card = this.createCard({
+                                title: cardData.label || cardData.name,
+                                value: cardData.result !== undefined ? cardData.result : '--',
+                                options: {
+                                    color: 'blue',
+                                    icon: this.getCardIcon(cardData),
+                                    subtitle: cardData.document_type
+                                }
+                            });
+                            container.appendChild(card);
+                        } else {
+                            container.appendChild(this.createErrorCard(cardName));
+                        }
+                    } catch (cardError) {
+                        console.error(`Error creating card ${cardName}:`, cardError);
+                        container.appendChild(this.createErrorCard(cardName));
                     }
                 }
                 this.wrapper.appendChild(container);
@@ -50,6 +57,15 @@ class SVANumberCard {
         }
 
         this.addStyles();
+    }
+
+    getCardIcon(cardData) {
+        // Choose icon based on card type or function
+        if (cardData.type === 'Report') return 'fa fa-file-text';
+        if (cardData.function === 'Count') return 'fa fa-list';
+        if (cardData.function === 'Sum') return 'fa fa-money';
+        if (cardData.function === 'Average') return 'fa fa-line-chart';
+        return 'fa fa-chart-line'; // default
     }
 
     createCard(config) {
@@ -71,7 +87,7 @@ class SVANumberCard {
             </div>
         ` : '';
 
-        const currencySymbol = options.icon ? '' : '₹';
+        const currencySymbol = this.shouldShowCurrency(config.value) ? '₹' : '';
 
         card.innerHTML = `
             <div class="number-card-container ${options.color}" ${config.onClick ? 'style="cursor: pointer;"' : ''}>
@@ -81,6 +97,8 @@ class SVANumberCard {
                         ${iconHtml}
                     </div>
                     <div class="number-card-value">${currencySymbol}${this.formatValue(config.value)}</div>
+                    ${options.subtitle ? `<div class="number-card-subtitle">${options.subtitle}</div>` : ''}
+                    ${this.getTrendHTML(options)}
                 </div>
             </div>
         `;
@@ -94,8 +112,33 @@ class SVANumberCard {
         return card;
     }
 
+    shouldShowCurrency(value) {
+        // Check if the value should show currency symbol
+        return typeof value === 'number' && !isNaN(value);
+    }
+
+    createErrorCard(cardName) {
+        const card = document.createElement('div');
+        card.className = 'number-card';
+        card.innerHTML = `
+            <div class="number-card-container error">
+                <div class="number-card-content">
+                    <div class="number-card-header">
+                        <h3 class="number-card-title">${cardName}</h3>
+                        <div class="number-card-icon">
+                            <i class="fa fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                    <div class="number-card-value text-danger">Error loading data</div>
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
     formatValue(value) {
-        if (value === undefined || value === null) return '0';
+        if (value === undefined || value === null) return '--';
+        if (value === '--') return value;
 
         if (typeof value === 'number') {
             // Convert to absolute value for comparison
@@ -129,7 +172,7 @@ class SVANumberCard {
     }
 
     formatIndianInteger(numStr) {
-        numStr = numStr.replace(/,/g, '');
+        numStr = numStr.toString().replace(/,/g, '');
         const lastThree = numStr.substring(numStr.length - 3);
         const otherNumbers = numStr.substring(0, numStr.length - 3);
         if (otherNumbers !== '') {
@@ -152,120 +195,6 @@ class SVANumberCard {
         `;
     }
 
-    addStyles() {
-        if (!document.getElementById('sva-number-card-styles')) {
-            const styleSheet = document.createElement('style');
-            styleSheet.id = 'sva-number-card-styles';
-            styleSheet.textContent = `
-                .sva-cards-container {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                    padding: 8px 0;
-                    width: 100%;
-                }
-                .number-card {
-                    width: 350px;
-                    flex: 0 0 350px;
-                    max-width: 100%;
-                }
-                @media (max-width: 768px) {
-                    .number-card {
-                        flex: 1 1 350px;
-                    }
-                }
-                @media (max-width: 480px) {
-                    .number-card {
-                        flex: 1 1 100%;
-                        width: 100%;
-                    }
-                }
-                .number-card-container {
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    padding: 16px;
-                    box-shadow: var(--card-shadow);
-                    transition: transform 0.2s;
-                    border: 1px solid var(--border-color);
-                    height: 100%;
-                }
-                .number-card-container:hover {
-                    transform: translateY(-2px);
-                }
-                .number-card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 8px;
-                }
-                .number-card-icon {
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--bg-light-gray);
-                }
-                .number-card-icon i {
-                    font-size: 12px;
-                    color: var(--text-color);
-                }
-                .number-card-content {
-                    width: 100%;
-                }
-                .number-card-title {
-                    margin: 0;
-                    font-size: 13px;
-                    color: var(--text-muted);
-                    font-weight: 500;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .number-card-value {
-                    font-size: 20px;
-                    font-weight: 600;
-                    color: var(--text-color);
-                    margin: 4px 0;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .no-data {
-                    width: 100%;
-                    text-align: center;
-                    color: var(--text-muted);
-                }
-            `;
-            document.head.appendChild(styleSheet);
-        }
-    }
-
-    showNoDataState() {
-        this.wrapper.innerHTML = `
-            <div class="number-card no-data">
-                <div class="number-card-container">
-                    <div class="number-card-content">
-                        <h3 class="number-card-title">No data available</h3>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    showErrorState() {
-        this.wrapper.innerHTML = `
-            <div class="number-card no-data">
-                <div class="number-card-container">
-                    <div class="number-card-content">
-                        <h3 class="number-card-title">Error loading data</h3>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
     async fetchNumberCardData(cardName) {
         try {
             const docResponse = await frappe.call({
@@ -283,13 +212,40 @@ class SVANumberCard {
             const doc = docResponse.docs[0];
             const filters = typeof doc.filters_json === 'string'
                 ? JSON.parse(doc.filters_json)
-                : doc.filters_json;
+                : doc.filters_json || {};
+
+            // Get the document type from the card
+            if (!doc.document_type && doc.report_name) {
+                // If it's a report type card, get the document type from the report
+                const reportDoc = await frappe.db.get_value('Report', doc.report_name, ['ref_doctype']);
+                if (reportDoc?.message?.ref_doctype) {
+                    doc.document_type = reportDoc.message.ref_doctype;
+                }
+            }
+
+            if (!doc.document_type) {
+                console.error('No document type found for card:', cardName);
+                return null;
+            }
 
             const resultResponse = await frappe.call({
                 method: 'frappe.desk.doctype.number_card.number_card.get_result',
                 args: {
-                    doc: doc,
-                    filters: filters,
+                    card: cardName,
+                    doc: {
+                        name: doc.name,
+                        document_type: doc.document_type,
+                        label: doc.label,
+                        function: doc.function,
+                        aggregate_function_based_on: doc.aggregate_function_based_on,
+                        filters_json: doc.filters_json,
+                        is_standard: doc.is_standard,
+                        parent_document_type: doc.parent_document_type,
+                        report_name: doc.report_name,
+                        report_field: doc.report_field,
+                        type: doc.type
+                    },
+                    filters: filters
                 }
             });
 
@@ -298,9 +254,177 @@ class SVANumberCard {
                 result: resultResponse.message
             };
         } catch (error) {
-            console.error('Error fetching number card data:', error);
+            console.error('Error fetching number card data:', error, cardName);
             return null;
         }
+    }
+
+    addStyles() {
+        if (!document.getElementById('sva-number-card-styles')) {
+            const styleSheet = document.createElement('style');
+            styleSheet.id = 'sva-number-card-styles';
+            styleSheet.textContent = `
+            .sva-cards-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
+                padding: 20px 0;
+                width: 100%;
+            }
+            .number-card {
+                width: 100%;
+                min-width: 0; /* Prevents overflow in grid items */
+            }
+            .number-card-container {
+                background: var(--card-bg);
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: var(--card-shadow);
+                transition: transform 0.2s, box-shadow 0.2s;
+                border: 1px solid var(--border-color);
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .number-card-container:hover {
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-md);
+            }
+            .number-card-container.error {
+                border-color: var(--red-200);
+                background: var(--red-50);
+            }
+            .number-card-container.error .number-card-icon {
+                background: var(--red-100);
+            }
+            .number-card-container.error .number-card-icon i {
+                color: var(--red-500);
+            }
+            .number-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+            .number-card-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--bg-light-gray);
+                transition: background-color 0.2s;
+                flex-shrink: 0;
+            }
+            .number-card-icon i {
+                font-size: 16px;
+                color: var(--text-color);
+            }
+            .number-card-content {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+            }
+            .number-card-title {
+                margin: 0;
+                font-size: 14px;
+                color: var(--text-muted);
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: calc(100% - 48px);
+                line-height: 1.4;
+            }
+            .number-card-value {
+                font-size: 28px;
+                font-weight: 600;
+                color: var(--text-color);
+                margin: 12px 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                line-height: 1.2;
+            }
+            .number-card-subtitle {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-top: auto;
+                padding-top: 8px;
+            }
+            .text-danger {
+                color: var(--red-500) !important;
+                font-size: 14px !important;
+            }
+            .number-card-trend {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 12px;
+                padding: 4px 8px;
+                border-radius: 4px;
+                margin-top: 8px;
+            }
+            .trend-up {
+                color: var(--green-600);
+                background: var(--green-100);
+            }
+            .trend-down {
+                color: var(--red-600);
+                background: var(--red-100);
+            }
+            .no-data {
+                grid-column: 1 / -1;
+                text-align: center;
+                color: var(--text-muted);
+                padding: 40px;
+                background: var(--card-bg);
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+            }
+            
+            /* Responsive adjustments */
+            @media (max-width: 1200px) {
+                .sva-cards-container {
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                }
+            }
+            @media (max-width: 768px) {
+                .sva-cards-container {
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 16px;
+                }
+                .number-card-value {
+                    font-size: 24px;
+                }
+            }
+            @media (max-width: 480px) {
+                .sva-cards-container {
+                    grid-template-columns: 1fr;
+                }
+            }
+        `;
+            document.head.appendChild(styleSheet);
+        }
+    }
+    showNoDataState() {
+        this.wrapper.innerHTML = `
+            <div class="no-data">
+                <i class="fa fa-info-circle fa-2x mb-2"></i>
+                <div>No cards available</div>
+            </div>
+        `;
+    }
+
+    showErrorState() {
+        this.wrapper.innerHTML = `
+            <div class="no-data">
+                <i class="fa fa-exclamation-circle fa-2x mb-2 text-danger"></i>
+                <div class="text-danger">Error loading cards</div>
+            </div>
+        `;
     }
 
     refresh(newCards) {

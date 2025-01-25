@@ -70,9 +70,12 @@ def get_cards_preview(mapper_name):
     """Get HTML preview of cards"""
     try:
         mapper = frappe.get_doc("Number Card Mapper", mapper_name)
-        html = "<div class='card-preview-container d-flex flex-wrap'>"
+        html = "<div class='card-preview-container d-flex flex-wrap gap-3 p-4'>"
         
-        for card in mapper.cards:
+        # Sort cards by sequence
+        cards = sorted(mapper.cards, key=lambda x: (x.sequence or 0))
+        
+        for card in cards:
             if not card.is_visible:
                 continue
                 
@@ -81,16 +84,23 @@ def get_cards_preview(mapper_name):
                 card_html = card_doc.get_card_html() if hasattr(card_doc, 'get_card_html') else get_default_card_html(card_doc)
                 
                 html += f"""
-                    <div class='card-preview-item m-2' data-name='{card.number_card}'>
-                        <div class='card-label h6 text-center'>{card.card_label or card_doc.label}</div>
-                        {card_html}
+                    <div class='card-preview-item' data-name='{card.number_card}'>
+                        <div class='card-header p-3'>
+                            <h6 class='card-label text-center mb-0'>{card.card_label or card_doc.label}</h6>
+                        </div>
+                        <div class='card-content p-3'>
+                            {card_html}
+                        </div>
                     </div>
                 """
             except Exception as e:
                 frappe.log_error(f"Error rendering card {card.number_card}: {str(e)}")
                 html += f"""
-                    <div class='card-preview-item m-2 text-danger' data-name='{card.number_card}'>
-                        Error loading card: {card.number_card}
+                    <div class='card-preview-item error' data-name='{card.number_card}'>
+                        <div class='p-3 text-danger'>
+                            <i class='fa fa-exclamation-triangle'></i>
+                            Error loading card: {card.number_card}
+                        </div>
                     </div>
                 """
                 
@@ -98,7 +108,7 @@ def get_cards_preview(mapper_name):
         return html
     except Exception as e:
         frappe.log_error(f"Error in get_cards_preview: {str(e)}")
-        return f"<div class='text-danger'>Error loading preview: {str(e)}</div>"
+        return f"<div class='text-danger p-4'><i class='fa fa-exclamation-circle'></i> Error loading preview: {str(e)}</div>"
 
 def get_default_card_html(card_doc):
     """Fallback card HTML if get_card_html is not available"""
@@ -106,11 +116,12 @@ def get_default_card_html(card_doc):
         <div class='number-card-widget'>
             <div class='card-body'>
                 <h6 class='text-muted'>{card_doc.label}</h6>
-                <h3 class='number-card-value'>Loading...</h3>
+                <div class='number-card-value'>
+                    <div class="placeholder-animation"></div>
+                </div>
             </div>
         </div>
     """
-
 @frappe.whitelist()
 def get_html_fields(doctype):
     """Get HTML fields from doctype"""
