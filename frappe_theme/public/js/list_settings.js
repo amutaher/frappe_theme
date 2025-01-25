@@ -13,7 +13,7 @@ class ListSettings {
         if (typeof this.listview_settings === 'string') {
             this.listview_settings = JSON.parse(this.listview_settings)
         }
-		this.subject_field = null;
+		// this.subject_field = null;
 
 		frappe.run_serially([
             this.make(),
@@ -75,21 +75,21 @@ class ListSettings {
 		let fields = ``;
 
 		for (let idx in me.listview_settings) {
-			let is_sortable = idx == 0 ? `` : `sortable`;
-			let show_sortable_handle = idx == 0 ? `hide` : ``;
+			// let is_sortable = idx == 0 ? `` : `sortable`;
+			// let show_sortable_handle = idx == 0 ? `hide` : ``;
 			fields += `
-				<div class="control-input flex align-center form-control fields_order ${is_sortable}"
+				<div class="control-input flex align-center form-control fields_order sortable"
 					style="display: block; margin-bottom: 5px;" data-fieldname="${me.listview_settings[idx].fieldname}"
 					data-label="${me.listview_settings[idx].label}" data-type="${me.listview_settings[idx].type}">
 
 					<div class="row">
 						<div class="col-1">
-							${frappe.utils.icon("drag", "xs", "", "", "sortable-handle " + show_sortable_handle)}
+							${frappe.utils.icon("drag", "xs", "", "", "sortable-handle ")}
 						</div>
 						<div class="col-10" style="padding-left:0px;">
 							${__(me.listview_settings[idx].label, null, me.doctype)}
 						</div>
-						<div class="col-1 ${me.listview_settings[idx].fieldname == 'name' ? 'hide' : ''}">
+						<div class="col-1">
 							<a class="text-muted remove-field" data-fieldname="${me.listview_settings[idx].fieldname}">
 								${frappe.utils.icon("delete", "xs")}
 							</a>
@@ -126,7 +126,6 @@ class ListSettings {
 
 	add_new_fields() {
 		let me = this;
-
 		let fields_html = me.dialog.get_field("fields_html");
 		let add_new_fields = fields_html.$wrapper[0].getElementsByClassName("add-new-fields")[0];
 		add_new_fields.onclick = () => me.column_selector();
@@ -192,10 +191,15 @@ class ListSettings {
 		d.set_primary_action(__("Save"), () => {
 			let values = d.get_values().listview_settings;
 			me.listview_settings = [];
-			me.set_subject_field();
+			// me.set_subject_field();
 			for (let idx in values) {
 				let value = values[idx];
-				if (value != me.subject_field.fieldname) {
+				if(value == 'name') {
+					me.listview_settings.push({
+						label: __("ID"),
+						fieldname: value,
+					});
+				}else{
 					let field = this.meta.fields.find((f) => f.fieldname == value);
 					if (field) {
 						me.listview_settings.push({
@@ -224,12 +228,12 @@ class ListSettings {
 
 	set_list_view_fields(meta) {
 		let me = this;
-		me.set_subject_field();
+		// me.set_subject_field();
 		meta.fields.forEach((field) => {
 			if (
 				field.in_list_view &&
-				!frappe.model.no_value_type.includes(field.fieldtype) &&
-				me.subject_field.fieldname != field.fieldname
+				!frappe.model.no_value_type.includes(field.fieldtype) 
+				// && me.subject_field.fieldname != field.fieldname
 			) {
 				me.listview_settings.push({
 					label: __(field.label, null, me.doctype),
@@ -239,17 +243,21 @@ class ListSettings {
 		});
 	}
 
-	set_subject_field() {
-		let me = this;
-		me.subject_field = {
-			label: __("ID"),
-			fieldname: "name",
-		};
-		me.listview_settings.push(me.subject_field);
-	}
+	// set_subject_field() {
+	// 	let me = this;
+	// 	me.subject_field = {
+	// 		label: __("ID"),
+	// 		fieldname: "name",
+	// 	};
+	// 	me.listview_settings.push(me.subject_field);
+	// }
 
 	get_doctype_fields(meta, fields) {
-		let multiselect_fields = [];
+		let multiselect_fields = [{
+			label: __("ID"),
+			value: "name",
+			checked: fields.includes("name"),
+		}];
 		meta.fields.forEach((field) => {
 			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype) && !field.hidden)) {
 				multiselect_fields.push({
