@@ -59,6 +59,12 @@ def get_permissions(doctype):
         permissions.append('cancel')
     return permissions
 
+@frappe.whitelist()
+def get_html_fields(doctype):
+    meta = frappe.get_meta(doctype)
+    html_fields = [field for field in meta.fields if field.fieldtype == "HTML"]
+    return html_fields
+
 @frappe.whitelist() 
 def get_meta(doctype):
     frappe.flags.ignore_permissions = True
