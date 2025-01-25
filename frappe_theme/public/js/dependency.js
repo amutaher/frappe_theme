@@ -61,7 +61,7 @@ const tabContent = async (frm, tab_field) => {
                 });
                 if (nc.length > 0) {
                     let numberCardMapper = await frappe.db.get_doc('Number Card Mapper', nc[0]);
-                    let numberCards = numberCardMapper?.number_cards?.map(f => f.selected_cards);
+                    let numberCards = numberCardMapper?.cards?.map(f => f.number_card);
                     new SVANumberCard({
                         wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
                         frm: frm,
