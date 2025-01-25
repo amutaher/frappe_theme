@@ -400,19 +400,28 @@ class SvaDataTable {
             cur_dialog.fields_dict.planning_table.df.data = [];
             cur_dialog.fields_dict.planning_table.grid.refresh();
         }
-        if (frequency === "Lump Sum") {
-            if (cur_dialog) {
-                cur_dialog.fields_dict.planning_table.df.data = [];
-                cur_dialog.fields_dict.planning_table.grid.refresh();
+        if (frequency === "Annually") {
+            let start = new Date(start_date);
+            let end = new Date(end_date);
+            let year = start.getFullYear();
+            let index = 0;
+            while (start <= end) {
+                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${year}`;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
+                start = new Date(year + 1, 0, 1);
+                year++;
+                index++;
             }
-            return;
         } else if (frequency === "Monthly") {
             let start = new Date(start_date);
             let end = new Date(end_date);
             let month = start.getMonth();
             let year = start.getFullYear();
             let index = 0;
-            while (start < end) {
+            while (start <= end) {
                 let month_name = monthNames[month];
                 cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
                 cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${month_name} (${year})`;
