@@ -27,11 +27,9 @@ class SvaDataTable {
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
-        onFieldClick=()=>{}, onFieldValueChange=()=>{}
+        onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
         wrapper.innerHTML = '';
-        // console.log("SvaDataTable:constructor");
-
         this.rows = rows;
         this.columns = columns;
 
@@ -59,8 +57,16 @@ class SvaDataTable {
         this.mgrant_settings = {};
         this.workflow = []
         this.workflow_state_bg = []
-        if (!render_only) {
+        this.render_only = render_only;
+        this.additional_list_filters = [];
+        this.reloadTable();
+        this.onFieldValueChange = onFieldValueChange;
+        this.onFieldClick = onFieldClick;
+    }
+    reloadTable(reset = false) {
+        if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
+                isLoading(true, this.wrapper);
                 this.get_permissions(this.doctype).then(async perms => {
                     this.permissions = perms;
                     // ================================ Workflow Logic  ================================
@@ -80,31 +86,46 @@ class SvaDataTable {
                         }
                     }
                     if (perms.length && perms.includes('read')) {
+                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                         if (this.header.length) {
-                            let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
-                            this.columns = [{
-                                fieldname: 'name',
-                                label: 'ID'
-                            }, ...columns?.message?.filter(f => this.header.includes(f.fieldname))]
-                            // await this.setupTotalCount();
-                            this.rows = await this.getDocList()
-                            this.table = this.createTable();
-                            if (!this.table_wrapper.querySelector('table')) {
-                                this.table_wrapper.appendChild(this.table);
+                            this.columns = [];
+                            for (let h of this.header) {
+                                if(h.fieldname === 'name'){
+                                    this.columns.push({fieldname: 'name', label: 'ID'});
+                                    continue;
+                                }else{
+                                    let field = columns.message.find(f => f.fieldname === h.fieldname);
+                                    if (field) {
+                                        this.columns.push(field);
+                                    }
+                                }
                             }
-                            this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
-                            if (!this.wrapper.querySelector('#table_wrapper')) {
-                                this.wrapper.appendChild(this.table_wrapper);
-                            }
-                            this.tBody = this.table.querySelector('tbody');
-                            this.setupFooter(this.wrapper);
+                        } else {
+                            this.columns = [...columns.message.filter(f => f.in_list_view)];
                         }
+                        this.rows = await this.getDocList()
+                        this.table = this.createTable();
+                        if (!this.table_wrapper.querySelector('table') && !reset) {
+                            this.table_wrapper.appendChild(this.table);
+                        } else {
+                            this.table_wrapper.querySelector('table').replaceWith(this.table);
+                        }
+                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
+                        if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
+                            this.wrapper.appendChild(this.table_wrapper);
+                        } else {
+                            this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
+                        }
+                        this.tBody = this.table.querySelector('tbody');
+                        this.setupFooter(this.wrapper);
                     } else {
                         this.handleNoPermission();
                     }
+                    isLoading(false, this.wrapper);
                 })
             }
         } else {
+            isLoading(true, this.wrapper);
             this.table = this.createTable();
             if (!this.table_wrapper.querySelector('table')) {
                 this.table_wrapper.appendChild(this.table);
@@ -114,14 +135,11 @@ class SvaDataTable {
                 this.wrapper.appendChild(this.table_wrapper);
             }
             this.tBody = this.table.querySelector('tbody');
+            isLoading(false, this.wrapper);
         }
-        this.onFieldValueChange = onFieldValueChange;
-        this.onFieldClick = onFieldClick;
-        return this.wrapper;
     }
-
     setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0px !important;`;
         if (!wrapper.querySelector('div#header-element')) {
             let header = document.createElement('div');
             header.id = 'header-element';
@@ -134,7 +152,72 @@ class SvaDataTable {
             count_wrapper.id = 'count-wrapper';
             wrapper.querySelector('div#header-element').appendChild(count_wrapper);
         }
+        if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
+            let options_wrapper = document.createElement('div');
+            options_wrapper.id = 'options-wrapper';
+            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
+            wrapper.querySelector('div#header-element').appendChild(options_wrapper);
+        }
+
+        // if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
+        //     let list_filter = document.createElement('div');
+        //     list_filter.id = 'list_filter';
+        //     new CustomFilterArea({
+        //         wrapper: list_filter,
+        //         doctype: this.doctype,
+        //         on_change: (filters) => {
+        //             if (filters.length == 0) {
+        //                 if (this.additional_list_filters.length) {
+        //                     this.additional_list_filters = []
+        //                     this.reloadTable(true);
+        //                 }
+        //             } else {
+        //                 this.additional_list_filters = filters
+        //                 this.reloadTable(true);
+        //             }
+        //         }
+        //     })
+        //     wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
+        // }
+        if (frappe.user_roles.includes("Administrator") && !wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
+            let list_view_settings = document.createElement('button');
+            list_view_settings.id = 'list_view_settings';
+            list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
+            list_view_settings.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+            </svg>`;
+            list_view_settings.onclick = async () => {
+                list_view_settings.disabled = true;
+                await this.setupListviewSettings();
+                list_view_settings.disabled = false;
+            }
+            wrapper.querySelector('div#options-wrapper').appendChild(list_view_settings);
+        }
         return wrapper;
+    }
+    async setupListviewSettings() {
+        let dtmeta = await frappe.call({
+            method: 'frappe_theme.api.get_meta',
+            args: { doctype: this.doctype },
+        });
+        new ListSettings({
+            doctype: this.doctype,
+            meta: dtmeta.message,
+            settings: this.connection,
+            dialog_primary_action: async (listview_settings) => {
+                await frappe.xcall('frappe.client.set_value', {
+                    doctype: this.connection.doctype,
+                    name: this.connection.name,
+                    fieldname: 'listview_settings',
+                    value: JSON.stringify(listview_settings ?? []),
+                });
+                this.header = listview_settings;
+                this.reloadTable(true);
+                frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+            }
+        });
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
@@ -317,19 +400,28 @@ class SvaDataTable {
             cur_dialog.fields_dict.planning_table.df.data = [];
             cur_dialog.fields_dict.planning_table.grid.refresh();
         }
-        if (frequency === "Lump Sum") {
-            if (cur_dialog) {
-                cur_dialog.fields_dict.planning_table.df.data = [];
-                cur_dialog.fields_dict.planning_table.grid.refresh();
+        if (frequency === "Annually") {
+            let start = new Date(start_date);
+            let end = new Date(end_date);
+            let year = start.getFullYear();
+            let index = 0;
+            while (start <= end) {
+                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${year}`;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
+                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
+                start = new Date(year + 1, 0, 1);
+                year++;
+                index++;
             }
-            return;
         } else if (frequency === "Monthly") {
             let start = new Date(start_date);
             let end = new Date(end_date);
             let month = start.getMonth();
             let year = start.getFullYear();
             let index = 0;
-            while (start < end) {
+            while (start <= end) {
                 let month_name = monthNames[month];
                 cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
                 cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${month_name} (${year})`;
@@ -619,29 +711,6 @@ class SvaDataTable {
             }
         });
         dialog.show();
-        // if (!name) {
-        //     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-        //         let financial_years_field = dialog?.fields_dict?.financial_years;
-        //         if (financial_years_field) {
-        //             let start_date = dialog.get_value('start_date');
-        //             let end_date = dialog.get_value('end_date');
-        //             let start = new Date(start_date);
-        //             let end = new Date(end_date);
-        //             let year = start.getFullYear();
-        //             let index = 0;
-        //             let financial_years = [];
-        //             while (start <= end) {
-        //                 financial_years.push(year);
-        //                 year++;
-        //                 start = new Date(year, 0, 1);
-        //                 index++;
-        //             }
-        //             let selected_financial_years = await frappe.db.get_list('Financial Year', { filters: { 'financial_year_name': ['in', financial_years] }, pluck: 'name' });
-        //             financial_years_field.value = selected_financial_years?.map(f => { return { 'financial_year': f } });
-        //             financial_years_field.refresh();
-        //         }
-        //     }
-        // }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -739,7 +808,8 @@ class SvaDataTable {
 
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
-            serialTh.style = 'width:40px';
+            serialTh.textContent = '#';
+            serialTh.style = 'width:40px;text-align:center;';
             tr.appendChild(serialTh);
         }
 
@@ -830,9 +900,9 @@ class SvaDataTable {
                     const serialTd = document.createElement('td');
                     serialTd.style = 'min-width:40px; text-align:center;';
                     if (this.page > 1) {
-                        serialTd.textContent = ((this.page - 1) * this.limit) + (rowIndex + 1);
+                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
                     } else {
-                        serialTd.textContent = rowIndex + 1;
+                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${rowIndex + 1}</a>`;
                     }
                     tr.appendChild(serialTd);
                 }
@@ -847,7 +917,7 @@ class SvaDataTable {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-                    td.textContent = row[column.fieldname] || "ff";
+                    td.textContent = row[column.fieldname] || "";
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
@@ -884,10 +954,8 @@ class SvaDataTable {
                         if (link) {
                             await this.wf_action(link, primaryKey, wf_select, originalState)
                             // If proceed is false (Cancel clicked), reset the select element
-                            if (!proceed) {
-                                wf_select.value = "";
-                                wf_select.title = originalState;
-                            }
+                            wf_select.value = "";
+                            wf_select.title = originalState;
                         }
                     });
 
@@ -1013,6 +1081,7 @@ class SvaDataTable {
             if (response?.exc) throw new Error("Update failed");
             const row = this.rows.find((r) => r.name === primaryKey);
             row[this.workflow.workflow_state_field] = link.next_state;
+            row.wf_comment = comment;
             this.rows[row.rowIndex] = row;
             this.updateTableBody();
             frappe.show_alert({ message: `${link.next_state} successfully`, indicator: "green" });
@@ -1161,7 +1230,8 @@ class SvaDataTable {
         td.textContent = "";
         let columnField = {
             ...column,
-            read_only: 1
+            read_only: 1,
+            description: ''
         };
         if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
@@ -1213,20 +1283,24 @@ class SvaDataTable {
                 td.style = 'text-align:right;';
                 return;
             }
+            if (['Date'].includes(columnField.fieldtype)) {
+                td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
+                return;
+            }
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
                 return;
             }
-            if(columnField.fieldtype == 'Button'){
+            if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.className = 'primary';
+                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
-            }else {
+            } else {
                 td.textContent = row[column.fieldname] || "";
             }
         }
@@ -1244,7 +1318,7 @@ class SvaDataTable {
                 method: "frappe.client.get_list",
                 args: {
                     doctype: this.doctype,
-                    filters: filters,
+                    filters: [...filters, ...this.additional_list_filters],
                     fields: this.fields || ['*'],
                     limit_page_length: this.limit,
                     order_by: 'creation desc',
