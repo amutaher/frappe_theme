@@ -1,0 +1,59 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2025-01-25 13:50:29.309612",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "number_card",
+        "card_label",
+        "sequence",
+        "is_visible"
+    ],
+    "fields": [
+        {
+            "fieldname": "number_card",
+            "fieldtype": "Link",
+            "label": "Number Card",
+            "options": "Number Card",
+            "reqd": 1,
+            "in_list_view": 1,
+            "columns": 6,
+            "fetch_from": "number_card.label",
+            "fetch_if_empty": 1
+        },
+        {
+            "fieldname": "card_label",
+            "fieldtype": "Data",
+            "label": "Card Label",
+            "fetch_from": "number_card.label",
+            "in_list_view": 1,
+            "columns": 4
+        },
+        {
+            "fieldname": "sequence",
+            "fieldtype": "Int",
+            "label": "Sequence",
+            "in_list_view": 1,
+            "columns": 1
+        },
+        {
+            "fieldname": "is_visible",
+            "fieldtype": "Check",
+            "label": "Is Visible",
+            "default": 1,
+            "in_list_view": 1,
+            "columns": 1
+        }
+    ],
+    "istable": 1,
+    "index_web_pages_for_search": 1,
+    "modified": "2025-01-25 14:00:44.677133",
+    "modified_by": "Administrator",
+    "module": "Frappe Theme",
+    "name": "Number Card Mapper Child",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}
