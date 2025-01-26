@@ -90,10 +90,10 @@ class SvaDataTable {
                         if (this.header.length) {
                             this.columns = [];
                             for (let h of this.header) {
-                                if(h.fieldname === 'name'){
-                                    this.columns.push({fieldname: 'name', label: 'ID'});
+                                if (h.fieldname === 'name') {
+                                    this.columns.push({ fieldname: 'name', label: 'ID' });
                                     continue;
-                                }else{
+                                } else {
                                     let field = columns.message.find(f => f.fieldname === h.fieldname);
                                     if (field) {
                                         this.columns.push(field);
@@ -507,47 +507,148 @@ class SvaDataTable {
             }
         }
     }
-    async createFormDialog(doctype, name = undefined) {
+    async createFormDialog(doctype, name = undefined, mode = 'create') {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
-        if (name) {
-            let doc = await frappe.db.get_doc(doctype, name);
-            for (const f of fields) {
-                if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-                    if (f.fieldname === 'frequency') {
-                        f.onchange = function () {
-                            this.handleFrequencyField();
-                        }.bind(this);
-                        if (doc[f.fieldname]) {
-                            f.default = doc[f.fieldname];
-                            f.read_only = 1;
+        if (mode === 'create' || mode === 'write') {
+            if (name) {
+                let doc = await frappe.db.get_doc(doctype, name);
+                for (const f of fields) {
+                    if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                        if (f.fieldname === 'frequency') {
+                            f.onchange = function () {
+                                this.handleFrequencyField();
+                            }.bind(this);
+                            if (doc[f.fieldname]) {
+                                f.default = doc[f.fieldname];
+                                f.read_only = 1;
+                            }
+                            continue;
+                        }
+                    }
+
+                    if (f.fieldtype === "Table") {
+                        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                        let tableFields = res?.message;
+                        f.fields = tableFields;
+                        if (f.fieldname === 'planning_table') {
+                            f.cannot_add_rows = 1;
+                            f.cannot_delete_rows = 1;
+                        }
+                        if (doc[f.fieldname].length) {
+                            f.data = doc[f.fieldname].map((row) => {
+                                let old_name = row.name;
+                                delete row.name;
+                                return { ...row, old_name };
+                            });
                         }
                         continue;
                     }
+                    if (doc[f.fieldname]) {
+                        f.default = doc[f.fieldname];
+                    }
+                    if (f?.fetch_from) {
+                        if (!f.default) {
+                            let fetch_from = f.fetch_from.split('.');
+                            let [parentfield, fieldname] = fetch_from;
+                            let parentf = fields.find(f => f.fieldname === parentfield);
+                            if (parentf?.options && parentf?.default) {
+                                let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                                f.default = doc[fieldname];
+                            }
+                        }
+                        f.read_only = 1;
+                    }
+                    if (f.fieldtype === 'Link') {
+                        f.get_query = () => {
+                            const filters = [];
+                            if (this.uniqueness.column.length) {
+                                if (this.uniqueness.column.includes(f.fieldname)) {
+                                    let existing_options = this.rows?.map((item) => item[f.fieldname]);
+                                    filters.push([f.options, 'name', 'not in', existing_options]);
+                                }
+                            }
+                            if (f.link_filter) {
+                                const [parentfield, filter_key] = f.link_filter.split("->");
+                                filters.push([
+                                    f.options,
+                                    filter_key,
+                                    '=',
+                                    dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                ]);
+                            }
+                            return { filters };
+                        };
+                    }
                 }
+            } else {
+                for (const f of fields) {
+                    if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
+                        if (f.fieldname === 'frequency') {
+                            f.onchange = function () {
+                                this.handleFrequencyField();
+                            }.bind(this);
+                        }
+                    }
+                    if (this.frm.parentRow) {
+                        if (this.frm.parentRow[f.fieldname]) {
+                            f.default = this.frm.parentRow[f.fieldname];
+                            f.read_only = 1;
+                        }
+                    }
+                    if (this.frm.doctype === f.options) {
+                        f.default = this.frm.doc.name;
+                        f.read_only = 1;
+                    }
+                    if (this.connection?.connection_type === 'Referenced') {
+                        if (f.fieldname === this.connection.dt_reference_field) {
+                            f.default = this.frm.doc.doctype;
+                            f.read_only = 1;
+                        }
+                        if (f.fieldname === this.connection.dn_reference_field) {
+                            f.default = this.frm.doc.name;
+                            f.read_only = 1;
+                        }
+                    }
+                    if (this.connection?.connection_type === 'Direct') {
+                        if (f.fieldname === this.connection.link_fieldname) {
+                            f.default = this.frm.doc.name;
+                            f.read_only = 1;
+                        }
+                    }
 
-                if (f.fieldtype === "Table") {
-                    let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
-                    let tableFields = res?.message;
-                    f.fields = tableFields;
-                    if (f.fieldname === 'planning_table') {
-                        f.cannot_add_rows = 1;
-                        f.cannot_delete_rows = 1;
+                    if (f.fieldtype === 'Link') {
+                        f.get_query = () => {
+                            const filters = [];
+                            if (this.uniqueness.column.length) {
+                                if (this.uniqueness.column.includes(f.fieldname)) {
+                                    let existing_options = this.rows?.map((item) => item[f.fieldname]);
+                                    filters.push([f.options, 'name', 'not in', existing_options]);
+                                }
+                            }
+                            if (f.link_filter) {
+                                const [parentfield, filter_key] = f.link_filter.split("->");
+                                filters.push([
+                                    f.options,
+                                    filter_key,
+                                    '=',
+                                    dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                ]);
+                            }
+                            return { filters };
+                        };
                     }
-                    if (doc[f.fieldname].length) {
-                        f.data = doc[f.fieldname].map((row) => {
-                            let old_name = row.name;
-                            delete row.name;
-                            return { ...row, old_name };
-                        });
+                    if (f.fieldtype === "Table") {
+                        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                        let tableFields = res?.message;
+                        f.fields = tableFields;
+                        if (f.fieldname === 'planning_table') {
+                            f.cannot_add_rows = 1;
+                            f.cannot_delete_rows = 1;
+                        }
+                        continue;
                     }
-                    continue;
-                }
-                if (doc[f.fieldname]) {
-                    f.default = doc[f.fieldname];
-                }
-                if (f?.fetch_from) {
-                    if (!f.default) {
+                    if (f?.fetch_from) {
                         let fetch_from = f.fetch_from.split('.');
                         let [parentfield, fieldname] = fetch_from;
                         let parentf = fields.find(f => f.fieldname === parentfield);
@@ -555,154 +656,79 @@ class SvaDataTable {
                             let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
                             f.default = doc[fieldname];
                         }
+                        f.read_only = 1;
                     }
-                    f.read_only = 1;
-                }
-                if (f.fieldtype === 'Link') {
-                    f.get_query = () => {
-                        const filters = [];
-                        if (this.uniqueness.column.length) {
-                            if (this.uniqueness.column.includes(f.fieldname)) {
-                                let existing_options = this.rows?.map((item) => item[f.fieldname]);
-                                filters.push([f.options, 'name', 'not in', existing_options]);
-                            }
-                        }
-                        if (f.link_filter) {
-                            const [parentfield, filter_key] = f.link_filter.split("->");
-                            filters.push([
-                                f.options,
-                                filter_key,
-                                '=',
-                                dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
-                            ]);
-                        }
-                        return { filters };
-                    };
                 }
             }
         } else {
+            let doc = await frappe.db.get_doc(doctype, name);
             for (const f of fields) {
-                if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-                    if (f.fieldname === 'frequency') {
-                        f.onchange = function () {
-                            this.handleFrequencyField();
-                        }.bind(this);
-                    }
-                }
-                if (this.frm.parentRow) {
-                    if (this.frm.parentRow[f.fieldname]) {
-                        f.default = this.frm.parentRow[f.fieldname];
-                        f.read_only = 1;
-                    }
-                }
-                if (this.frm.doctype === f.options) {
-                    f.default = this.frm.doc.name;
-                    f.read_only = 1;
-                }
-                if (this.connection?.connection_type === 'Referenced') {
-                    if (f.fieldname === this.connection.dt_reference_field) {
-                        f.default = this.frm.doc.doctype;
-                        f.read_only = 1;
-                    }
-                    if (f.fieldname === this.connection.dn_reference_field) {
-                        f.default = this.frm.doc.name;
-                        f.read_only = 1;
-                    }
-                }
-                if (this.connection?.connection_type === 'Direct') {
-                    if (f.fieldname === this.connection.link_fieldname) {
-                        f.default = this.frm.doc.name;
-                        f.read_only = 1;
-                    }
-                }
-
-                if (f.fieldtype === 'Link') {
-                    f.get_query = () => {
-                        const filters = [];
-                        if (this.uniqueness.column.length) {
-                            if (this.uniqueness.column.includes(f.fieldname)) {
-                                let existing_options = this.rows?.map((item) => item[f.fieldname]);
-                                filters.push([f.options, 'name', 'not in', existing_options]);
-                            }
-                        }
-                        if (f.link_filter) {
-                            const [parentfield, filter_key] = f.link_filter.split("->");
-                            filters.push([
-                                f.options,
-                                filter_key,
-                                '=',
-                                dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
-                            ]);
-                        }
-                        return { filters };
-                    };
+                if(f.fieldtype === 'Table MultiSelect') {
+                    continue;
                 }
                 if (f.fieldtype === "Table") {
                     let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
-                    if (f.fieldname === 'planning_table') {
-                        f.cannot_add_rows = 1;
-                        f.cannot_delete_rows = 1;
+                    f.cannot_add_rows = 1;
+                    f.cannot_delete_rows = 1;
+                    if (doc[f.fieldname].length) {
+                        f.data = doc[f.fieldname];
                     }
                     continue;
                 }
-                if (f?.fetch_from) {
-                    let fetch_from = f.fetch_from.split('.');
-                    let [parentfield, fieldname] = fetch_from;
-                    let parentf = fields.find(f => f.fieldname === parentfield);
-                    if (parentf?.options && parentf?.default) {
-                        let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
-                        f.default = doc[fieldname];
-                    }
+                if (doc[f.fieldname]) {
+                    f.default = doc[f.fieldname];
                     f.read_only = 1;
                 }
             }
         }
+
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
             fields: fields || [],
-            primary_action_label: name ? 'Update' : 'Create',
+            primary_action_label: ['create','write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
             primary_action: async (values) => {
-                if (!name) {
-                    let response = await frappe.xcall('frappe.client.insert', {
-                        doc: {
-                            doctype: doctype,
-                            ...values
+                if (['create', 'write'].includes(mode)) {
+                    if (!name) {
+                        let response = await frappe.xcall('frappe.client.insert', {
+                            doc: {
+                                doctype: doctype,
+                                ...values
+                            }
+                        });
+                        if (response) {
+                            this.rows.push(response);
+                            this.updateTableBody();
+                            frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green' });
                         }
-                    });
-                    if (response) {
-                        this.rows.push(response);
-                        this.updateTableBody();
-                        frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green' });
-                    }
-                } else {
-                    let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
-                    let updated_values = {};
-                    for (let field of value_fields) {
-                        let key = field.fieldname;
-                        if (Array.isArray(values[key])) {
-                            updated_values[key] = values[key].map((item) => {
-                                if (item.old_name) {
-                                    return { ...item, name: item.old_name };
-                                }
-                                return item;
-                            });
-                        } else {
-                            updated_values[key] = values[key] || '';
+                    } else {
+                        let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
+                        let updated_values = {};
+                        for (let field of value_fields) {
+                            let key = field.fieldname;
+                            if (Array.isArray(values[key])) {
+                                updated_values[key] = values[key].map((item) => {
+                                    if (item.old_name) {
+                                        return { ...item, name: item.old_name };
+                                    }
+                                    return item;
+                                });
+                            } else {
+                                updated_values[key] = values[key] || '';
+                            }
                         }
-                    }
-                    let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: updated_values });
-                    if (response) {
-                        let rowIndex = this.rows.findIndex(r => r.name === name);
-                        this.rows[rowIndex] = response;
-                        this.updateTableBody();
-                        frappe.show_alert({ message: `Successfully updated ${doctype}`, indicator: 'green' });
+                        let response = await frappe.xcall('frappe.client.set_value', { doctype: doctype, name, fieldname: updated_values });
+                        if (response) {
+                            let rowIndex = this.rows.findIndex(r => r.name === name);
+                            this.rows[rowIndex] = response;
+                            this.updateTableBody();
+                            frappe.show_alert({ message: `Successfully updated ${doctype}`, indicator: 'green' });
+                        }
                     }
                 }
                 dialog.clear();
                 dialog.hide();
-                // await this.setupTotalCount();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -710,7 +736,13 @@ class SvaDataTable {
                 dialog.hide();
             }
         });
+        if(['create','write'].includes(mode)) {
+            dialog.get_secondary_btn().show();
+        }else{
+            dialog.get_secondary_btn().hide();
+        }
         dialog.show();
+        console.log()
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -980,18 +1012,32 @@ class SvaDataTable {
 
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.classList.add('dropdown-menu');
-                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write'))) {
+                    // View Button
+                    if (this.conf_perms.length && this.conf_perms.includes('read')) {
+                        if (this.permissions.length && this.permissions.includes('read')) {
+                            const viewOption = document.createElement('a');
+                            viewOption.classList.add('dropdown-item');
+                            viewOption.textContent = "View";
+                            viewOption.addEventListener('click', async () => {
+                                await this.createFormDialog(this.doctype, primaryKey, 'view');
+                            });
+                            dropdownMenu.appendChild(viewOption);
+                        }
+                    }
+                    // Edit Button
+                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write')))) {
                         if (this.permissions.length && this.permissions.includes('write')) {
                             const editOption = document.createElement('a');
                             editOption.classList.add('dropdown-item');
                             editOption.textContent = "Edit";
                             editOption.addEventListener('click', async () => {
-                                await this.createFormDialog(this.doctype, primaryKey);
+                                await this.createFormDialog(this.doctype, primaryKey, 'write');
                             });
                             dropdownMenu.appendChild(editOption);
                         }
                     }
-                    if (this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete'))) {
+                    // Delete Button
+                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete')))) {
                         if (this.permissions.length && this.permissions.includes('delete')) {
                             const deleteOption = document.createElement('a');
                             deleteOption.classList.add('dropdown-item');
