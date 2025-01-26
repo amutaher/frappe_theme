@@ -24,11 +24,13 @@ class SvaDataTable {
      */
 
     constructor({
+        label = "",
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
+        this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
         this.columns = columns;
@@ -147,10 +149,16 @@ class SvaDataTable {
             wrapper.appendChild(header);
         }
 
+        if (this.label && !wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+            let label_wrapper = document.createElement('div');
+            label_wrapper.id = 'label-wrapper';
+            label_wrapper.innerHTML =`<p>${this.label}</p>`
+            wrapper.querySelector('div#header-element').appendChild(label_wrapper);
+        }
         if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
             let count_wrapper = document.createElement('div');
             count_wrapper.id = 'count-wrapper';
-            wrapper.querySelector('div#header-element').appendChild(count_wrapper);
+            // wrapper.querySelector('div#header-element').appendChild(count_wrapper);
         }
         if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
             let options_wrapper = document.createElement('div');
@@ -513,6 +521,7 @@ class SvaDataTable {
         if (name) {
             let doc = await frappe.db.get_doc(doctype, name);
             for (const f of fields) {
+                f.onchange = this.onFieldValueChange?.bind(this)
                 if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                     if (f.fieldname === 'frequency') {
                         f.onchange = function () {
@@ -522,7 +531,7 @@ class SvaDataTable {
                             f.default = doc[f.fieldname];
                             f.read_only = 1;
                         }
-                        continue;
+                        // continue;
                     }
                 }
 
@@ -582,6 +591,7 @@ class SvaDataTable {
             }
         } else {
             for (const f of fields) {
+                f.onchange = this.onFieldValueChange?.bind(this)
                 if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                     if (f.fieldname === 'frequency') {
                         f.onchange = function () {
@@ -661,8 +671,12 @@ class SvaDataTable {
         }
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
-            fields: fields || [],
+            fields: fields|| [],
             primary_action_label: name ? 'Update' : 'Create',
+            kpi:(e)=>{
+                console.log("e", e);
+
+            },
             primary_action: async (values) => {
                 if (!name) {
                     let response = await frappe.xcall('frappe.client.insert', {
@@ -1308,12 +1322,24 @@ class SvaDataTable {
     async getDocList() {
         try {
             let filters = []
+            if(this.connection?.extended_condition && this.connection?.extended_condition){
+                try {
+                    let cond  = JSON.parse(this.connection.extended_condition)
+                    if(Array.isArray(cond) && cond?.length){
+                        filters.push(cond);
+                    }
+                } catch (error) {
+                    console.log("Exception: while parsing extended_condition", error);
+                }
+            }
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else {
+
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
+
             let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {

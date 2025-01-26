@@ -101,6 +101,18 @@ const tabContent = async (frm, tab_field) => {
                                 }
                                 window?.onFieldClick(obj);
                             }
+                        },
+                        onFieldValueChange:function(e,b,c,d,f){
+                            if(e && window?.onFieldValueChange){
+                                let obj = {
+                                    dt:e?.target?.getAttribute('data-dt'),
+                                    dn:e?.target?.getAttribute('data-dn'),
+                                    fieldtype:e?.target?.getAttribute('data-fieldtype'),
+                                    fieldname:e?.target?.getAttribute('data-fieldname'),
+                                    value:e?.target?.value
+                                }
+                                window?.onFieldValueChange(obj);
+                            }
                         }
                     });
                 }
@@ -179,6 +191,7 @@ async function setDynamicProperties() {
 }
 frappe.router.on('change', async () => {
     window.onFieldClick = undefined
+    window.onFieldValueChange = undefined
     let interval;
     let elapsedTime = 0;
     const checkInterval = 500; // Check every 500 ms
