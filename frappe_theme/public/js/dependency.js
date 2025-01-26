@@ -31,7 +31,7 @@ const tabContent = async (frm, tab_field) => {
     // console.log("tabContent", frm.events);
 
     // debugger
-    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
+    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Number Card Mapper', { doctype_field: frm.doc.doctype }) && await frappe.db.count('Number Card Mapper', { doctype_field: frm.doc.doctype }) > 0)) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
         let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
@@ -48,16 +48,40 @@ const tabContent = async (frm, tab_field) => {
             }
         }
         let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
+        let numberCardFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
+        for (let fld of numberCardFields) {
+            if (await frappe.db.exists('Number Card Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
+                let nc = await frappe.db.get_list('Number Card Mapper', {
+                    filters: {
+                        doctype_field: frm.doc.doctype,
+                        wrapper_field: fld
+                    },
+                    pluck: 'name',
+                    limit: 1
+                });
+                if (nc.length > 0) {
+                    let numberCardMapper = await frappe.db.get_doc('Number Card Mapper', nc[0]);
+                    let numberCards = numberCardMapper?.cards?.map(f => f.number_card);
+                    new SVANumberCard({
+                        wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
+                        frm: frm,
+                        numberCards: numberCards
+                    });
+                }
+            } else {
+                console.log('Number Card Mapper does not exist');
+            }
+        }
         for (let _f of dtFields) {
-            if(frm.doc.__islocal){
-                if(!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
+            if (frm.doc.__islocal) {
+                if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
                     document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;">
                         <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>
                         Save ${frm.doctype} to add ${_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype)} items.
                     </div>`;
                 }
-            }else{
-                if(document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
+            } else {
+                if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
                     document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
                 }
                 if (_f?.connection_type == "Is Custom Design") {
@@ -92,12 +116,12 @@ const tabContent = async (frm, tab_field) => {
                             serialNumberColumn: true, // Enable serial number column (optional)
                             editable: false,      // Enable editing (optional),
                         },
-                        onFieldClick:(e)=>{
-                            if(e && window?.onFieldClick){
+                        onFieldClick: (e) => {
+                            if (e && window?.onFieldClick) {
                                 let obj = {
-                                    dt:e?.target?.getAttribute('data-dt'),
-                                    dn:e?.target?.getAttribute('data-dn'),
-                                    fieldname:e?.target?.getAttribute('data-fieldname')
+                                    dt: e?.target?.getAttribute('data-dt'),
+                                    dn: e?.target?.getAttribute('data-dn'),
+                                    fieldname: e?.target?.getAttribute('data-fieldname')
                                 }
                                 window?.onFieldClick(obj);
                             }
@@ -146,17 +170,17 @@ const mapEvents = (props) => {
                 }
             }
             // if (!frm.__tabEventAttached) {
+            let tab_field = frm.get_active_tab()?.df?.fieldname;
+            // console.log("tab_field",tab_field);
+            tabContent(frm, tab_field)
+            $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
                 let tab_field = frm.get_active_tab()?.df?.fieldname;
-                // console.log("tab_field",tab_field);
-                tabContent(frm, tab_field)
-                $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
-                    let tab_field = frm.get_active_tab()?.df?.fieldname;
-                    tabContent(frm, tab_field);
-                });
+                tabContent(frm, tab_field);
+            });
             //     frm.__tabEventAttached = true;
             // }
         },
-        onload_post_render:async function (frm) {
+        onload_post_render: async function (frm) {
         },
         ...obj
     }
