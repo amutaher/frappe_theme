@@ -844,6 +844,8 @@ class SvaDataTable {
     }
 
     createTableHead() {
+        console.log("this.header",this.header);
+
         const thead = document.createElement('thead');
         if (this.options?.additionalTableHeader) {
             thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
@@ -860,7 +862,7 @@ class SvaDataTable {
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
             serialTh.textContent = '#';
-            serialTh.style = 'width:40px;text-align:center;';
+            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
             tr.appendChild(serialTh);
         }
 
@@ -894,7 +896,7 @@ class SvaDataTable {
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style = 'width:5px; text-align:center;';
+            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
             if (frappe.user_roles.includes("Administrator")) {
                 action_th.appendChild(this.createSettingsButton());
                 tr.appendChild(action_th);
@@ -935,10 +937,6 @@ class SvaDataTable {
         let rowIndex = 0;
         const batchSize = this.options?.pageLimit || 30;
         tbody.style = `
-            font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
-            font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
-            color:${this.options?.style?.tableBody?.color || 'black'};
-            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};
             white-space: nowrap;`
             ;
         if (this.currentSort) {
@@ -954,7 +952,7 @@ class SvaDataTable {
 
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
-                    serialTd.style = 'min-width:40px; text-align:center;';
+                    serialTd.style = 'min-width:40px; text-align:center;position:sticky;left:0px;background-color:#fff;';
                     if (this.page > 1) {
                         serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
                     } else {
@@ -1024,7 +1022,7 @@ class SvaDataTable {
                 // ========================= Workflow End ===================
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;';
+                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
                     const dropdown = document.createElement('div');
                     dropdown.classList.add('dropdown');
 
@@ -1318,7 +1316,7 @@ class SvaDataTable {
                 $(control.label_area).css({ display: 'none' })
                 $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', fontSize: '12px', color: '#525252', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: '#525252', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1426,6 +1424,7 @@ class SvaDataTable {
         let message = document.createElement('p');
         message.textContent = "You haven't created a record yet";
         message.style.color = 'grey';
+        noDataFoundPage.style.backgroundColor = '#F8F8F8'
         noDataFoundText.appendChild(message)
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
