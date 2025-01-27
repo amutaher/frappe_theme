@@ -24,11 +24,13 @@ class SvaDataTable {
      */
 
     constructor({
+        label = "",
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
+        this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
         this.columns = columns;
@@ -139,7 +141,7 @@ class SvaDataTable {
         }
     }
     setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:${this.options?.style?.height || '500px'}; height:${this.options?.style?.height || '500px'};margin:0px !important;`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
         if (!wrapper.querySelector('div#header-element')) {
             let header = document.createElement('div');
             header.id = 'header-element';
@@ -147,6 +149,12 @@ class SvaDataTable {
             wrapper.appendChild(header);
         }
 
+        if (this.label && !wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+            let label_wrapper = document.createElement('div');
+            label_wrapper.id = 'label-wrapper';
+            label_wrapper.innerHTML =`<p style="font-weight:bold;">${this.label}</p>`
+            wrapper.querySelector('div#header-element').appendChild(label_wrapper);
+        }
         if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
             let count_wrapper = document.createElement('div');
             count_wrapper.id = 'count-wrapper';
@@ -253,7 +261,7 @@ class SvaDataTable {
     async setupFooter(wrapper) {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
-        footer.style = 'display:flex;width:100%;height:fit-content;margin-top:10px;align-items:center;justify-content:space-between;';
+        footer.style = 'display:flex;width:100%;height:fit-content;align-items:center;justify-content:space-between;';
         if (!wrapper.querySelector('div#footer-element')) {
             wrapper.appendChild(footer);
         }
@@ -269,7 +277,7 @@ class SvaDataTable {
                     create_button.id = 'create';
                     create_button.textContent = "Add row";
                     create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
-                    create_button.style = 'width:fit-content;height:fit-content;';
+                    create_button.style = 'width:fit-content;height:fit-content; margin-bottom:10px;';
                     create_button.addEventListener('click', async () => {
                         await this.createFormDialog(this.doctype);
                     });
@@ -514,6 +522,7 @@ class SvaDataTable {
             if (name) {
                 let doc = await frappe.db.get_doc(doctype, name);
                 for (const f of fields) {
+                    f.onchange = this.onFieldValueChange?.bind(this)
                     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                         if (f.fieldname === 'frequency') {
                             f.onchange = function () {
@@ -542,7 +551,7 @@ class SvaDataTable {
                                 return { ...row, old_name };
                             });
                         }
-                        continue;
+                        // continue;
                     }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
@@ -583,6 +592,7 @@ class SvaDataTable {
                 }
             } else {
                 for (const f of fields) {
+                    f.onchange = this.onFieldValueChange?.bind(this)
                     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                         if (f.fieldname === 'frequency') {
                             f.onchange = function () {
@@ -1354,12 +1364,24 @@ class SvaDataTable {
     async getDocList() {
         try {
             let filters = []
+            if(this.connection?.extended_condition && this.connection?.extended_condition){
+                try {
+                    let cond  = JSON.parse(this.connection.extended_condition)
+                    if(Array.isArray(cond) && cond?.length){
+                        filters.push(cond);
+                    }
+                } catch (error) {
+                    console.log("Exception: while parsing extended_condition", error);
+                }
+            }
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else {
+
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
+
             let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {
