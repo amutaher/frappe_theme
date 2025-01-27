@@ -387,19 +387,19 @@ class SvaDataTable {
             this.pageButtonsContainer.insertBefore(pageItem, this.pageButtonsContainer.children[i]);
         }
     }
-
-    async get_permissions(doctype) {
-        let res = await frappe.call({
-            method: 'frappe_theme.api.get_permissions',
-            args: { doctype },
-            callback: function (response) {
-                return response.message
-            },
-            error: (err) => {
-                console.error(err);
-            }
+    get_permissions(doctype) {
+        return new Promise((rslv, rjct)=>{
+            frappe.call({
+                method: 'frappe_theme.api.get_permissions',
+                args: { doctype },
+                callback: function (response) {
+                    rslv(response.message)
+                },
+                error: (err) => {
+                    rjct(err);
+                }
+            });
         });
-        return res?.message ?? [];
     }
     handleFrequencyField() {
         let frequency = cur_dialog?.fields_dict?.frequency?.value;
@@ -761,7 +761,6 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
-        console.log()
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
