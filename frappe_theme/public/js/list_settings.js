@@ -87,7 +87,14 @@ class ListSettings {
 							${frappe.utils.icon("drag", "xs", "", "", "sortable-handle ")}
 						</div>
 						<div class="col-10" style="padding-left:0px;">
-							${__(me.listview_settings[idx].label, null, me.doctype)}
+							<div class="row">
+								<div class="col-9">
+									${__(me.listview_settings[idx].label, null, me.doctype)}
+								</div>
+								<div class="col-3">
+									<input type="number" class="form-control" style="background-color:white;" data-fieldname="${me.listview_settings[idx].fieldname}" value="2" />
+								</div>
+							</div>
 						</div>
 						<div class="col-1">
 							<a class="text-muted remove-field" data-fieldname="${me.listview_settings[idx].fieldname}">
@@ -232,7 +239,7 @@ class ListSettings {
 		meta.fields.forEach((field) => {
 			if (
 				field.in_list_view &&
-				!frappe.model.no_value_type.includes(field.fieldtype) 
+				!frappe.model.no_value_type.includes(field.fieldtype)
 				// && me.subject_field.fieldname != field.fieldname
 			) {
 				me.listview_settings.push({

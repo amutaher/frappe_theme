@@ -107,6 +107,7 @@ const tabContent = async (frm, tab_field) => {
                     // }
 
                     new SvaDataTable({
+                        label:frm.meta?.fields?.find(f=> f.fieldname == _f.html_field)?.label,
                         wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
                         doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
                         frm: frm,       // Pass the current form object (optional)
@@ -124,6 +125,18 @@ const tabContent = async (frm, tab_field) => {
                                     fieldname: e?.target?.getAttribute('data-fieldname')
                                 }
                                 window?.onFieldClick(obj);
+                            }
+                        },
+                        onFieldValueChange:function(e,b,c,d,f){
+                            if(e && window?.onFieldValueChange){
+                                let obj = {
+                                    dt:e?.target?.getAttribute('data-dt'),
+                                    dn:e?.target?.getAttribute('data-dn'),
+                                    fieldtype:e?.target?.getAttribute('data-fieldtype'),
+                                    fieldname:e?.target?.getAttribute('data-fieldname'),
+                                    value:e?.target?.value
+                                }
+                                window?.onFieldValueChange(obj);
                             }
                         }
                     });
@@ -203,6 +216,7 @@ async function setDynamicProperties() {
 }
 frappe.router.on('change', async () => {
     window.onFieldClick = undefined
+    window.onFieldValueChange = undefined
     let interval;
     let elapsedTime = 0;
     const checkInterval = 500; // Check every 500 ms
