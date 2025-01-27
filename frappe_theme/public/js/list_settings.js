@@ -87,12 +87,12 @@ class ListSettings {
 							${frappe.utils.icon("drag", "xs", "", "", "sortable-handle ")}
 						</div>
 						<div class="col-10" style="padding-left:0px;">
-							<div class="row">
+							<div class="row align-items-center no-gutters">
 								<div class="col-9">
 									${__(me.listview_settings[idx].label, null, me.doctype)}
 								</div>
 								<div class="col-3">
-									<input type="number" class="form-control" style="background-color:white;" data-fieldname="${me.listview_settings[idx].fieldname}" value="2" />
+									<input type="number" class="form-control control-input bg-white column-width-input" style="margin-top:-5px;height:25px;" data-fieldname="${me.listview_settings[idx].fieldname}" value="${me.listview_settings[idx]?.width || 2}" />
 								</div>
 							</div>
 						</div>
@@ -120,7 +120,9 @@ class ListSettings {
 				</p>
 			</div>
 		`);
-
+		$(fields_html.$wrapper).on('change', '.column-width-input', function () {
+			me.update_fields();
+		});			
 		new Sortable(wrapper.getElementsByClassName("control-input-wrapper")[0], {
 			handle: ".sortable-handle",
 			draggable: ".sortable",
@@ -168,11 +170,13 @@ class ListSettings {
 		let fields_html = me.dialog.get_field("fields_html");
 		let wrapper = fields_html.$wrapper[0];
 		let fields_order = wrapper.getElementsByClassName("fields_order");
+		console.log(me.listview_settings,'me.listview_settings')
 		me.listview_settings = [];
 		for (let idx = 0; idx < fields_order.length; idx++) {
 			me.listview_settings.push({
 				fieldname: fields_order.item(idx).getAttribute("data-fieldname"),
 				label: __(fields_order.item(idx).getAttribute("data-label")),
+				width:fields_order.item(idx).querySelector('.column-width-input')?.value || 2
 			});
 		}
 		me.dialog.set_value("listview_settings", JSON.stringify(me.listview_settings));
