@@ -13,6 +13,8 @@
   "dn_reference_field",
   "template",
   "html_field",
+  "extend_condition",
+  "extended_condition",
   "listview_settings",
   "setup_list_settings",
   "crud_permissions",
@@ -107,12 +109,25 @@
    "fieldtype": "Code",
    "label": "Listview Settings",
    "read_only": 1
+  },
+  {
+   "default": "{}",
+   "depends_on": "eval:doc.extend_condition == true",
+   "fieldname": "extended_condition",
+   "fieldtype": "JSON",
+   "label": "Extended Condition"
+  },
+  {
+   "default": "0",
+   "fieldname": "extend_condition",
+   "fieldtype": "Check",
+   "label": "Extend Condition"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-01-21 13:14:05.898918",
+ "modified": "2025-01-26 15:33:54.856625",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
