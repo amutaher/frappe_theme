@@ -844,8 +844,6 @@ class SvaDataTable {
     }
 
     createTableHead() {
-        console.log("this.header",this.header);
-
         const thead = document.createElement('thead');
         if (this.options?.additionalTableHeader) {
             thead.innerHTML = this.options?.additionalTableHeader?.join('') || '';
@@ -927,7 +925,65 @@ class SvaDataTable {
             }
         });
     }
+    createActionColumn(row, primaryKey){
+        const dropdown = document.createElement('div');
+        dropdown.classList.add('dropdown');
 
+        const dropdownBtn = document.createElement('span');
+        dropdownBtn.classList.add('h4');
+        dropdownBtn.style = 'cursor:pointer;';
+        dropdownBtn.setAttribute('data-toggle', 'dropdown');
+        dropdownBtn.innerHTML = "&#8942;";
+
+        const dropdownMenu = document.createElement('div');
+        dropdownMenu.classList.add('dropdown-menu');
+        // View Button
+        if (this.conf_perms.length && this.permissions.length) {
+            if (this.permissions.includes('read')) {
+                const viewOption = document.createElement('a');
+                viewOption.classList.add('dropdown-item');
+                viewOption.textContent = "View";
+                viewOption.addEventListener('click', async () => {
+                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+                });
+                dropdownMenu.appendChild(viewOption);
+            }
+            if(!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0){
+                if (this.permissions.includes('write')) {
+                    const editOption = document.createElement('a');
+                    editOption.classList.add('dropdown-item');
+                    editOption.textContent = "Edit";
+                    editOption.addEventListener('click', async () => {
+                        await this.createFormDialog(this.doctype, primaryKey, 'write');
+                    });
+                    dropdownMenu.appendChild(editOption);
+                }
+                if (this.permissions.includes('delete')) {
+                    const deleteOption = document.createElement('a');
+                    deleteOption.classList.add('dropdown-item');
+                    deleteOption.textContent = "Delete";
+                    deleteOption.addEventListener('click', async () => {
+                        await this.deleteRecord(this.doctype, primaryKey);
+                    });
+                    dropdownMenu.appendChild(deleteOption);
+                }
+            }
+        }
+        if (this.childLinks?.length) {
+            this.childLinks.forEach(async link => {
+                const linkOption = document.createElement('a');
+                linkOption.classList.add('dropdown-item');
+                linkOption.textContent = link.link_doctype;
+                linkOption.addEventListener('click', async () => {
+                    await this.childTableDialog(link.link_doctype, primaryKey, row, link);
+                });
+                dropdownMenu.appendChild(linkOption);
+            });
+        }
+        dropdown.appendChild(dropdownBtn);
+        dropdown.appendChild(dropdownMenu);
+        return dropdown;
+    }
     createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
@@ -1023,70 +1079,8 @@ class SvaDataTable {
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
-                    const dropdown = document.createElement('div');
-                    dropdown.classList.add('dropdown');
-
-                    const dropdownBtn = document.createElement('span');
-                    dropdownBtn.classList.add('h4');
-                    dropdownBtn.style = 'cursor:pointer;';
-                    dropdownBtn.setAttribute('data-toggle', 'dropdown');
-                    dropdownBtn.innerHTML = "&#8942;";
-
-                    const dropdownMenu = document.createElement('div');
-                    dropdownMenu.classList.add('dropdown-menu');
-                    // View Button
-                    if (this.conf_perms.length && this.conf_perms.includes('read')) {
-                        if (this.permissions.length && this.permissions.includes('read')) {
-                            const viewOption = document.createElement('a');
-                            viewOption.classList.add('dropdown-item');
-                            viewOption.textContent = "View";
-                            viewOption.addEventListener('click', async () => {
-                                await this.createFormDialog(this.doctype, primaryKey, 'view');
-                            });
-                            dropdownMenu.appendChild(viewOption);
-                        }
-                    }
-                    // Edit Button
-                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write')))) {
-                        if (this.permissions.length && this.permissions.includes('write')) {
-                            const editOption = document.createElement('a');
-                            editOption.classList.add('dropdown-item');
-                            editOption.textContent = "Edit";
-                            editOption.addEventListener('click', async () => {
-                                await this.createFormDialog(this.doctype, primaryKey, 'write');
-                            });
-                            dropdownMenu.appendChild(editOption);
-                        }
-                    }
-                    // Delete Button
-                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete')))) {
-                        if (this.permissions.length && this.permissions.includes('delete')) {
-                            const deleteOption = document.createElement('a');
-                            deleteOption.classList.add('dropdown-item');
-                            deleteOption.textContent = "Delete";
-                            deleteOption.addEventListener('click', async () => {
-                                await this.deleteRecord(this.doctype, primaryKey);
-                            });
-                            dropdownMenu.appendChild(deleteOption);
-                        }
-                    }
-                    if (this.childLinks?.length) {
-                        this.childLinks.forEach(async link => {
-                            const linkOption = document.createElement('a');
-                            linkOption.classList.add('dropdown-item');
-                            linkOption.textContent = link.link_doctype;
-                            linkOption.addEventListener('click', async () => {
-                                await this.childTableDialog(link.link_doctype, primaryKey, row, link);
-                            });
-                            dropdownMenu.appendChild(linkOption);
-                        });
-                    }
-                    dropdown.appendChild(dropdownBtn);
-                    dropdown.appendChild(dropdownMenu);
-                    action_td.appendChild(dropdown);
-                    if (dropdownMenu.children?.length > 0) {
-                        tr.appendChild(action_td);
-                    }
+                    action_td.appendChild(this.createActionColumn(row, primaryKey));
+                    tr.appendChild(action_td);
                 }
                 this.tBody.appendChild(tr);
                 rowIndex++;
