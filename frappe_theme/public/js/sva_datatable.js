@@ -30,6 +30,7 @@ class SvaDataTable {
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
+
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -140,32 +141,40 @@ class SvaDataTable {
             isLoading(false, this.wrapper);
         }
     }
-    setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
-        if (!wrapper.querySelector('div#header-element')) {
-            let header = document.createElement('div');
-            header.id = 'header-element';
-            header.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
-            wrapper.appendChild(header);
-        }
+    setupHeader(){
+        let row = document.createElement('div');
+        row.setAttribute('class','row');
+        let leftAlignedColumns = [];
+        let rightAlignedColumns = [];
 
-        if (this.label && !wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+        if (this.label) {
             let label_wrapper = document.createElement('div');
             label_wrapper.id = 'label-wrapper';
+            label_wrapper.setAttribute('class', 'col-md-3');
             label_wrapper.innerHTML =`<p style="font-weight:bold;">${this.label}</p>`
-            wrapper.querySelector('div#header-element').appendChild(label_wrapper);
+            leftAlignedColumns.push(label_wrapper)
         }
-        if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
-            let count_wrapper = document.createElement('div');
-            count_wrapper.id = 'count-wrapper';
-            wrapper.querySelector('div#header-element').appendChild(count_wrapper);
-        }
-        if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
-            let options_wrapper = document.createElement('div');
-            options_wrapper.id = 'options-wrapper';
-            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
-            wrapper.querySelector('div#header-element').appendChild(options_wrapper);
-        }
+
+        let count_wrapper = document.createElement('div');
+        count_wrapper.id = 'count-wrapper';
+        rightAlignedColumns.push(count_wrapper)
+
+        let options_wrapper = document.createElement('div');
+        options_wrapper.id = 'options-wrapper';
+        options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
+        rightAlignedColumns.push(options_wrapper);
+
+        [...leftAlignedColumns, ...rightAlignedColumns].forEach(e=>{
+            row.appendChild(e)
+        })
+        return row;
+    }
+    setupWrapper(wrapper) {
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
+        wrapper.appendChild(this.setupHeader())
+        // create a createWrapperHeader function
+
+
 
         // if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
         //     let list_filter = document.createElement('div');
@@ -187,23 +196,23 @@ class SvaDataTable {
         //     })
         //     wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
         // }
-        if (frappe.user_roles.includes("Administrator") && !wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
-            let list_view_settings = document.createElement('button');
-            list_view_settings.id = 'list_view_settings';
-            list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
-            list_view_settings.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
-                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
-            </svg>`;
-            list_view_settings.onclick = async () => {
-                list_view_settings.disabled = true;
-                await this.setupListviewSettings();
-                list_view_settings.disabled = false;
-            }
-            wrapper.querySelector('div#options-wrapper').appendChild(list_view_settings);
-        }
         return wrapper;
+    }
+    createSettingsButton() {
+        let list_view_settings = document.createElement('button');
+        list_view_settings.id = 'list_view_settings';
+        list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
+        list_view_settings.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        </svg>`;
+        list_view_settings.onclick = async () => {
+            list_view_settings.disabled = true;
+            await this.setupListviewSettings();
+            list_view_settings.disabled = false;
+        }
+        return list_view_settings;
     }
     async setupListviewSettings() {
         let dtmeta = await frappe.call({
@@ -879,18 +888,23 @@ class SvaDataTable {
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
-            addColumn.style = 'background-color:#F3F3F3; cursor:pointer';
+            addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style.width = '30px';
-            // action_th.textContent = "Actions";
-            tr.appendChild(action_th);
+            action_th.style = 'width:5px; text-align:center;';
+            if (frappe.user_roles.includes("Administrator")) {
+                action_th.appendChild(this.createSettingsButton());
+                tr.appendChild(action_th);
+            }else{
+                if(this.conf_perms.length || this.childLinks?.length){
+                    tr.appendChild(action_th);
+                    action_th.textContent = 'Actions'
+                }
+            }
         }
-
-
         thead.appendChild(tr);
         return thead;
     }
