@@ -1,5 +1,6 @@
 frappe.ui.form.on('Number Card Mapper', {
     refresh: function (frm) {
+
         // Add refresh button with immediate refresh
         frm.add_custom_button(__('Refresh Cards'), function () {
             frm.reload_doc();
@@ -10,15 +11,7 @@ frappe.ui.form.on('Number Card Mapper', {
         frm.add_custom_button(__('Preview Cards'), function () {
             preview_cards(frm);
         }, __("Actions"));
-
-        // // Set filters for number_card field
-        // frm.set_query('number_card', 'cards', function () {
-        //     return {
-        //         filters: {
-        //             document_type: frm.doc.doctype_field || ''
-        //         }
-        //     };
-        // });
+        frm.trigger('doctype_field');
 
         // Initialize sequence on refresh
         frm.trigger('update_card_sequence');
@@ -35,7 +28,35 @@ frappe.ui.form.on('Number Card Mapper', {
             frm.refresh_field('cards');
         }
     },
+    doctype_field: async function (frm) {
+        if (!frm.doc.doctype_field) {
+            await frm.set_value('wrapper_field', '');
+            return;
+        }
 
+        try {
+            const response = await frappe.call({
+                method: "frappe_theme.api.get_html_fields",
+                args: {
+                    doctype: frm.doc.doctype_field,
+                },
+            });
+
+            if (response.message) {
+                let fields = response.message;
+                await frm.set_df_property('wrapper_field', 'options', fields);
+                if (fields.length === 0) {
+                    frappe.show_alert({
+                        message: __('No HTML fields found in the selected DocType'),
+                        indicator: 'orange',
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching HTML fields:", error);
+        }
+    }
+    ,
     validate: function (frm) {
         frm.trigger('update_card_sequence');
     }
