@@ -302,7 +302,7 @@ class SvaDataTable {
     async setupFooter(wrapper) {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
-        footer.style = 'display:flex;width:100%;height:fit-content;align-items:center;justify-content:space-between;';
+        footer.style = 'display:flex;width:100%;height:fit-content;justify-content:space-between;';
         if (!wrapper.querySelector('div#footer-element')) {
             wrapper.appendChild(footer);
         }
@@ -1193,7 +1193,7 @@ class SvaDataTable {
                 // ========================= Workflow End ===================
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;z-index:100;';
+                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
                     action_td.appendChild(this.createActionColumn(row, primaryKey));
                     tr.appendChild(action_td);
                 }
