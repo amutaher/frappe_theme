@@ -141,9 +141,9 @@ class SvaDataTable {
             isLoading(false, this.wrapper);
         }
     }
-    setupHeader(){
+    setupHeader() {
         let row = document.createElement('div');
-        row.setAttribute('class','row');
+        row.setAttribute('class', 'row');
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 
@@ -151,7 +151,7 @@ class SvaDataTable {
             let label_wrapper = document.createElement('div');
             label_wrapper.id = 'label-wrapper';
             label_wrapper.setAttribute('class', 'col-md-3');
-            label_wrapper.innerHTML =`<p style="font-weight:bold;">${this.label}</p>`
+            label_wrapper.innerHTML = `<p style="font-weight:bold;">${this.label}</p>`
             leftAlignedColumns.push(label_wrapper)
         }
 
@@ -164,7 +164,7 @@ class SvaDataTable {
         options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
         rightAlignedColumns.push(options_wrapper);
 
-        [...leftAlignedColumns, ...rightAlignedColumns].forEach(e=>{
+        [...leftAlignedColumns, ...rightAlignedColumns].forEach(e => {
             row.appendChild(e)
         })
         return row;
@@ -237,7 +237,39 @@ class SvaDataTable {
         });
     }
     setupTableWrapper(tableWrapper) {
-        tableWrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};max-height:90%;min-height:110px;margin:0; padding:0;box-sizing:border-box; overflow:auto;scroll-behavior:smooth;`;
+        tableWrapper.style = `
+            max-width: ${this.options?.style?.width || '100%'};
+            width: ${this.options?.style?.width || '100%'};
+            height: auto;
+            margin-bottom: 10px;
+            margin-top: 0px;
+            margin-left: 0px;
+            margin-right: 0px;
+            padding: 0;
+            box-sizing: border-box;
+            overflow-x: scroll;
+            scroll-behavior: smooth;
+            border-spacing: none;
+        `;
+
+        // Add CSS to overwrite Bootstrap's table styles
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .table-bordered thead th,
+            .table-bordered thead td {
+                border-bottom-width: 2px;
+                padding-top: 0px !important;
+                padding-bottom: 0px !important;
+                vertical-align: middle;
+            }
+            .table th,
+            .table td {
+                padding: 0px 8px !important;
+                vertical-align: middle;
+            }
+        `;
+        tableWrapper.appendChild(style);
+
         return tableWrapper;
     }
     // async setupTotalCount() {
@@ -249,7 +281,7 @@ class SvaDataTable {
     //         } else {
     //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
     //         }
-    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
+    // this.total = await frappe.db.count(this.doctype, { filters: filters });
     //         let count = document.createElement('span');
     //         count.id = 'count-element';
     //         count.innerHTML = `<span>Total records: ${this.total}</span>`;
@@ -296,15 +328,15 @@ class SvaDataTable {
         }
         if (this.total > this.limit) {
             if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
-                wrapper.querySelector('div#footer-element').appendChild(await this.setupPagination());
+                wrapper.querySelector('div#footer-element').appendChild(this.setupPagination());
             }
         }
     }
-    async setupPagination() {
+    setupPagination() {
         let pagination = document.createElement('div');
         pagination.id = 'pagination-element';
         pagination.setAttribute('aria-label', 'Page navigation');
-        pagination.setAttribute('style', 'font-size:12px !important;height:33px !important;');
+        pagination.setAttribute('style', 'font-size:12px !important;height:30px !important;');
 
         let paginationList = document.createElement('ul');
         paginationList.classList.add('pagination', 'justify-content-center');
@@ -388,7 +420,7 @@ class SvaDataTable {
         }
     }
     get_permissions(doctype) {
-        return new Promise((rslv, rjct)=>{
+        return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
                 args: { doctype },
@@ -682,7 +714,7 @@ class SvaDataTable {
         } else {
             let doc = await frappe.db.get_doc(doctype, name);
             for (const f of fields) {
-                if(f.fieldtype === 'Table MultiSelect') {
+                if (f.fieldtype === 'Table MultiSelect') {
                     continue;
                 }
                 if (f.fieldtype === "Table") {
@@ -699,6 +731,9 @@ class SvaDataTable {
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
+                }else{
+                    f.default = '';
+                    f.read_only = 1;
                 }
             }
         }
@@ -706,7 +741,7 @@ class SvaDataTable {
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
             fields: fields || [],
-            primary_action_label: ['create','write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
+            primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
             primary_action: async (values) => {
                 if (['create', 'write'].includes(mode)) {
                     if (!name) {
@@ -755,9 +790,9 @@ class SvaDataTable {
                 dialog.hide();
             }
         });
-        if(['create','write'].includes(mode)) {
+        if (['create', 'write'].includes(mode)) {
             dialog.get_secondary_btn().show();
-        }else{
+        } else {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
@@ -836,7 +871,7 @@ class SvaDataTable {
     createTable() {
         const table = document.createElement('table');
         table.classList.add('table', 'table-bordered');
-        table.style = 'width:100%; font-size:13px; margin-top:0px !important; position:relative;';
+        table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
         table.appendChild(this.createTableHead());
         table.appendChild(this.createTableBody());
         return table;
@@ -851,7 +886,7 @@ class SvaDataTable {
             color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-            position:sticky; top: 0px; background-color:#F3F3F3;
+            background-color:#F3F3F3;
             z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
@@ -897,8 +932,8 @@ class SvaDataTable {
             if (frappe.user_roles.includes("Administrator")) {
                 action_th.appendChild(this.createSettingsButton());
                 tr.appendChild(action_th);
-            }else{
-                if(this.conf_perms.length || this.childLinks?.length){
+            } else {
+                if (this.conf_perms.length || this.childLinks?.length) {
                     tr.appendChild(action_th);
                     action_th.textContent = 'Actions'
                 }
@@ -924,7 +959,7 @@ class SvaDataTable {
             }
         });
     }
-    createActionColumn(row, primaryKey){
+    createActionColumn(row, primaryKey) {
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
@@ -936,6 +971,8 @@ class SvaDataTable {
 
         const dropdownMenu = document.createElement('div');
         dropdownMenu.classList.add('dropdown-menu');
+        dropdownMenu.style.position = 'absolute !important';
+        dropdownMenu.style.zIndex = '9999 !important';
         // View Button
         if (this.conf_perms.length && this.permissions.length) {
             if (this.permissions.includes('read')) {
@@ -947,7 +984,7 @@ class SvaDataTable {
                 });
                 dropdownMenu.appendChild(viewOption);
             }
-            if(!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0){
+            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
                 if (this.permissions.includes('write')) {
                     const editOption = document.createElement('a');
                     editOption.classList.add('dropdown-item');
@@ -983,6 +1020,85 @@ class SvaDataTable {
         dropdown.appendChild(dropdownMenu);
         return dropdown;
     }
+    createActionColumn(row, primaryKey) {
+        const dropdown = document.createElement('div');
+        dropdown.classList.add('dropdown');
+
+        const dropdownBtn = document.createElement('span');
+        dropdownBtn.classList.add('h4');
+        dropdownBtn.style = 'cursor:pointer;';
+        dropdownBtn.setAttribute('data-toggle', 'dropdown');
+        dropdownBtn.innerHTML = "&#8942;";
+
+        const dropdownMenu = document.createElement('div');
+        dropdownMenu.classList.add('dropdown-menu');
+        dropdownMenu.style.position = 'fixed';
+        dropdownMenu.style.zIndex = '9999';
+        dropdownMenu.style.display = 'none';
+
+        // View Button
+        if (this.conf_perms.length && this.permissions.length) {
+            if (this.permissions.includes('read')) {
+                const viewOption = document.createElement('a');
+                viewOption.classList.add('dropdown-item');
+                viewOption.textContent = "View";
+                viewOption.addEventListener('click', async () => {
+                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+                });
+                dropdownMenu.appendChild(viewOption);
+            }
+            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
+                if (this.permissions.includes('write')) {
+                    const editOption = document.createElement('a');
+                    editOption.classList.add('dropdown-item');
+                    editOption.textContent = "Edit";
+                    editOption.addEventListener('click', async () => {
+                        await this.createFormDialog(this.doctype, primaryKey, 'write');
+                    });
+                    dropdownMenu.appendChild(editOption);
+                }
+                if (this.permissions.includes('delete')) {
+                    const deleteOption = document.createElement('a');
+                    deleteOption.classList.add('dropdown-item');
+                    deleteOption.textContent = "Delete";
+                    deleteOption.addEventListener('click', async () => {
+                        await this.deleteRecord(this.doctype, primaryKey);
+                    });
+                    dropdownMenu.appendChild(deleteOption);
+                }
+            }
+        }
+        if (this.childLinks?.length) {
+            this.childLinks.forEach(async link => {
+                const linkOption = document.createElement('a');
+                linkOption.classList.add('dropdown-item');
+                linkOption.textContent = link.link_doctype;
+                linkOption.addEventListener('click', async () => {
+                    await this.childTableDialog(link.link_doctype, primaryKey, row, link);
+                });
+                dropdownMenu.appendChild(linkOption);
+            });
+        }
+
+        dropdown.appendChild(dropdownBtn);
+        document.body.appendChild(dropdownMenu);
+
+        dropdownBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const rect = dropdownBtn.getBoundingClientRect();
+
+            const dropdownWidth = dropdownMenu.offsetWidth || 150; // Default width in case offsetWidth is 0
+            dropdownMenu.style.top = `${rect.bottom}px`;
+            dropdownMenu.style.left = `${rect.left - dropdownWidth}px`; // Adjust position for left-side popup
+            dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.addEventListener('click', () => {
+            dropdownMenu.style.display = 'none';
+        });
+
+        return dropdown;
+    }
     createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
@@ -1003,7 +1119,7 @@ class SvaDataTable {
                 row.rowIndex = rowIndex;
                 const tr = document.createElement('tr');
                 let primaryKey = row?.name || row?.rowIndex || rowIndex?.id || rowIndex;
-                tr.style = 'max-height:25px !important; height:25px !important;';
+                tr.style = 'max-height:32px !important; height:32px !important;';
 
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
@@ -1077,7 +1193,7 @@ class SvaDataTable {
                 // ========================= Workflow End ===================
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
+                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;z-index:100;';
                     action_td.appendChild(this.createActionColumn(row, primaryKey));
                     tr.appendChild(action_td);
                 }
@@ -1221,7 +1337,7 @@ class SvaDataTable {
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
             ? `position: sticky; left:${left} px; z-index: 2; background-color: white; min-width:${column.width} px; max-width:${column.width} px; padding: 0px`
-            : `min-width:${column.width || 150} px; max-width:${column.width} px; padding: 0px; `;
+            : `min-width:${column.width || 150} px; max-width:${column.width} px; padding: 0px !important; `;
     }
 
     createEditableField(td, column, row) {
@@ -1279,7 +1395,7 @@ class SvaDataTable {
             only_input: true,
         });
 
-        $(control.input).css({ width: '100%', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
+        $(control.input).css({ width: '100%', height: '32px', backgroundColor: 'white', margin: '0px', boxShadow: 'none' });
         if (row[column.fieldname]) {
             control.set_value(row[column.fieldname]);
         }
@@ -1287,30 +1403,24 @@ class SvaDataTable {
     }
 
     createNonEditableField(td, column, row) {
-        // console.log("this.rows",this.onFieldClick);
         td.textContent = "";
         let columnField = {
             ...column,
             read_only: 1,
             description: ''
         };
-        if (['Link', 'HTML', 'Currency'].includes(columnField.fieldtype)) {
+        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
                 render_input: true,
-                only_input: ['Currency', 'Int', 'Float'].includes(columnField.fieldtype) ? false : true,
+                only_input: true,
             });
             setTimeout(() => {
                 control.input?.classList?.remove('bold');
             }, 0);
-            if (['Currency'].includes(columnField.fieldtype)) {
-                control.$input_wrapper.find('div.control-value').css({ backgroundColor: 'white', textAlign: 'right' })
-                $(control.label_area).css({ display: 'none' })
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', fontSize: '12px', color: '#525252', textAlign: 'right' });
-            } else {
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none' });
-            }
+            $(control.input).css({ width: '100%', minWidth: '150px', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
+            $(td).css({ height: '32px !important'});
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
             }
@@ -1322,9 +1432,14 @@ class SvaDataTable {
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                $(td).css({ height: '35px', padding: "6px 10px", cursor: 'pointer', color: 'blue' });
+                $(td).css({ height: '32px', cursor: 'pointer', color: 'blue', padding: '0px 5px' });
             } else {
-                $(td).css({ height: '35px', padding: "6px 10px" });
+                $(td).css({ height: '32px', padding: '0px 5px' });
+            }
+            if (columnField.fieldtype === 'Currency') {
+                td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
+                $(td).css({ textAlign: 'right' });
+                return;
             }
             if (columnField.fieldtype === 'Attach') {
                 td.innerHTML = `<a href = "${row[column.fieldname]}" target = "_blank" >${row[column.fieldname]}</a> `;
@@ -1361,18 +1476,18 @@ class SvaDataTable {
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
-            } else {
-                td.textContent = row[column.fieldname] || "";
+                return;
             }
+            td.textContent = row[column.fieldname] || "";
         }
     }
     async getDocList() {
         try {
             let filters = []
-            if(this.connection?.extended_condition && this.connection?.extended_condition){
+            if (this.connection?.extended_condition && this.connection?.extended_condition) {
                 try {
-                    let cond  = JSON.parse(this.connection.extended_condition)
-                    if(Array.isArray(cond) && cond?.length){
+                    let cond = JSON.parse(this.connection.extended_condition)
+                    if (Array.isArray(cond) && cond?.length) {
                         filters.push(cond);
                     }
                 } catch (error) {
@@ -1383,10 +1498,10 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else {
-
+                
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
-
+            this.total = await frappe.db.count(this.doctype, { filters: filters });
             let res = await frappe.call({
                 method: "frappe.client.get_list",
                 args: {
