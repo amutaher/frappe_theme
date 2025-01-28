@@ -6,6 +6,9 @@ const isLoading = (show, wrapper) => {
             align-items: center;
             justify-content: center;
             height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
             min-height:500px;
             width: 100%;
             background:white; /* Optional: adds a background overlay */
@@ -33,11 +36,10 @@ const isLoading = (show, wrapper) => {
         return;
     }
     if (show) {
-            const loaderMarkup = `
-                <div class="table-loader">
-                    <div class="loader"></div>
-                </div>`;
-                wrapper.innerHTML = loaderMarkup; // Append loader to parent element
+        const loaderMarkup = document.createElement('div');
+        loaderMarkup.classList.add('table-loader');
+        loaderMarkup.innerHTML = `<div class="loader"></div>`
+        wrapper.appendChild(loaderMarkup); // Append loader to parent element
     }
     else {
         const loaderElement = wrapper.querySelector('.table-loader');
