@@ -30,6 +30,7 @@ class SvaDataTable {
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
+
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -140,32 +141,40 @@ class SvaDataTable {
             isLoading(false, this.wrapper);
         }
     }
-    setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
-        if (!wrapper.querySelector('div#header-element')) {
-            let header = document.createElement('div');
-            header.id = 'header-element';
-            header.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;';
-            wrapper.appendChild(header);
-        }
+    setupHeader(){
+        let row = document.createElement('div');
+        row.setAttribute('class','row');
+        let leftAlignedColumns = [];
+        let rightAlignedColumns = [];
 
-        if (this.label && !wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
+        if (this.label) {
             let label_wrapper = document.createElement('div');
             label_wrapper.id = 'label-wrapper';
+            label_wrapper.setAttribute('class', 'col-md-3');
             label_wrapper.innerHTML =`<p style="font-weight:bold;">${this.label}</p>`
-            wrapper.querySelector('div#header-element').appendChild(label_wrapper);
+            leftAlignedColumns.push(label_wrapper)
         }
-        if (!wrapper.querySelector('div#header-element').querySelector('div#count-wrapper')) {
-            let count_wrapper = document.createElement('div');
-            count_wrapper.id = 'count-wrapper';
-            wrapper.querySelector('div#header-element').appendChild(count_wrapper);
-        }
-        if (!wrapper.querySelector('div#header-element').querySelector('div#options-wrapper')) {
-            let options_wrapper = document.createElement('div');
-            options_wrapper.id = 'options-wrapper';
-            options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
-            wrapper.querySelector('div#header-element').appendChild(options_wrapper);
-        }
+
+        let count_wrapper = document.createElement('div');
+        count_wrapper.id = 'count-wrapper';
+        rightAlignedColumns.push(count_wrapper)
+
+        let options_wrapper = document.createElement('div');
+        options_wrapper.id = 'options-wrapper';
+        options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
+        rightAlignedColumns.push(options_wrapper);
+
+        [...leftAlignedColumns, ...rightAlignedColumns].forEach(e=>{
+            row.appendChild(e)
+        })
+        return row;
+    }
+    setupWrapper(wrapper) {
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
+        wrapper.appendChild(this.setupHeader())
+        // create a createWrapperHeader function
+
+
 
         // if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
         //     let list_filter = document.createElement('div');
@@ -187,23 +196,23 @@ class SvaDataTable {
         //     })
         //     wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
         // }
-        if (frappe.user_roles.includes("Administrator") && !wrapper.querySelector('div#options-wrapper').querySelector('button#list_view_settings')) {
-            let list_view_settings = document.createElement('button');
-            list_view_settings.id = 'list_view_settings';
-            list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
-            list_view_settings.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
-                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
-            </svg>`;
-            list_view_settings.onclick = async () => {
-                list_view_settings.disabled = true;
-                await this.setupListviewSettings();
-                list_view_settings.disabled = false;
-            }
-            wrapper.querySelector('div#options-wrapper').appendChild(list_view_settings);
-        }
         return wrapper;
+    }
+    createSettingsButton() {
+        let list_view_settings = document.createElement('button');
+        list_view_settings.id = 'list_view_settings';
+        list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
+        list_view_settings.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        </svg>`;
+        list_view_settings.onclick = async () => {
+            list_view_settings.disabled = true;
+            await this.setupListviewSettings();
+            list_view_settings.disabled = false;
+        }
+        return list_view_settings;
     }
     async setupListviewSettings() {
         let dtmeta = await frappe.call({
@@ -378,19 +387,19 @@ class SvaDataTable {
             this.pageButtonsContainer.insertBefore(pageItem, this.pageButtonsContainer.children[i]);
         }
     }
-
-    async get_permissions(doctype) {
-        let res = await frappe.call({
-            method: 'frappe_theme.api.get_permissions',
-            args: { doctype },
-            callback: function (response) {
-                return response.message
-            },
-            error: (err) => {
-                console.error(err);
-            }
+    get_permissions(doctype) {
+        return new Promise((rslv, rjct)=>{
+            frappe.call({
+                method: 'frappe_theme.api.get_permissions',
+                args: { doctype },
+                callback: function (response) {
+                    rslv(response.message)
+                },
+                error: (err) => {
+                    rjct(err);
+                }
+            });
         });
-        return res?.message ?? [];
     }
     handleFrequencyField() {
         let frequency = cur_dialog?.fields_dict?.frequency?.value;
@@ -752,7 +761,6 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
-        console.log()
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -851,7 +859,7 @@ class SvaDataTable {
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
             serialTh.textContent = '#';
-            serialTh.style = 'width:40px;text-align:center;';
+            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
             tr.appendChild(serialTh);
         }
 
@@ -879,18 +887,23 @@ class SvaDataTable {
         if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
-            addColumn.style = 'background-color:#F3F3F3; cursor:pointer';
+            addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style.width = '30px';
-            // action_th.textContent = "Actions";
-            tr.appendChild(action_th);
+            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
+            if (frappe.user_roles.includes("Administrator")) {
+                action_th.appendChild(this.createSettingsButton());
+                tr.appendChild(action_th);
+            }else{
+                if(this.conf_perms.length || this.childLinks?.length){
+                    tr.appendChild(action_th);
+                    action_th.textContent = 'Actions'
+                }
+            }
         }
-
-
         thead.appendChild(tr);
         return thead;
     }
@@ -911,7 +924,65 @@ class SvaDataTable {
             }
         });
     }
+    createActionColumn(row, primaryKey){
+        const dropdown = document.createElement('div');
+        dropdown.classList.add('dropdown');
 
+        const dropdownBtn = document.createElement('span');
+        dropdownBtn.classList.add('h4');
+        dropdownBtn.style = 'cursor:pointer;';
+        dropdownBtn.setAttribute('data-toggle', 'dropdown');
+        dropdownBtn.innerHTML = "&#8942;";
+
+        const dropdownMenu = document.createElement('div');
+        dropdownMenu.classList.add('dropdown-menu');
+        // View Button
+        if (this.conf_perms.length && this.permissions.length) {
+            if (this.permissions.includes('read')) {
+                const viewOption = document.createElement('a');
+                viewOption.classList.add('dropdown-item');
+                viewOption.textContent = "View";
+                viewOption.addEventListener('click', async () => {
+                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+                });
+                dropdownMenu.appendChild(viewOption);
+            }
+            if(!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0){
+                if (this.permissions.includes('write')) {
+                    const editOption = document.createElement('a');
+                    editOption.classList.add('dropdown-item');
+                    editOption.textContent = "Edit";
+                    editOption.addEventListener('click', async () => {
+                        await this.createFormDialog(this.doctype, primaryKey, 'write');
+                    });
+                    dropdownMenu.appendChild(editOption);
+                }
+                if (this.permissions.includes('delete')) {
+                    const deleteOption = document.createElement('a');
+                    deleteOption.classList.add('dropdown-item');
+                    deleteOption.textContent = "Delete";
+                    deleteOption.addEventListener('click', async () => {
+                        await this.deleteRecord(this.doctype, primaryKey);
+                    });
+                    dropdownMenu.appendChild(deleteOption);
+                }
+            }
+        }
+        if (this.childLinks?.length) {
+            this.childLinks.forEach(async link => {
+                const linkOption = document.createElement('a');
+                linkOption.classList.add('dropdown-item');
+                linkOption.textContent = link.link_doctype;
+                linkOption.addEventListener('click', async () => {
+                    await this.childTableDialog(link.link_doctype, primaryKey, row, link);
+                });
+                dropdownMenu.appendChild(linkOption);
+            });
+        }
+        dropdown.appendChild(dropdownBtn);
+        dropdown.appendChild(dropdownMenu);
+        return dropdown;
+    }
     createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
@@ -921,10 +992,6 @@ class SvaDataTable {
         let rowIndex = 0;
         const batchSize = this.options?.pageLimit || 30;
         tbody.style = `
-            font-size:${this.options?.style?.tableBody?.fontSize || '12px'};
-            font-weight:${this.options?.style?.tableBody?.fontWeight || 'normal'};
-            color:${this.options?.style?.tableBody?.color || 'black'};
-            background-color:${this.options?.style?.tableBody?.backgroundColor || 'transparent'};
             white-space: nowrap;`
             ;
         if (this.currentSort) {
@@ -940,7 +1007,7 @@ class SvaDataTable {
 
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
-                    serialTd.style = 'min-width:40px; text-align:center;';
+                    serialTd.style = 'min-width:40px; text-align:center;position:sticky;left:0px;background-color:#fff;';
                     if (this.page > 1) {
                         serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
                     } else {
@@ -1010,71 +1077,9 @@ class SvaDataTable {
                 // ========================= Workflow End ===================
                 if (this.conf_perms.length || this.childLinks?.length) {
                     const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;';
-                    const dropdown = document.createElement('div');
-                    dropdown.classList.add('dropdown');
-
-                    const dropdownBtn = document.createElement('span');
-                    dropdownBtn.classList.add('h4');
-                    dropdownBtn.style = 'cursor:pointer;';
-                    dropdownBtn.setAttribute('data-toggle', 'dropdown');
-                    dropdownBtn.innerHTML = "&#8942;";
-
-                    const dropdownMenu = document.createElement('div');
-                    dropdownMenu.classList.add('dropdown-menu');
-                    // View Button
-                    if (this.conf_perms.length && this.conf_perms.includes('read')) {
-                        if (this.permissions.length && this.permissions.includes('read')) {
-                            const viewOption = document.createElement('a');
-                            viewOption.classList.add('dropdown-item');
-                            viewOption.textContent = "View";
-                            viewOption.addEventListener('click', async () => {
-                                await this.createFormDialog(this.doctype, primaryKey, 'view');
-                            });
-                            dropdownMenu.appendChild(viewOption);
-                        }
-                    }
-                    // Edit Button
-                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('write')))) {
-                        if (this.permissions.length && this.permissions.includes('write')) {
-                            const editOption = document.createElement('a');
-                            editOption.classList.add('dropdown-item');
-                            editOption.textContent = "Edit";
-                            editOption.addEventListener('click', async () => {
-                                await this.createFormDialog(this.doctype, primaryKey, 'write');
-                            });
-                            dropdownMenu.appendChild(editOption);
-                        }
-                    }
-                    // Delete Button
-                    if ((!['1','2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0 && (this.conf_perms.length && this.conf_perms.includes('delete')))) {
-                        if (this.permissions.length && this.permissions.includes('delete')) {
-                            const deleteOption = document.createElement('a');
-                            deleteOption.classList.add('dropdown-item');
-                            deleteOption.textContent = "Delete";
-                            deleteOption.addEventListener('click', async () => {
-                                await this.deleteRecord(this.doctype, primaryKey);
-                            });
-                            dropdownMenu.appendChild(deleteOption);
-                        }
-                    }
-                    if (this.childLinks?.length) {
-                        this.childLinks.forEach(async link => {
-                            const linkOption = document.createElement('a');
-                            linkOption.classList.add('dropdown-item');
-                            linkOption.textContent = link.link_doctype;
-                            linkOption.addEventListener('click', async () => {
-                                await this.childTableDialog(link.link_doctype, primaryKey, row, link);
-                            });
-                            dropdownMenu.appendChild(linkOption);
-                        });
-                    }
-                    dropdown.appendChild(dropdownBtn);
-                    dropdown.appendChild(dropdownMenu);
-                    action_td.appendChild(dropdown);
-                    if (dropdownMenu.children?.length > 0) {
-                        tr.appendChild(action_td);
-                    }
+                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
+                    action_td.appendChild(this.createActionColumn(row, primaryKey));
+                    tr.appendChild(action_td);
                 }
                 this.tBody.appendChild(tr);
                 rowIndex++;
@@ -1304,7 +1309,7 @@ class SvaDataTable {
                 $(control.label_area).css({ display: 'none' })
                 $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', boxShadow: 'none', fontSize: '12px', color: '#525252', textAlign: 'right' });
             } else {
-                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: '#525252', boxShadow: 'none' });
+                $(control.input).css({ width: '100%', minWidth: '150px', height: '35px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none' });
             }
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1412,6 +1417,7 @@ class SvaDataTable {
         let message = document.createElement('p');
         message.textContent = "You haven't created a record yet";
         message.style.color = 'grey';
+        noDataFoundPage.style.backgroundColor = '#F8F8F8'
         noDataFoundText.appendChild(message)
         noDataFoundPage.appendChild(noDataFoundText);
         return noDataFoundPage;
