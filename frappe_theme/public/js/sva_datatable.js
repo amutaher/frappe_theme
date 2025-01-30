@@ -261,6 +261,9 @@ class SvaDataTable {
                 padding-top: 0px !important;
                 padding-bottom: 0px !important;
                 vertical-align: middle;
+                min-height: 32px !important;
+                height: 32px;
+                max-height: 32px !important;
             }
             .table th,
             .table td {
