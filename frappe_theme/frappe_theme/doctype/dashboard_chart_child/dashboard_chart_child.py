@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class NumberCardMapperChild(Document):
+class DashboardChartChild(Document):
 	pass
