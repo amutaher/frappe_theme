@@ -164,7 +164,7 @@ class SvaDataTable {
             });
             dialog.custom_import();
         }
-        row.appendChild(import_button);
+        // row.appendChild(import_button);
         // }
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
