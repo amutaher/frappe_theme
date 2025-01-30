@@ -31,3 +31,11 @@ const formaDate = (date) => {
     }
     return formatted_date;
 };
+
+function formatCurrency(amount, currencyCode) {
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+    });
+    return formatter.format(amount);
+}
