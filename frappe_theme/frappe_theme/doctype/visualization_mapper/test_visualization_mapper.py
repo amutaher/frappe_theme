@@ -12,18 +12,18 @@ EXTRA_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
-class UnitTestNumberCardMapper(UnitTestCase):
+class UnitTestVisualizationMapper(UnitTestCase):
 	"""
-	Unit tests for NumberCardMapper.
+	Unit tests for VisualizationMapper.
 	Use this class for testing individual functions and methods.
 	"""
 
 	pass
 
 
-class IntegrationTestNumberCardMapper(IntegrationTestCase):
+class IntegrationTestVisualizationMapper(IntegrationTestCase):
 	"""
-	Integration tests for NumberCardMapper.
+	Integration tests for VisualizationMapper.
 	Use this class for testing interactions between multiple components.
 	"""
 
