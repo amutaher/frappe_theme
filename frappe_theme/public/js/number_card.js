@@ -210,9 +210,20 @@ class SVANumberCard {
             }
 
             const doc = docResponse.docs[0];
-            const filters = typeof doc.filters_json === 'string'
+            // / Parse filters_json from the doc
+            let filters_json = typeof doc.filters_json === 'string'
                 ? JSON.parse(doc.filters_json)
-                : doc.filters_json || {};
+                : doc.filters_json || [];
+
+            let filters = Array.isArray(filters_json) ? filters_json :
+                Object.entries(filters_json).map(([key, value]) => [doc.document_type, key, '=', value]);
+
+            // Only add the name filter if we have both a document type and a docname
+            if (doc.document_type && this.frm.docname) {
+                filters.push([doc.document_type, 'grant', '=', this.frm.docname]);
+            }
+
+            console.log(filters, 'filters');
 
             // Get the document type from the card
             if (!doc.document_type && doc.report_name) {
