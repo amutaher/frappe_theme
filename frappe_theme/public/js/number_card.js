@@ -11,16 +11,17 @@ class SVANumberCard {
         wrapper,
         frm,
         numberCards = []
-
     }) {
         this.wrapper = wrapper;
         this.frm = frm;
         this.numberCards = numberCards;
-        this.make();
     }
 
     async make() {
-        this.wrapper.innerHTML = '';
+        // Clear existing content
+        if (this.wrapper) {
+            this.wrapper.innerHTML = '';
+        }
 
         // Show loading state
         isLoading(true, this.wrapper);

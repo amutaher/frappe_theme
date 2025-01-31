@@ -15,22 +15,37 @@ class SVADashboardChart {
         this.wrapper = wrapper;
         this.frm = frm;
         this.charts = charts;
-        this.make();
     }
 
     async make() {
-        this.wrapper.innerHTML = '';
+        // Clear existing content and charts
+        if (this.wrapper) {
+            this.wrapper.innerHTML = '';
+            // Clear any existing chart instances
+            if (this.wrapper._chartInstances) {
+                this.wrapper._chartInstances.forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') {
+                        chart.destroy();
+                    }
+                });
+            }
+            this.wrapper._chartInstances = [];
+        }
+
         if (this.charts.length > 0) {
             const container = document.createElement('div');
             container.className = 'sva-charts-container';
 
             try {
+                let index = 0;
                 for (let chartConfig of this.charts) {
                     try {
                         const chartData = await this.fetchChartData(chartConfig.dashboard_chart);
+                        console.log('Chart data:', chartData);
                         if (chartData) {
                             const chart = this.createChart({
                                 ...chartData,
+                                index: index,
                                 chart_name: chartConfig.chart_label,
                                 background_color: chartConfig.background_color,
                                 text_color: chartConfig.text_color,
@@ -42,6 +57,7 @@ class SVADashboardChart {
                         } else {
                             container.appendChild(this.createErrorChart(chartConfig.chart_label));
                         }
+                        index++;
                     } catch (chartError) {
                         console.error(`Error creating chart ${chartConfig.dashboard_chart}:`, chartError);
                         container.appendChild(this.createErrorChart(chartConfig.chart_label));
@@ -75,7 +91,6 @@ class SVADashboardChart {
         chartContainer.style = `${containerStyle}${borderStyle}`;
 
         // Generate a unique ID for the chart
-        const chartId = `chart-${frappe.utils.get_random(6)}`;
 
         chartContainer.innerHTML = `
             <div class="chart-header">
@@ -84,20 +99,21 @@ class SVADashboardChart {
                     <i class="fa ${this.getChartTypeIcon(chartData.type)}"></i>
                 </div>
             </div>
-            <div class="chart-body" id="${chartId}" style="height: ${chartData.height}px"></div>
+            <div class="chart-body" id="chart-${chartData.index}-custom" style="height: ${chartData.height}px"></div>
         `;
 
         chartWrapper.appendChild(chartContainer);
 
-        // Defer chart rendering to ensure container is in DOM
-        setTimeout(() => {
-            const chartElement = document.getElementById(chartId);
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+            const chartElement = chartContainer.querySelector(`#chart-${chartData.index}-custom`);
             if (chartElement) {
-                this.renderChart(chartData, chartId);
+                console.log(chartElement, 'chartElement');
+                this.renderChart(chartData, chartElement);
             } else {
-                console.error('Chart container not found:', chartId);
+                console.error('Chart container not found:', `chart-${chartData.index}-custom`);
             }
-        }, 100);
+        });
 
         return chartWrapper;
     }
@@ -228,41 +244,137 @@ class SVADashboardChart {
         return filters;
     }
 
-    renderChart(chartData, containerId) {
+    renderChart(chartData, chartElement) {
         try {
-            const chartElement = document.getElementById(containerId);
             if (!chartElement) {
-                throw new Error(`Chart container #${containerId} not found`);
+                throw new Error('Chart element not found');
             }
 
+            const canvas = document.createElement('canvas');
             const colors = ['#7cd6fd', '#5e64ff', '#743ee2', '#ff5858', '#ffa00a'];
 
+            // Validate chart data
+            if (!chartData.data || !chartData.data.labels || !chartData.data.datasets) {
+                throw new Error('Invalid chart data structure');
+            }
+
+            // Handle different chart types
+            const chartType = this.normalizeChartType(chartData.type);
             const chartConfig = {
-                title: chartData.chart_name,
-                data: chartData.data,
-                type: chartData.type.toLowerCase(),
-                colors: colors,
-                height: chartData.height || 280,
-                axisOptions: {
-                    xAxisMode: 'tick',
-                    yAxisMode: 'tick',
-                    xIsSeries: 1
+                type: chartType,
+                data: {
+                    labels: chartData.data.labels,
+                    datasets: this.formatDatasetsByChartType(chartType, chartData, colors)
                 },
-                showLegend: chartData.show_legend
+                options: this.getChartOptions(chartType, chartData)
             };
 
-            new frappe.Chart(chartElement, chartConfig);
+            const ctx = canvas.getContext('2d');
+            const chartInstance = new Chart(ctx, chartConfig);
+
+            // Store chart instance for cleanup
+            if (!this.wrapper._chartInstances) {
+                this.wrapper._chartInstances = [];
+            }
+            this.wrapper._chartInstances.push(chartInstance);
+
+            chartElement.appendChild(canvas);
+
         } catch (error) {
             console.error('Error rendering chart:', error);
-            const chartElement = document.getElementById(containerId);
-            if (chartElement) {
-                chartElement.innerHTML = `
-                    <div class="chart-error-body">
-                        <div class="text-danger">Error rendering chart</div>
-                    </div>
-                `;
-            }
+            chartElement.innerHTML = this.getErrorTemplate('Error rendering chart');
         }
+    }
+
+    normalizeChartType(type) {
+        const typeMap = {
+            'Line': 'line',
+            'Bar': 'bar',
+            'Percentage': 'pie',
+            'Pie': 'pie',
+            'Donut': 'doughnut'
+        };
+        return typeMap[type] || 'line';
+    }
+
+    formatDatasetsByChartType(chartType, chartData, colors) {
+        const baseDataset = {
+            label: chartData.chart_name,
+            data: chartData.data.datasets[0].values,
+        };
+
+        switch (chartType) {
+            case 'pie':
+            case 'doughnut':
+                return [{
+                    ...baseDataset,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }];
+            case 'bar':
+                return [{
+                    ...baseDataset,
+                    backgroundColor: colors[0],
+                    borderColor: colors[0],
+                    borderWidth: 1
+                }];
+            case 'line':
+                return [{
+                    ...baseDataset,
+                    borderColor: colors[0],
+                    backgroundColor: 'rgba(124, 214, 253, 0.1)',
+                    borderWidth: 2,
+                    fill: true
+                }];
+            default:
+                return [baseDataset];
+        }
+    }
+
+    getChartOptions(chartType, chartData) {
+        const baseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            legend: {
+                display: chartData.show_legend
+            }
+        };
+
+        if (chartType === 'pie' || chartType === 'doughnut') {
+            return {
+                ...baseOptions,
+                cutoutPercentage: chartType === 'doughnut' ? 50 : 0
+            };
+        }
+
+        return {
+            ...baseOptions,
+            scales: {
+                xAxes: [{
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }],
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true
+                    }
+                }]
+            }
+        };
+    }
+
+    getErrorTemplate(message) {
+        return `
+            <div class="chart-error-body">
+                <div class="text-danger">
+                    <i class="fa fa-exclamation-circle mr-2"></i>
+                    ${frappe.utils.xss_sanitize(message)}
+                </div>
+            </div>
+        `;
     }
 
     createErrorChart(chartName) {
@@ -309,7 +421,7 @@ class SVADashboardChart {
             styleSheet.textContent = `
                 .sva-charts-container {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                    grid-template-columns: ${this.charts.length === 1 ? '1fr' : 'repeat(2, 1fr)'};
                     gap: 20px;
                     padding: 20px 0;
                     width: 100%;
