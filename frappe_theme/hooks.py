@@ -24,6 +24,7 @@ app_include_js = [
     # f"/assets/frappe_theme/filters/field_select.js?ver={time.time()}",
     "https://cdn.jsdelivr.net/npm/chart.js",
     f"/assets/frappe_theme/js/sva_dashboard_manager.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/common_filter.js?ver={time.time()}",
     f"/assets/frappe_theme/js/chat.js?ver={time.time()}",
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
