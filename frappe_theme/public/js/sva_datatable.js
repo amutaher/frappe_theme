@@ -57,7 +57,7 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
-        this.mgrant_settings = {};
+        this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
         this.workflow_state_bg = []
         this.render_only = render_only;
@@ -81,13 +81,18 @@ class SvaDataTable {
                         });
                     }
                     // ================================ Workflow End ================================
-                    this.mgrant_settings = await frappe.db.get_doc('mGrant Settings', 'mGrant Settings');
-                    if (this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
-                        let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
-                        if (msgw) {
-                            this.mgrant_settings = msgw
+                    try {
+                        if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
+                            let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
+                            if (msgw) {
+                                this.mgrant_settings = msgw
+                            }
                         }
+                    } catch (e) {
+                        this.mgrant_settings = {}
+                        console.log(e)
                     }
+
                     if (perms.length && perms.includes('read')) {
                         let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
                         if (this.header.length) {
@@ -144,6 +149,23 @@ class SvaDataTable {
     setupHeader() {
         let row = document.createElement('div');
         row.setAttribute('class', 'row');
+        // add button to import data
+        // if (this.permissions?.length && this.permissions.includes('create')) {
+        let import_button = document.createElement('button');
+        import_button.id = 'import_button';
+        import_button.classList.add('btn', 'btn-secondary', 'btn-sm');
+        import_button.textContent = 'Import';
+        import_button.style = 'margin-bottom:10px; margin-left: auto; margin-right: 14px;';
+
+        import_button.onclick = async () => {
+            let dialog = new CustomListView({
+                frm: this.frm,
+                connection: this.connection
+            });
+            dialog.custom_import();
+        }
+        // row.appendChild(import_button);
+        // }
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 
@@ -734,7 +756,7 @@ class SvaDataTable {
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
-                }else{
+                } else {
                     f.default = '';
                     f.read_only = 1;
                 }
@@ -1423,7 +1445,7 @@ class SvaDataTable {
                 control.input?.classList?.remove('bold');
             }, 0);
             $(control.input).css({ width: '100%', minWidth: '150px', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
-            $(td).css({ height: '32px !important'});
+            $(td).css({ height: '32px !important' });
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
             }
@@ -1501,7 +1523,6 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else {
-                
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });

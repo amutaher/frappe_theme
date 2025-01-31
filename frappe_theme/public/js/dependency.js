@@ -1,4 +1,3 @@
-
 const getData = async (dt) => {
     return new Promise((resolve, reject) => {
         frappe.call({
@@ -31,7 +30,10 @@ const tabContent = async (frm, tab_field) => {
     // console.log("tabContent", frm.events);
 
     // debugger
-    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Number Card Mapper', { doctype_field: frm.doc.doctype }) && await frappe.db.count('Number Card Mapper', { doctype_field: frm.doc.doctype }) > 0)) {
+    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }) && (
+        await frappe.db.count('Number Card Mapper', { doctype_field: frm.doc.doctype }) > 0 ||
+        await frappe.db.count('Dashboard Chart Mapper', { doctype_field: frm.doc.doctype }) > 0
+    ))) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
         let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
@@ -48,10 +50,11 @@ const tabContent = async (frm, tab_field) => {
             }
         }
         let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
-        let numberCardFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
-        for (let fld of numberCardFields) {
-            if (await frappe.db.exists('Number Card Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
-                let nc = await frappe.db.get_list('Number Card Mapper', {
+        let visualizationFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
+
+        for (let fld of visualizationFields) {
+            if (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
+                let vm = await frappe.db.get_list('Visualization Mapper', {
                     filters: {
                         doctype_field: frm.doc.doctype,
                         wrapper_field: fld
@@ -59,17 +62,29 @@ const tabContent = async (frm, tab_field) => {
                     pluck: 'name',
                     limit: 1
                 });
-                if (nc.length > 0) {
-                    let numberCardMapper = await frappe.db.get_doc('Number Card Mapper', nc[0]);
-                    let numberCards = numberCardMapper?.cards?.map(f => f.number_card);
-                    new SVANumberCard({
-                        wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
-                        frm: frm,
-                        numberCards: numberCards
-                    });
+
+                if (vm.length > 0) {
+                    let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
+
+                    isLoading(true, document.querySelector(`[data-fieldname="${fld}"]`));
+                    if (visualizationMapper?.cards && visualizationMapper.cards.length > 0) {
+                        new SVANumberCard({
+                            wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
+                            frm: frm,
+                            numberCards: visualizationMapper.cards
+                        });
+                    }
+                    if (visualizationMapper?.charts && visualizationMapper.charts.length > 0) {
+                        new SVADashboardChart({
+                            wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
+                            frm: frm,
+                            charts: visualizationMapper.charts
+                        });
+                    }
+                    isLoading(false, document.querySelector(`[data-fieldname="${fld}"]`));
                 }
             } else {
-                console.log('Number Card Mapper does not exist');
+                console.log('Visualization Mapper does not exist');
             }
         }
         for (let _f of dtFields) {
@@ -107,7 +122,7 @@ const tabContent = async (frm, tab_field) => {
                     // }
 
                     new SvaDataTable({
-                        label:frm.meta?.fields?.find(f=> f.fieldname == _f.html_field)?.label,
+                        label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
                         wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
                         doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
                         frm: frm,       // Pass the current form object (optional)
@@ -127,14 +142,14 @@ const tabContent = async (frm, tab_field) => {
                                 window?.onFieldClick(obj);
                             }
                         },
-                        onFieldValueChange:function(e,b,c,d,f){
-                            if(e && window?.onFieldValueChange){
+                        onFieldValueChange: function (e, b, c, d, f) {
+                            if (e && window?.onFieldValueChange) {
                                 let obj = {
-                                    dt:e?.target?.getAttribute('data-dt'),
-                                    dn:e?.target?.getAttribute('data-dn'),
-                                    fieldtype:e?.target?.getAttribute('data-fieldtype'),
-                                    fieldname:e?.target?.getAttribute('data-fieldname'),
-                                    value:e?.target?.value
+                                    dt: e?.target?.getAttribute('data-dt'),
+                                    dn: e?.target?.getAttribute('data-dn'),
+                                    fieldtype: e?.target?.getAttribute('data-fieldtype'),
+                                    fieldname: e?.target?.getAttribute('data-fieldname'),
+                                    value: e?.target?.value
                                 }
                                 window?.onFieldValueChange(obj);
                             }
@@ -146,7 +161,7 @@ const tabContent = async (frm, tab_field) => {
     }
     tabLoading = false
 }
-const addCommentButton = (frm)=>{
+const addCommentButton = (frm) => {
     frm.add_custom_button(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
                                 <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"/>
                             </svg>`,
@@ -187,7 +202,7 @@ const mapEvents = (props) => {
                     }
                 }
             }
-            if(!tabLoading){
+            if (!tabLoading) {
                 tabLoading = true
                 let tab_field = frm.get_active_tab()?.df?.fieldname;
                 tabContent(frm, tab_field)
@@ -224,13 +239,13 @@ async function setDynamicProperties() {
         }
     }
 }
-const getPageType = ()=>{
+const getPageType = () => {
     return frappe.get_route()?.[0];
 }
 frappe.router.on('change', async () => {
     window.onFieldClick = undefined
     window.onFieldValueChange = undefined
-    if(getPageType() == "Form"){
+    if (getPageType() == "Form") {
         let interval;
         let elapsedTime = 0;
         const checkInterval = 1000; // Check every 500 ms
@@ -249,7 +264,7 @@ frappe.router.on('change', async () => {
                 return;
             }
         }, checkInterval);
-    }else{
+    } else {
         cur_frm = undefined
     }
     // console.log("route:chnage", getPageType(),typeof cur_frm);
@@ -332,3 +347,81 @@ const add_properties = async (doctype, new_property) => {
     })
     add.show();
 }
+
+function preview_visualization(frm) {
+    if (!frm.doc.doctype_field || !frm.doc.wrapper_field) {
+        frappe.msgprint(__('Please select DocType and Wrapper Field first'));
+        return;
+    }
+
+    let d = new frappe.ui.Dialog({
+        title: __('Visualization Preview'),
+        fields: [{
+            fieldtype: 'HTML',
+            fieldname: 'preview_area'
+        }],
+        size: 'large'
+    });
+
+    d.show();
+    const previewArea = d.get_field('preview_area').$wrapper;
+
+    // Show loading state
+    previewArea.html(`
+        <div class="text-muted text-center p-4">
+            <div class="loading-spinner"></div>
+            <div>Loading visualization...</div>
+        </div>
+    `);
+
+    // Create wrapper div for visualization
+    const wrapper = document.createElement('div');
+    wrapper.className = 'visualization-preview-wrapper';
+    previewArea.empty().append(wrapper);
+
+    // Initialize visualization based on mapper type
+    if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
+        new SVANumberCard({
+            wrapper: wrapper,
+            frm: { doctype: frm.doc.doctype_field, doc: { name: 'PREVIEW' } },
+            numberCards: frm.doc.cards?.filter(c => c.is_visible) || []
+        });
+    }
+
+    if (frm.doc.mapper_type === 'Dashboard Chart' || frm.doc.mapper_type === 'Both') {
+        new SVADashboardChart({
+            wrapper: wrapper,
+            frm: { doctype: frm.doc.doctype_field, doc: { name: 'PREVIEW' } },
+            charts: frm.doc.charts?.filter(c => c.is_visible).map(chart => ({
+                dashboard_chart: chart.dashboard_chart,
+                chart_label: chart.chart_label,
+                background_color: chart.background_color,
+                text_color: chart.text_color,
+                border_color: chart.border_color,
+                chart_height: chart.chart_height || 300,
+                show_legend: chart.show_legend
+            })) || []
+        });
+    }
+
+    // Add preview styles
+    frappe.dom.set_style(`
+        .visualization-preview-wrapper {
+            padding: 1rem;
+            background: var(--card-bg);
+            border-radius: 8px;
+            min-height: 200px;
+        }
+    `);
+}
+
+// Add preview button to form
+frappe.ui.form.on('Visualization Mapper', {
+    refresh: function (frm) {
+        // ... existing refresh code ...
+
+        frm.add_custom_button(__('Preview Visualization'), function () {
+            preview_visualization(frm);
+        }, __('Preview'));
+    }
+});
