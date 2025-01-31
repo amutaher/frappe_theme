@@ -51,7 +51,6 @@ const tabContent = async (frm, tab_field) => {
         }
         let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
         let visualizationFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
-
         for (let fld of visualizationFields) {
             if (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
                 let vm = await frappe.db.get_list('Visualization Mapper', {
@@ -65,28 +64,33 @@ const tabContent = async (frm, tab_field) => {
 
                 if (vm.length > 0) {
                     let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
+                    const wrapper = document.querySelector(`[data-fieldname="${fld}"]`);
 
-                    isLoading(true, document.querySelector(`[data-fieldname="${fld}"]`));
-                    if (visualizationMapper?.cards && visualizationMapper.cards.length > 0) {
-                        new SVANumberCard({
-                            wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
+                    // Clear any existing dashboard instances
+                    if (wrapper._dashboard) {
+                        wrapper._dashboard = null;
+                    }
+                    wrapper.innerHTML = ''; // Clear the wrapper
+
+                    isLoading(true, wrapper);
+
+                    // Initialize SVADashboardManager and store reference
+                    if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
+                        wrapper._dashboard = new SVADashboardManager({
+                            wrapper: wrapper,
                             frm: frm,
-                            numberCards: visualizationMapper.cards
+                            numberCards: visualizationMapper?.cards || [],
+                            charts: visualizationMapper?.charts || []
                         });
                     }
-                    if (visualizationMapper?.charts && visualizationMapper.charts.length > 0) {
-                        new SVADashboardChart({
-                            wrapper: document.querySelector(`[data-fieldname="${fld}"]`),
-                            frm: frm,
-                            charts: visualizationMapper.charts
-                        });
-                    }
-                    isLoading(false, document.querySelector(`[data-fieldname="${fld}"]`));
+
+                    isLoading(false, wrapper);
                 }
             } else {
                 console.log('Visualization Mapper does not exist');
             }
         }
+
         for (let _f of dtFields) {
             if (frm.doc.__islocal) {
                 if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
