@@ -15,11 +15,23 @@ class SVADashboardChart {
         this.wrapper = wrapper;
         this.frm = frm;
         this.charts = charts;
-        this.make();
     }
 
     async make() {
-        this.wrapper.innerHTML = '';
+        // Clear existing content and charts
+        if (this.wrapper) {
+            this.wrapper.innerHTML = '';
+            // Clear any existing chart instances
+            if (this.wrapper._chartInstances) {
+                this.wrapper._chartInstances.forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') {
+                        chart.destroy();
+                    }
+                });
+            }
+            this.wrapper._chartInstances = [];
+        }
+
         if (this.charts.length > 0) {
             const container = document.createElement('div');
             container.className = 'sva-charts-container';
@@ -258,7 +270,14 @@ class SVADashboardChart {
             };
 
             const ctx = canvas.getContext('2d');
-            new Chart(ctx, chartConfig);
+            const chartInstance = new Chart(ctx, chartConfig);
+
+            // Store chart instance for cleanup
+            if (!this.wrapper._chartInstances) {
+                this.wrapper._chartInstances = [];
+            }
+            this.wrapper._chartInstances.push(chartInstance);
+
             chartElement.appendChild(canvas);
 
         } catch (error) {
