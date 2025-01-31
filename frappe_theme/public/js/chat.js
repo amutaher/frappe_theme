@@ -25,12 +25,15 @@ class SVADashboardChart {
             container.className = 'sva-charts-container';
 
             try {
+                let index = 0;
                 for (let chartConfig of this.charts) {
                     try {
                         const chartData = await this.fetchChartData(chartConfig.dashboard_chart);
+                        console.log('Chart data:', chartData);
                         if (chartData) {
                             const chart = this.createChart({
                                 ...chartData,
+                                index: index,
                                 chart_name: chartConfig.chart_label,
                                 background_color: chartConfig.background_color,
                                 text_color: chartConfig.text_color,
@@ -42,6 +45,7 @@ class SVADashboardChart {
                         } else {
                             container.appendChild(this.createErrorChart(chartConfig.chart_label));
                         }
+                        index++;
                     } catch (chartError) {
                         console.error(`Error creating chart ${chartConfig.dashboard_chart}:`, chartError);
                         container.appendChild(this.createErrorChart(chartConfig.chart_label));
@@ -75,7 +79,6 @@ class SVADashboardChart {
         chartContainer.style = `${containerStyle}${borderStyle}`;
 
         // Generate a unique ID for the chart
-        const chartId = `chart-${frappe.utils.get_random(6)}`;
 
         chartContainer.innerHTML = `
             <div class="chart-header">
@@ -84,20 +87,21 @@ class SVADashboardChart {
                     <i class="fa ${this.getChartTypeIcon(chartData.type)}"></i>
                 </div>
             </div>
-            <div class="chart-body" id="${chartId}" style="height: ${chartData.height}px"></div>
+            <div class="chart-body" id="chart-${chartData.index}-custom" style="height: ${chartData.height}px"></div>
         `;
 
         chartWrapper.appendChild(chartContainer);
 
-        // Defer chart rendering to ensure container is in DOM
-        setTimeout(() => {
-            const chartElement = document.getElementById(chartId);
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+            const chartElement = chartContainer.querySelector(`#chart-${chartData.index}-custom`);
             if (chartElement) {
-                this.renderChart(chartData, chartId);
+                console.log(chartElement, 'chartElement');
+                this.renderChart(chartData, chartElement);
             } else {
-                console.error('Chart container not found:', chartId);
+                console.error('Chart container not found:', `chart-${chartData.index}-custom`);
             }
-        }, 100);
+        });
 
         return chartWrapper;
     }
@@ -228,30 +232,48 @@ class SVADashboardChart {
         return filters;
     }
 
-    renderChart(chartData, containerId) {
+    renderChart(chartData, chartElement) {
         try {
-            const chartElement = document.getElementById(containerId);
             if (!chartElement) {
                 throw new Error(`Chart container #${containerId} not found`);
             }
-
+            let canvas = document.createElement('canvas');
             const colors = ['#7cd6fd', '#5e64ff', '#743ee2', '#ff5858', '#ffa00a'];
-
             const chartConfig = {
-                title: chartData.chart_name,
-                data: chartData.data,
                 type: chartData.type.toLowerCase(),
-                colors: colors,
-                height: chartData.height || 280,
-                axisOptions: {
-                    xAxisMode: 'tick',
-                    yAxisMode: 'tick',
-                    xIsSeries: 1
+                data: {
+                    labels: chartData.data.labels,
+                    datasets: [{
+                        label: chartData.chart_name,
+                        data: chartData.data.datasets[0].values,
+                        backgroundColor: colors,
+                    }]
                 },
-                showLegend: chartData.show_legend
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: {
+                        display: chartData.show_legend
+                    },
+                    scales: {
+                        xAxes: [{
+                            ticks: {
+                                autoSkip: false
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true
+                            }
+                        }]
+                    }
+                }
             };
 
-            new frappe.Chart(chartElement, chartConfig);
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, chartConfig);
+            chartElement.appendChild(canvas);
+
         } catch (error) {
             console.error('Error rendering chart:', error);
             const chartElement = document.getElementById(containerId);
