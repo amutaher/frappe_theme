@@ -102,19 +102,29 @@ const tabContent = async (frm, tab_field) => {
                 }
                 if (_f?.connection_type == "Is Custom Design") {
                     if (_f?.template == "Gallery") {
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         gallery_image(frm, _f.html_field);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                     if (_f?.template == "Email") {
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         communication(frm, _f.html_field);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                     if (_f?.template == "Tasks") {
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         getTaskList(frm, _f.html_field);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                     if (_f?.template == "Timeline") {
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         showTimelines(frm, _f.html_field);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                     if (_f?.template == "Notes") {
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         await render_note(frm, _f.html_field);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                 } else {
                     let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
