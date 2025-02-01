@@ -15,36 +15,45 @@ class SVANumberCard {
         this.wrapper = wrapper;
         this.frm = frm;
         this.numberCards = numberCards;
-        this.make();
     }
 
     async make() {
-        this.wrapper.innerHTML = '';
+        // Clear existing content
+        if (this.wrapper) {
+            this.wrapper.innerHTML = '';
+        }
+
+        // Show loading state
+        isLoading(true, this.wrapper);
+
         if (this.numberCards.length > 0) {
             const container = document.createElement('div');
             container.className = 'sva-cards-container';
 
             try {
-                for (let cardName of this.numberCards) {
+                for (let cardConfig of this.numberCards) {
                     try {
-                        const cardData = await this.fetchNumberCardData(cardName);
+                        const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
                             const card = this.createCard({
-                                title: cardData.label || cardData.name,
+                                title: cardConfig.card_label || cardData.label || cardData.name,
                                 value: cardData.result !== undefined ? cardData.result : '--',
                                 options: {
-                                    color: 'blue',
-                                    icon: this.getCardIcon(cardData),
-                                    subtitle: cardData.document_type
+                                    icon: cardConfig.icon_value,
+                                    subtitle: cardData.document_type,
+                                    backgroundColor: cardConfig.background_color,
+                                    textColor: cardConfig.text_color,
+                                    valueColor: cardConfig.value_color,
+                                    iconColor: cardConfig.icon_color
                                 }
                             });
                             container.appendChild(card);
                         } else {
-                            container.appendChild(this.createErrorCard(cardName));
+                            container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
                         }
                     } catch (cardError) {
-                        console.error(`Error creating card ${cardName}:`, cardError);
-                        container.appendChild(this.createErrorCard(cardName));
+                        console.error(`Error creating card ${cardConfig.number_card}:`, cardError);
+                        container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
                     }
                 }
                 this.wrapper.appendChild(container);
@@ -56,16 +65,10 @@ class SVANumberCard {
             this.showNoDataState();
         }
 
-        this.addStyles();
-    }
+        // Hide loading state
+        isLoading(false, this.wrapper);
 
-    getCardIcon(cardData) {
-        // Choose icon based on card type or function
-        if (cardData.type === 'Report') return 'fa fa-file-text';
-        if (cardData.function === 'Count') return 'fa fa-list';
-        if (cardData.function === 'Sum') return 'fa fa-money';
-        if (cardData.function === 'Average') return 'fa fa-line-chart';
-        return 'fa fa-chart-line'; // default
+        this.addStyles();
     }
 
     createCard(config) {
@@ -73,32 +76,39 @@ class SVANumberCard {
         card.className = 'number-card';
 
         const options = Object.assign({
-            color: 'blue',
             icon: '',
             subtitle: '',
-            showTrend: false,
-            trendValue: 0,
-            trendType: 'up'
+            backgroundColor: null,
+            textColor: null,
+            valueColor: null,
+            iconColor: null
         }, config.options);
 
         const iconHtml = options.icon ? `
-            <div class="number-card-icon">
+            <div class="number-card-icon" ${options.iconColor ? `style="background-color: ${options.iconColor}"` : ''}>
                 <i class="${options.icon}"></i>
             </div>
         ` : '';
 
         const currencySymbol = this.shouldShowCurrency(config.value) ? '₹' : '';
 
+        const containerStyle = [
+            options.backgroundColor ? `background-color: ${options.backgroundColor}` : '',
+            config.onClick ? 'cursor: pointer' : ''
+        ].filter(Boolean).join(';');
+
+        const titleStyle = options.textColor ? `color: ${options.textColor}` : '';
+        const valueStyle = options.valueColor ? `color: ${options.valueColor}` : '';
+
         card.innerHTML = `
-            <div class="number-card-container ${options.color}" ${config.onClick ? 'style="cursor: pointer;"' : ''}>
+            <div class="number-card-container" ${containerStyle ? `style="${containerStyle}"` : ''}>
                 <div class="number-card-content">
                     <div class="number-card-header">
-                        <h3 class="number-card-title">${config.title || ''}</h3>
+                        <h3 class="number-card-title" ${titleStyle ? `style="${titleStyle}"` : ''}>${config.title || ''}</h3>
                         ${iconHtml}
                     </div>
-                    <div class="number-card-value">${currencySymbol}${this.formatValue(config.value)}</div>
+                    <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
                     ${options.subtitle ? `<div class="number-card-subtitle">${options.subtitle}</div>` : ''}
-                    ${this.getTrendHTML(options)}
                 </div>
             </div>
         `;
@@ -181,20 +191,6 @@ class SVANumberCard {
         return lastThree;
     }
 
-    getTrendHTML(options) {
-        if (!options.showTrend) return '';
-
-        const trendIcon = options.trendType === 'up' ? 'fa fa-arrow-up' : 'fa fa-arrow-down';
-        const trendClass = options.trendType === 'up' ? 'trend-up' : 'trend-down';
-
-        return `
-            <div class="number-card-trend ${trendClass}">
-                <i class="${trendIcon}"></i>
-                ${options.trendValue}%
-            </div>
-        `;
-    }
-
     async fetchNumberCardData(cardName) {
         try {
             const docResponse = await frappe.call({
@@ -222,8 +218,6 @@ class SVANumberCard {
             if (doc.document_type && this.frm.docname) {
                 filters.push([doc.document_type, 'grant', '=', this.frm.docname]);
             }
-
-            console.log(filters, 'filters');
 
             // Get the document type from the card
             if (!doc.document_type && doc.report_name) {
@@ -278,18 +272,20 @@ class SVANumberCard {
             .sva-cards-container {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 20px;
-                padding: 20px 0;
+                gap: 15px;
+                padding: 15px 0;
                 width: 100%;
+                position: relative; /* Added for loader positioning */
+                min-height: 100px; /* Minimum height for loader */
             }
             .number-card {
                 width: 100%;
-                min-width: 0; /* Prevents overflow in grid items */
+                min-width: 0;
             }
             .number-card-container {
                 background: var(--card-bg);
-                border-radius: 8px;
-                padding: 16px;
+                border-radius: 6px;
+                padding: 12px;
                 box-shadow: var(--card-shadow);
                 transition: transform 0.2s, box-shadow 0.2s;
                 border: 1px solid var(--border-color);
@@ -315,11 +311,11 @@ class SVANumberCard {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 12px;
+                margin-bottom: 8px;
             }
             .number-card-icon {
-                width: 24px;
-                height: 24px;
+                width: 20px;
+                height: 20px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -329,7 +325,7 @@ class SVANumberCard {
                 flex-shrink: 0;
             }
             .number-card-icon i {
-                font-size: 12px;
+                font-size: 10px;
                 color: var(--text-color);
             }
             .number-card-content {
@@ -340,51 +336,34 @@ class SVANumberCard {
             }
             .number-card-title {
                 margin: 0;
-                font-size: 13px;
+                font-size: 12px;
                 color: var(--text-muted);
                 font-weight: 500;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                max-width: calc(100% - 48px);
-                line-height: 1.4;
+                max-width: calc(100% - 40px);
+                line-height: 1.3;
             }
             .number-card-value {
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 600;
                 color: var(--text-color);
-                margin: 4px 0;
+                margin: 2px 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 line-height: 1.2;
             }
             .number-card-subtitle {
-                font-size: 11px;
+                font-size: 10px;
                 color: var(--text-muted);
                 margin-top: auto;
-                padding-top: 8px;
+                padding-top: 6px;
             }
             .text-danger {
                 color: var(--red-500) !important;
                 font-size: 14px !important;
-            }
-            .number-card-trend {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                font-size: 12px;
-                padding: 4px 8px;
-                border-radius: 4px;
-                margin-top: 8px;
-            }
-            .trend-up {
-                color: var(--green-600);
-                background: var(--green-100);
-            }
-            .trend-down {
-                color: var(--red-600);
-                background: var(--red-100);
             }
             .no-data {
                 grid-column: 1 / -1;
@@ -415,6 +394,12 @@ class SVANumberCard {
                 .sva-cards-container {
                     grid-template-columns: 1fr;
                 }
+            }
+            
+            /* Adjust loader styles for cards */
+            .table-loader {
+                min-height: 100px !important; /* Override default min-height */
+                background: var(--card-bg) !important; /* Use theme background */
             }
         `;
             document.head.appendChild(styleSheet);
