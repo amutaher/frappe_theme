@@ -114,14 +114,16 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                         document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
                     }
                     if (_f?.connection_type == "Is Custom Design") {
-                        if (_f?.template == "Gallery" && gallery_image) {
+                        if (_f?.template == "Gallery" && GalleryComponent) {
                             isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            await gallery_image(frm, _f.html_field);
+                            let gallery = new GalleryComponent(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                            frm.set_df_property(_f.html_field, 'options', gallery);
                             isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         }
-                        if (_f?.template == "Email" && communication) {
+                        if (_f?.template == "Email" && EmailComponent) {
                             isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            await communication(frm, _f.html_field);
+                            let email = new EmailComponent(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                            frm.set_df_property(_f.html_field, 'options', email);
                             isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         }
                         if (_f?.template == "Tasks" && getTaskList) {
@@ -129,18 +131,18 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                             await getTaskList(frm, _f.html_field);
                             isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         }
-                        if (_f?.template == "Timeline" && showTimelines) {
-                            isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            await showTimelines(frm, _f.html_field);
-                            isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                        if (_f?.template == "Timeline" && TimelineGenerator) {
+                            let timeline = new TimelineGenerator(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                            frm.set_df_property(_f.html_field, 'options', timeline);
                         }
-                        if (_f?.template == "Notes" && render_note) {
+                        if (_f?.template == "Notes" && NotesManager) {
                             isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            await render_note(frm, _f.html_field);
+                            new NotesManager(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                             isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         }
                     } else {
                         let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
+                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                         let result = new SvaDataTable({
                             label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
                             wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
@@ -176,6 +178,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                             }
                         });
                         frm.set_df_property(_f.html_field, 'options', result);
+                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
                     }
                 }
             }
