@@ -30,10 +30,7 @@ const tabContent = async (frm, tab_field) => {
     // console.log("tabContent", frm.events);
 
     // debugger
-    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }) && (
-        await frappe.db.count('Number Card Mapper', { doctype_field: frm.doc.doctype }) > 0 ||
-        await frappe.db.count('Dashboard Chart Mapper', { doctype_field: frm.doc.doctype }) > 0
-    ))) {
+    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype })) {
         let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
         let tab_fields = []
         let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
@@ -351,81 +348,3 @@ const add_properties = async (doctype, new_property) => {
     })
     add.show();
 }
-
-function preview_visualization(frm) {
-    if (!frm.doc.doctype_field || !frm.doc.wrapper_field) {
-        frappe.msgprint(__('Please select DocType and Wrapper Field first'));
-        return;
-    }
-
-    let d = new frappe.ui.Dialog({
-        title: __('Visualization Preview'),
-        fields: [{
-            fieldtype: 'HTML',
-            fieldname: 'preview_area'
-        }],
-        size: 'large'
-    });
-
-    d.show();
-    const previewArea = d.get_field('preview_area').$wrapper;
-
-    // Show loading state
-    previewArea.html(`
-        <div class="text-muted text-center p-4">
-            <div class="loading-spinner"></div>
-            <div>Loading visualization...</div>
-        </div>
-    `);
-
-    // Create wrapper div for visualization
-    const wrapper = document.createElement('div');
-    wrapper.className = 'visualization-preview-wrapper';
-    previewArea.empty().append(wrapper);
-
-    // Initialize visualization based on mapper type
-    if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
-        new SVANumberCard({
-            wrapper: wrapper,
-            frm: { doctype: frm.doc.doctype_field, doc: { name: 'PREVIEW' } },
-            numberCards: frm.doc.cards?.filter(c => c.is_visible) || []
-        });
-    }
-
-    if (frm.doc.mapper_type === 'Dashboard Chart' || frm.doc.mapper_type === 'Both') {
-        new SVADashboardChart({
-            wrapper: wrapper,
-            frm: { doctype: frm.doc.doctype_field, doc: { name: 'PREVIEW' } },
-            charts: frm.doc.charts?.filter(c => c.is_visible).map(chart => ({
-                dashboard_chart: chart.dashboard_chart,
-                chart_label: chart.chart_label,
-                background_color: chart.background_color,
-                text_color: chart.text_color,
-                border_color: chart.border_color,
-                chart_height: chart.chart_height || 300,
-                show_legend: chart.show_legend
-            })) || []
-        });
-    }
-
-    // Add preview styles
-    frappe.dom.set_style(`
-        .visualization-preview-wrapper {
-            padding: 1rem;
-            background: var(--card-bg);
-            border-radius: 8px;
-            min-height: 200px;
-        }
-    `);
-}
-
-// Add preview button to form
-frappe.ui.form.on('Visualization Mapper', {
-    refresh: function (frm) {
-        // ... existing refresh code ...
-
-        frm.add_custom_button(__('Preview Visualization'), function () {
-            preview_visualization(frm);
-        }, __('Preview'));
-    }
-});
