@@ -30,7 +30,7 @@ class SvaDataTable {
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
-        console.log("SVA DataTable constructor",doctype);
+        // console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -65,9 +65,10 @@ class SvaDataTable {
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
         this.reloadTable();
+        return this.wrapper;
     }
     reloadTable(reset = false) {
-        console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
+        // console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
