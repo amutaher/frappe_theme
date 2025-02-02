@@ -97,6 +97,8 @@ const tabContent = async (frm, tab_field) => {
                     </div>`;
                 }
             } else {
+                let wrapper = document.querySelector(`[data-fieldname="${_f.html_field}"]`);
+                wrapper.innerHTML = "";
                 if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
                     document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
                 }
@@ -131,10 +133,9 @@ const tabContent = async (frm, tab_field) => {
                     // if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).children.length > 0) {
                     //     document.querySelector(`[data-fieldname="${_f.html_field}"]`).ch;
                     // }
-
                     new SvaDataTable({
                         label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
-                        wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                        wrapper: wrapper,
                         doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
                         frm: frm,       // Pass the current form object (optional)
                         connection: _f,
@@ -222,6 +223,7 @@ const mapEvents = (props) => {
             if (!$('a[data-toggle="tab"]').data('listener-added')) {
                 $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
                     let tab_field = frm.get_active_tab()?.df?.fieldname;
+                    console.log("tab_field:dependency.js", tab_field);
                     tabContent(frm, tab_field);
                 });
                 $('a[data-toggle="tab"]').data('listener-added', true);
