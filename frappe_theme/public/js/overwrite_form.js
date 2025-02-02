@@ -22,13 +22,11 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
     async custom_refresh(frm) {
         let me = this;
-        console.log(me, 'me')
         me.goToCommentButton(frm);
         let tab_field = frm.get_active_tab()?.df?.fieldname;
         me.tabContent(frm, tab_field)
         $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
             let tab_field = frm.get_active_tab()?.df?.fieldname;
-            console.log(tab_field, 'tab_field')
             me.tabContent(frm, tab_field);
         });
         let props = await me.getPropertySetterData(cur_frm.doc.doctype);
@@ -103,15 +101,15 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             }
             for (let _f of dtFields) {
                 if (frm.doc.__islocal) {
-                    if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
+                    if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
                         document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;">
                             <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>
                             Save ${frm.doctype} to add ${_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype)} items.
                         </div>`;
                     }
                 } else {
-                    if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')) {
-                        document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
+                    if (document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
+                        document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved').remove();
                     }
                     if (_f?.connection_type == "Is Custom Design") {
                         if (_f?.template == "Gallery" && GalleryComponent) {
@@ -136,9 +134,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                             frm.set_df_property(_f.html_field, 'options', timeline);
                         }
                         if (_f?.template == "Notes" && NotesManager) {
-                            isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            new NotesManager(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                            let notes = new NotesManager(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                            frm.set_df_property(_f.html_field, 'options', notes);
                         }
                     } else {
                         let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
