@@ -65,6 +65,7 @@ class SvaDataTable {
         this.reloadTable();
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
+        return this.wrapper;
     }
     reloadTable(reset = false) {
         if (!this.render_only) {

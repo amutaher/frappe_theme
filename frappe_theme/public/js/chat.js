@@ -90,25 +90,86 @@ class SVADashboardChart {
         chartContainer.className = 'chart-container';
         chartContainer.style = `${containerStyle}${borderStyle}`;
 
-        // Generate a unique ID for the chart
-
         chartContainer.innerHTML = `
             <div class="chart-header">
                 <h3 class="chart-title" style="${textStyle}">${chartData.chart_name}</h3>
-                <div class="chart-type-icon">
-                    <i class="fa ${this.getChartTypeIcon(chartData.type)}"></i>
+                <div class="chart-actions">
+                    <div class="chart-type-icon">
+                        <i class="fa ${this.getChartTypeIcon(chartData.type)}"></i>
+                    </div>
+                    <div class="chart-menu">
+                        <button class="btn btn-xs btn-default chart-menu-btn">
+                            <i class="fa fa-ellipsis-v"></i>
+                        </button>
+                        <div class="chart-menu-options">
+                            <div class="chart-menu-option refresh-chart" data-chart="${chartData.index}">
+                                <i class="fa fa-refresh"></i> Refresh Chart
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="chart-body" id="chart-${chartData.index}-custom" style="height: ${chartData.height}px"></div>
         `;
 
+        // Add click handler for menu button
+        const menuBtn = chartContainer.querySelector('.chart-menu-btn');
+        const menuOptions = chartContainer.querySelector('.chart-menu-options');
+        const refreshOption = chartContainer.querySelector('.refresh-chart');
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuOptions.classList.toggle('show');
+        });
+
+        // Add click handler for refresh option
+        refreshOption.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            menuOptions.classList.remove('show');
+
+            // Show loading state
+            const chartBody = chartContainer.querySelector('.chart-body');
+            const originalContent = chartBody.innerHTML;
+            chartBody.innerHTML = `
+                <div class="chart-loading">
+                    <i class="fa fa-refresh fa-spin"></i>
+                    <span>Refreshing...</span>
+                </div>
+            `;
+
+            try {
+                // Fetch new data and re-render
+                const chartConfig = this.charts[chartData.index];
+                const newChartData = await this.fetchChartData(chartConfig.dashboard_chart);
+                if (newChartData) {
+                    chartBody.innerHTML = '';
+                    this.renderChart({
+                        ...newChartData,
+                        index: chartData.index,
+                        chart_name: chartConfig.chart_label,
+                        height: chartConfig.chart_height || 300,
+                        show_legend: chartConfig.show_legend
+                    }, chartBody);
+                } else {
+                    throw new Error('Failed to fetch chart data');
+                }
+            } catch (error) {
+                console.error('Error refreshing chart:', error);
+                chartBody.innerHTML = this.getErrorTemplate('Error refreshing chart');
+            }
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', () => {
+            menuOptions.classList.remove('show');
+        });
+
         chartWrapper.appendChild(chartContainer);
 
-        // Use requestAnimationFrame to ensure DOM is updated
+        // Render chart
         requestAnimationFrame(() => {
             const chartElement = chartContainer.querySelector(`#chart-${chartData.index}-custom`);
             if (chartElement) {
-                console.log(chartElement, 'chartElement');
                 this.renderChart(chartData, chartElement);
             } else {
                 console.error('Chart container not found:', `chart-${chartData.index}-custom`);
@@ -482,6 +543,67 @@ class SVADashboardChart {
                     .sva-charts-container {
                         grid-template-columns: 1fr;
                     }
+                }
+
+                .chart-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .chart-menu {
+                    position: relative;
+                }
+                .chart-menu-btn {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                }
+                .chart-menu-btn:hover {
+                    color: var(--text-color);
+                }
+                .chart-menu-options {
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    margin-top: 4px;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--border-radius-sm);
+                    box-shadow: var(--shadow-sm);
+                    min-width: 140px;
+                    display: none;
+                    z-index: 100;
+                }
+                .chart-menu-options.show {
+                    display: block;
+                }
+                .chart-menu-option {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    color: var(--text-color);
+                    font-size: var(--text-sm);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .chart-menu-option:hover {
+                    background-color: var(--control-bg);
+                }
+                .chart-menu-option i {
+                    font-size: 12px;
+                    color: var(--text-muted);
+                }
+                .chart-loading {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    gap: 8px;
+                    color: var(--text-muted);
+                }
+                .chart-loading i {
+                    font-size: 16px;
                 }
             `;
             document.head.appendChild(styleSheet);
