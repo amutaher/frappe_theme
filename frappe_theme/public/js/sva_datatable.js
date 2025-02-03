@@ -1194,7 +1194,7 @@ class SvaDataTable {
 
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
                     wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-
+                    let me = this;
                     wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
                         this.workflow.transitions
                             .filter(link => frappe.user_roles.includes(link.allowed))
@@ -1207,8 +1207,11 @@ class SvaDataTable {
                         // Store the current state to reset later if needed
                         const originalState = wf_select.getAttribute('title');
                         if (link) {
-                            await this.wf_action(link, primaryKey, wf_select, originalState)
-                            // If proceed is false (Cancel clicked), reset the select element
+                            if(window.onWorkflowStateChange){
+                                await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
+                            }else{
+                                await this.wf_action(link, primaryKey, wf_select, originalState)
+                            }
                             wf_select.value = "";
                             wf_select.title = originalState;
                         }
@@ -1246,52 +1249,63 @@ class SvaDataTable {
         return tbody;
     }
     // ================================ Workflow Action  Logic ================================
-    async wf_action(link, primaryKey, wf_select, originalState) {
-        const bg = this.workflow_state_bg?.find(bg => bg.name === link.next_state && bg?.style);
-        const isCommentRequired = ["Reject", "Review"].includes(link.action);
+    async wf_action(selected_state_info, docname, wf_select_el, prevState) {
+        let me = this;
+        const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
+        let meta = await frappe.call({
+            method: 'frappe_theme.api.get_meta',
+            args: { doctype: me.doctype },
+        });
+        const fields = meta?.message?.fields?.filter(field => {
+            return field?.wf_state_field == selected_state_info.action
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1 } });
         const popupFields = [
             {
                 label: "Action Test",
                 fieldname: "action_test",
                 fieldtype: "HTML",
-                options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${link.action}</span></p>`,
+                options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${selected_state_info.action}</span></p>`,
             },
-            ...(isCommentRequired
-                ? [{ label: "Comment", fieldname: "comment", fieldtype: "Small Text", reqd: 1 }]
-                : []),
+            ...(fields ? fields : []),
         ];
-        const comment = await new Promise((resolve) => {
+        const workflowFormValue = await new Promise((resolve) => {
             const dialog = new frappe.ui.Dialog({
                 title: "Confirm",
                 fields: popupFields,
                 primary_action_label: "Proceed",
                 primary_action: (values) => {
                     dialog.hide();
-                    resolve(values.comment || null);
+                    resolve(values);
                 },
                 secondary_action_label: "Cancel",
                 secondary_action: () => {
                     dialog.hide();
-                    wf_select.value = ""; // Reset dropdown value
-                    wf_select.title = originalState;
-                    frappe.show_alert({ message: `${link.action} Action has been cancelled.`, indicator: "orange" });
+                    wf_select_el.value = ""; // Reset dropdown value
+                    wf_select_el.title = prevState;
+                    frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
                 },
             });
             dialog.show();
         });
         try {
             const updateFields = {
-                [this.workflow.workflow_state_field]: link.next_state,
-                ...(comment && { wf_comment: comment }),
+                [me.workflow.workflow_state_field]: selected_state_info.next_state,
+                ...(workflowFormValue && workflowFormValue),
             };
-            const response = await frappe.db.set_value(this.doctype, primaryKey, updateFields);
+            const response = await frappe.db.set_value(me.doctype, docname, updateFields);
             if (response?.exc) throw new Error("Update failed");
-            const row = this.rows.find((r) => r.name === primaryKey);
-            row[this.workflow.workflow_state_field] = link.next_state;
-            row.wf_comment = comment;
-            this.rows[row.rowIndex] = row;
-            this.updateTableBody();
-            frappe.show_alert({ message: `${link.next_state} successfully`, indicator: "green" });
+            const row = me.rows.find((r) => r.name === docname);
+            row[me.workflow.workflow_state_field] = selected_state_info.next_state;
+            if(workflowFormValue?.wf_comment){
+                row.wf_comment = workflowFormValue.wf_comment;
+            }else{
+                const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                row.wf_comment = comment;
+            }
+            Object.assign(row, workflowFormValue);
+            me.rows[row.rowIndex] = row;
+            me.updateTableBody();
+            frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
         } catch (error) {
             frappe.show_alert({ message: "An error occurred.", indicator: "red" });
             console.error(error);

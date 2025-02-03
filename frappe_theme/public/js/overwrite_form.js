@@ -184,7 +184,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                     window?.onFieldClick(obj);
                                 }
                             },
-                            onFieldValueChange: function (e, b, c, d, f) {
+                            onFieldValueChange: function (e) {
                                 if (e && window?.onFieldValueChange) {
                                     let obj = {
                                         dt: e?.target?.getAttribute('data-dt'),
