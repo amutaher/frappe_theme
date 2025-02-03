@@ -1342,8 +1342,6 @@ class SvaDataTable {
             },
         });
     }
-
-
     sortByColumn(column, direction, updateTable = true) {
         const columnName = column.fieldname || column;
         let sorted_rows = this.rows.sort((a, b) => {
