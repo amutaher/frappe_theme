@@ -273,7 +273,7 @@ class SVANumberCard {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
                 gap: 15px;
-                padding: 15px 0;
+                padding: 0px 0px 15px 0px;
                 width: 100%;
                 position: relative; /* Added for loader positioning */
                 min-height: 100px; /* Minimum height for loader */
@@ -374,7 +374,7 @@ class SVANumberCard {
                 border-radius: 8px;
                 border: 1px solid var(--border-color);
             }
-            
+
             /* Responsive adjustments */
             @media (max-width: 1200px) {
                 .sva-cards-container {
@@ -395,7 +395,7 @@ class SVANumberCard {
                     grid-template-columns: 1fr;
                 }
             }
-            
+
             /* Adjust loader styles for cards */
             .table-loader {
                 min-height: 100px !important; /* Override default min-height */

@@ -31,7 +31,7 @@ app_include_js = [
     f"/assets/frappe_theme/js/timeline.js?ver={time.time()}",
 
     # f"/assets/frappe_theme/js/common_filter.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/chat.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/chart.js?ver={time.time()}",
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
     f"/assets/frappe_theme/js/loader-element.js?ver={time.time()}",
