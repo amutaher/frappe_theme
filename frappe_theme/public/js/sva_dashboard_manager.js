@@ -18,21 +18,25 @@ class SVADashboardManager {
         this.chartsWrapper.className = 'sva-dashboard-charts';
 
         // Initialize card and chart instances
-        this.cardInstance = new SVANumberCard({
-            wrapper: this.cardsWrapper,
-            frm,
-            numberCards,
-            filters: this.filters
-        });
-
-        this.chartInstance = new SVADashboardChart({
-            wrapper: this.chartsWrapper,
-            frm,
-            charts,
-            filters: this.filters
-        });
-
-        this.init();
+        if(numberCards?.length || charts?.length){
+            if(numberCards?.length){
+                this.cardInstance = new SVANumberCard({
+                    wrapper: this.cardsWrapper,
+                    frm,
+                    numberCards,
+                    filters: this.filters
+                });
+            }
+            if (charts?.length){
+                this.chartInstance = new SVADashboardChart({
+                    wrapper: this.chartsWrapper,
+                    frm,
+                    charts,
+                    filters: this.filters
+                });
+            }
+            this.init();
+        }
     }
 
     async init() {
@@ -126,15 +130,15 @@ class SVADashboardManager {
         this.wrapper.innerHTML = '';
 
         // Create header container
-        const headerContainer = document.createElement('div');
-        headerContainer.className = 'dashboard-header';
+        // const headerContainer = document.createElement('div');
+        // headerContainer.className = 'dashboard-header';
 
         // Create right-side container for buttons
-        const actionContainer = document.createElement('div');
-        actionContainer.className = 'dashboard-actions';
+        // const actionContainer = document.createElement('div');
+        // actionContainer.className = 'dashboard-actions';
 
         // Initialize common filter
-        const filterFields = await this.getFilterFields();
+        // const filterFields = await this.getFilterFields();
         // this.commonFilter = new CommonFilter({
         //     parent: actionContainer,
         //     doctype: this.frm.doctype,
@@ -146,16 +150,16 @@ class SVADashboardManager {
         // });
 
         // Add refresh button
-        const refreshButton = document.createElement('button');
-        refreshButton.className = 'btn btn-default btn-sm refresh-dashboard-btn';
-        refreshButton.innerHTML = '<i class="fa fa-refresh"></i> Refresh';
-        refreshButton.onclick = () => this.refreshAll();
-        actionContainer.appendChild(refreshButton);
+        // const refreshButton = document.createElement('button');
+        // refreshButton.className = 'btn btn-default btn-sm refresh-dashboard-btn';
+        // refreshButton.innerHTML = '<i class="fa fa-refresh"></i> Refresh';
+        // refreshButton.onclick = () => this.refreshAll();
+        // actionContainer.appendChild(refreshButton);
 
-        headerContainer.appendChild(actionContainer);
+        // headerContainer.appendChild(actionContainer);
 
         // Append all elements
-        this.wrapper.appendChild(headerContainer);
+        // this.wrapper.appendChild(headerContainer);
         this.wrapper.appendChild(this.cardsWrapper);
         this.wrapper.appendChild(this.chartsWrapper);
 
@@ -164,15 +168,18 @@ class SVADashboardManager {
 
     async renderDashboard() {
         try {
+            let prmsArr = [];
             // Update filters for both instances
-            this.cardInstance.filters = this.filters;
-            this.chartInstance.filters = this.filters;
-
+            if (this.cardInstance) {
+                this.cardInstance.filters = this.filters;
+                prmsArr.push(this.cardInstance.make());
+            }
+            if (this.chartInstance) {
+                this.chartInstance.filters = this.filters;
+                prmsArr.push(this.chartInstance.make());
+            }
             // Render both components
-            await Promise.all([
-                this.cardInstance.make(),
-                this.chartInstance.make()
-            ]);
+            await Promise.all(prmsArr);
         } catch (error) {
             console.error('Error rendering dashboard:', error);
         }
@@ -233,7 +240,7 @@ class SVADashboardManager {
                 }
                 .sva-dashboard-cards,
                 .sva-dashboard-charts {
-                    padding: 15px;
+                    padding: 0px;
                 }
             `;
             document.head.appendChild(styleSheet);
