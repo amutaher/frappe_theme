@@ -1182,45 +1182,52 @@ class SvaDataTable {
                 });
                 // ========================= Workflow Logic ===================
                 if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
-                    const wf_select = document.createElement('select');
-                    wf_select.classList.add('form-select', 'rounded');
-                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
-                    // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-
-                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
-                        this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
-
-                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
-
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
-                    wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-                    let me = this;
-                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
-                        this.workflow.transitions
-                            .filter(link => frappe.user_roles.includes(link.allowed))
-                            .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
-                            .join('');
+                    let closure_states = this.workflow?.states?.filter(s=>['Positive', 'Negative'].includes(s.custom_closure)).map(e=>e.state)
+                    let is_closed = closure_states.includes(row['workflow_state']);
+                    if(is_closed){
+                        let el = document.createElement('div');
+                        el.textContent = row['workflow_state'];
+                        el.style = 'width:100px; min-width:100px;  padding:2px 5px;';
+                        el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                        tr.appendChild(el)
+                    }else{
+                        const wf_select = document.createElement('select');
+                        wf_select.classList.add('form-select', 'rounded');
+                        wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
+                        // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
+                        wf_select.disabled = this.frm?.doc?.docstatus != 0 || closure_states.includes(row['workflow_state']) ||
+                            (this.workflow?.transitions?.some(tr => !frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']));
+                        wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
+                        wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                        let me = this;
+                        wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
+                            [...new Set(this.workflow.transitions
+                                .filter(link => frappe.user_roles.includes(link.allowed)).map(e=>e.action))]
+                                .map(action=> `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
+                                .join('');
 
-                    wf_select.addEventListener('change', async (event) => {
-                        const action = event.target.value;
-                        const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
-                        // Store the current state to reset later if needed
-                        const originalState = wf_select.getAttribute('title');
-                        if (link) {
-                            if(window.onWorkflowStateChange){
-                                await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
-                            }else{
-                                await this.wf_action(link, primaryKey, wf_select, originalState)
+                        wf_select.addEventListener('change', async (event) => {
+                            const action = event.target.value;
+                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            // Store the current state to reset later if needed
+                            const originalState = wf_select.getAttribute('title');
+                            if (link) {
+                                if(window.onWorkflowStateChange){
+                                    await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
+                                }else{
+                                    await this.wf_action(link, primaryKey, wf_select, originalState)
+                                }
+                                wf_select.value = "";
+                                wf_select.title = originalState;
                             }
-                            wf_select.value = "";
-                            wf_select.title = originalState;
-                        }
-                    });
+                        });
 
-                    const wf_action_td = document.createElement('td');
-                    wf_action_td.style = "text-align: center;";
-                    wf_action_td.appendChild(wf_select);
-                    tr.appendChild(wf_action_td);
+                        const wf_action_td = document.createElement('td');
+                        wf_action_td.style = "text-align: center;";
+                        wf_action_td.appendChild(wf_select);
+                        tr.appendChild(wf_action_td);
+                    }
                 }
 
                 // ========================= Workflow End ===================
