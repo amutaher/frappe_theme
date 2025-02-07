@@ -30,7 +30,6 @@ class SvaDataTable {
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
-        console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -154,7 +153,7 @@ class SvaDataTable {
         let row = document.createElement('div');
         row.setAttribute('class', 'row');
         // add button to import data
-        // if (this.permissions?.length && this.permissions.includes('create')) {
+        if (this.connection.allow_import) {
         let import_button = document.createElement('button');
         import_button.id = 'import_button';
         import_button.classList.add('btn', 'btn-secondary', 'btn-sm');
@@ -168,8 +167,8 @@ class SvaDataTable {
             });
             dialog.custom_import();
         }
-        // row.appendChild(import_button);
-        // }
+        row.appendChild(import_button);
+        }
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 

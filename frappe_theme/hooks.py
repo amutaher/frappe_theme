@@ -139,9 +139,9 @@ web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	"Data Import": "frappe_theme.controllers.import_override.CustomDataImport"
+}
 
 # Document Events
 # ---------------
