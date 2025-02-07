@@ -123,7 +123,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     });
 
                     if (vm.length > 0) {
-                        console.log("vm", vm);
+                        // console.log("vm", vm);
 
                         let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
                         const wrapper = document.createElement('div');

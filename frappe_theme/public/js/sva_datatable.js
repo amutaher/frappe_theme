@@ -59,6 +59,8 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.editable_allowed = false;
+        this.transitions_allowed = false;
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
@@ -67,8 +69,7 @@ class SvaDataTable {
         this.reloadTable();
         return this.wrapper;
     }
-    reloadTable(reset = false) {
-        // console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
+    async reloadTable(reset = false) {
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -82,6 +83,8 @@ class SvaDataTable {
                         this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
                             fields: ['name', 'style']
                         });
+                        this.editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                        this.transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                     }
                     // ================================ Workflow End ================================
                     try {
@@ -949,7 +952,7 @@ class SvaDataTable {
             tr.appendChild(th);
         });
         // ========================= Workflow Logic ======================
-        if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+        if (this.workflow && (this.editable_allowed || this.transitions_allowed)) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
             addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
@@ -1144,6 +1147,8 @@ class SvaDataTable {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
         const renderBatch = async () => {
+            // console.log("Rendering batch", this.doctype);
+
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
@@ -1164,7 +1169,6 @@ class SvaDataTable {
 
                 let left = 0;
                 let freezeColumnsAtLeft = 1;
-
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
@@ -1181,50 +1185,64 @@ class SvaDataTable {
                     tr.appendChild(td);
                 });
                 // ========================= Workflow Logic ===================
-                if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
-                    const wf_select = document.createElement('select');
-                    wf_select.classList.add('form-select', 'rounded');
-                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
-                    // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-
-                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
-                        this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
-
-                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
-
+                if (this.workflow && (this.editable_allowed || this.transitions_allowed)) {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
-                    wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-                    let me = this;
-                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
-                        this.workflow.transitions
-                            .filter(link => frappe.user_roles.includes(link.allowed))
-                            .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
-                            .join('');
 
-                    wf_select.addEventListener('change', async (event) => {
-                        const action = event.target.value;
-                        const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
-                        // Store the current state to reset later if needed
-                        const originalState = wf_select.getAttribute('title');
-                        if (link) {
-                            if(window.onWorkflowStateChange){
-                                await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
-                            }else{
-                                await this.wf_action(link, primaryKey, wf_select, originalState)
+                    let closure_states = this.workflow?.states?.filter(s=>['Positive', 'Negative'].includes(s.custom_closure)).map(e=>e.state)
+                    let is_closed = closure_states.includes(row['workflow_state']);
+                    if(is_closed){
+                        let el = document.createElement('div');
+                        el.textContent = row['workflow_state'];
+                        el.classList.add('form-select', 'rounded');
+                        el.setAttribute('title', row['workflow_state'] || 'No state available');
+                        el.style = 'width:fit-content; min-width:100px;  padding:2px 5px;';
+                        el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                        const wf_action_td = document.createElement('td');
+                        wf_action_td.style = "text-align: center;";
+                        wf_action_td.appendChild(el);
+                        tr.appendChild(wf_action_td);
+
+                    }else{
+                        const wf_select = document.createElement('select');
+                        wf_select.classList.add('form-select', 'rounded');
+                        wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
+                        // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
+                        wf_select.disabled = this.frm?.doc?.docstatus != 0 || closure_states.includes(row['workflow_state']) ||
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state == row['workflow_state']));
+                        wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
+                        wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                        let me = this;
+                        wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
+                            [...new Set(this.workflow.transitions
+                                .filter(link => frappe.user_roles.includes(link.allowed)).map(e=>e.action))]
+                                .map(action=> `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
+                                .join('');
+
+                        wf_select.addEventListener('change', async (event) => {
+                            const action = event.target.value;
+                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            // Store the current state to reset later if needed
+                            const originalState = wf_select.getAttribute('title');
+                            if (link) {
+                                if(window.onWorkflowStateChange){
+                                    await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
+                                }else{
+                                    await this.wf_action(link, primaryKey, wf_select, originalState)
+                                }
+                                wf_select.value = "";
+                                wf_select.title = originalState;
                             }
-                            wf_select.value = "";
-                            wf_select.title = originalState;
-                        }
-                    });
+                        });
 
-                    const wf_action_td = document.createElement('td');
-                    wf_action_td.style = "text-align: center;";
-                    wf_action_td.appendChild(wf_select);
-                    tr.appendChild(wf_action_td);
+                        const wf_action_td = document.createElement('td');
+                        wf_action_td.style = "text-align: center;";
+                        wf_action_td.appendChild(wf_select);
+                        tr.appendChild(wf_action_td);
+                    }
                 }
 
                 // ========================= Workflow End ===================
-                if (this.conf_perms.length || this.childLinks?.length) {
+                if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
                     action_td.appendChild(this.createActionColumn(row, primaryKey));
