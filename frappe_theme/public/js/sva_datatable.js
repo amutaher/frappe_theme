@@ -30,7 +30,7 @@ class SvaDataTable {
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { }
     }) {
-
+        console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -62,11 +62,13 @@ class SvaDataTable {
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
-        this.reloadTable();
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
+        this.reloadTable();
     }
     reloadTable(reset = false) {
+        console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
+
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 isLoading(true, this.wrapper);
@@ -131,6 +133,8 @@ class SvaDataTable {
                     }
                     isLoading(false, this.wrapper);
                 })
+            }else{
+                console.log("Permission issues",this.doctype);
             }
         } else {
             isLoading(true, this.wrapper);
