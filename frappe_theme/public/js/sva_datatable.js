@@ -67,8 +67,7 @@ class SvaDataTable {
         this.reloadTable();
         return this.wrapper;
     }
-    reloadTable(reset = false) {
-        // console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
+    async reloadTable(reset = false) {
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -949,7 +948,7 @@ class SvaDataTable {
             tr.appendChild(th);
         });
         // ========================= Workflow Logic ======================
-        if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+        if (this.workflow && (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed)) || this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit)))) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
             addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
@@ -1144,6 +1143,8 @@ class SvaDataTable {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
         const renderBatch = async () => {
+            // console.log("Rendering batch", this.doctype);
+
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
@@ -1164,7 +1165,6 @@ class SvaDataTable {
 
                 let left = 0;
                 let freezeColumnsAtLeft = 1;
-
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
@@ -1181,23 +1181,32 @@ class SvaDataTable {
                     tr.appendChild(td);
                 });
                 // ========================= Workflow Logic ===================
-                if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
+                let editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                let transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
+                if (this.workflow && (editable_allowed || transitions_allowed)) {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
+
                     let closure_states = this.workflow?.states?.filter(s=>['Positive', 'Negative'].includes(s.custom_closure)).map(e=>e.state)
                     let is_closed = closure_states.includes(row['workflow_state']);
                     if(is_closed){
                         let el = document.createElement('div');
                         el.textContent = row['workflow_state'];
-                        el.style = 'width:100px; min-width:100px;  padding:2px 5px;';
+                        el.classList.add('form-select', 'rounded');
+                        el.setAttribute('title', row['workflow_state'] || 'No state available');
+                        el.style = 'width:fit-content; min-width:100px;  padding:2px 5px;';
                         el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-                        tr.appendChild(el)
+                        const wf_action_td = document.createElement('td');
+                        wf_action_td.style = "text-align: center;";
+                        wf_action_td.appendChild(el);
+                        tr.appendChild(wf_action_td);
+
                     }else{
                         const wf_select = document.createElement('select');
                         wf_select.classList.add('form-select', 'rounded');
                         wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
                         // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
                         wf_select.disabled = this.frm?.doc?.docstatus != 0 || closure_states.includes(row['workflow_state']) ||
-                            (this.workflow?.transitions?.some(tr => !frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']));
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state == row['workflow_state']));
                         wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
                         wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
                         let me = this;
