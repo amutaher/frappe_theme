@@ -269,7 +269,7 @@ class ListSettings {
 			checked: fields.includes("name"),
 		}];
 		meta.fields.forEach((field) => {
-			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype) && !field.hidden)) {
+			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype))) {
 				multiselect_fields.push({
 					label: __(field.label, null, field.doctype),
 					value: field.fieldname,

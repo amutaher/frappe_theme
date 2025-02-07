@@ -1548,14 +1548,7 @@ class SvaDataTable {
                         </svg>
                     </div>
                     <p>You haven't created a rocord yet</p>
-                    <p>
-                        <button class="btn btn-default btn-sm btn-new-doc hidden-xs">
-                            Create your first record
-                        </button>
-                        <button class="btn btn-primary btn-new-doc visible-xs">
-                            Create New
-                        </button>
-                    </p>
+
                 </div>
         `
         tr.appendChild(td);
