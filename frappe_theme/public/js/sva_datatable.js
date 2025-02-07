@@ -59,6 +59,8 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.editable_allowed = false;
+        this.transitions_allowed = false;
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
@@ -81,6 +83,8 @@ class SvaDataTable {
                         this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
                             fields: ['name', 'style']
                         });
+                        this.editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                        this.transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                     }
                     // ================================ Workflow End ================================
                     try {
@@ -948,7 +952,7 @@ class SvaDataTable {
             tr.appendChild(th);
         });
         // ========================= Workflow Logic ======================
-        if (this.workflow && (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed)) || this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit)))) {
+        if (this.workflow && (this.editable_allowed || this.transitions_allowed)) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
             addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
@@ -1181,9 +1185,7 @@ class SvaDataTable {
                     tr.appendChild(td);
                 });
                 // ========================= Workflow Logic ===================
-                let editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
-                let transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
-                if (this.workflow && (editable_allowed || transitions_allowed)) {
+                if (this.workflow && (this.editable_allowed || this.transitions_allowed)) {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
 
                     let closure_states = this.workflow?.states?.filter(s=>['Positive', 'Negative'].includes(s.custom_closure)).map(e=>e.state)
