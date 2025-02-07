@@ -1242,7 +1242,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if (this.conf_perms.length || this.childLinks?.length) {
+                if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
                     const action_td = document.createElement('td');
                     action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
                     action_td.appendChild(this.createActionColumn(row, primaryKey));
