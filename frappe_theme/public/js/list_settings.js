@@ -122,7 +122,7 @@ class ListSettings {
 		`);
 		$(fields_html.$wrapper).on('change', '.column-width-input', function () {
 			me.update_fields();
-		});			
+		});
 		new Sortable(wrapper.getElementsByClassName("control-input-wrapper")[0], {
 			handle: ".sortable-handle",
 			draggable: ".sortable",
@@ -170,7 +170,6 @@ class ListSettings {
 		let fields_html = me.dialog.get_field("fields_html");
 		let wrapper = fields_html.$wrapper[0];
 		let fields_order = wrapper.getElementsByClassName("fields_order");
-		console.log(me.listview_settings,'me.listview_settings')
 		me.listview_settings = [];
 		for (let idx = 0; idx < fields_order.length; idx++) {
 			me.listview_settings.push({
@@ -270,7 +269,7 @@ class ListSettings {
 			checked: fields.includes("name"),
 		}];
 		meta.fields.forEach((field) => {
-			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype) && !field.hidden)) {
+			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype))) {
 				multiselect_fields.push({
 					label: __(field.label, null, field.doctype),
 					value: field.fieldname,
