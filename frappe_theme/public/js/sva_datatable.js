@@ -59,6 +59,8 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.wf_editable_allowed = false;
+        this.wf_transitions_allowed = false;
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
@@ -67,8 +69,7 @@ class SvaDataTable {
         this.reloadTable();
         return this.wrapper;
     }
-    reloadTable(reset = false) {
-        // console.log("SVA DataTable reloadTable",this.doctype,this.render_only);
+    async reloadTable(reset = false) {
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -82,6 +83,8 @@ class SvaDataTable {
                         this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
                             fields: ['name', 'style']
                         });
+                        this.wf_editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                        this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                     }
                     // ================================ Workflow End ================================
                     try {
@@ -900,7 +903,7 @@ class SvaDataTable {
     }
     createTable() {
         const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered');
+        table.classList.add('table', 'table-bordered','form-grid-container','form-grid');
         table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
         table.appendChild(this.createTableHead());
         table.appendChild(this.createTableBody());
@@ -916,7 +919,6 @@ class SvaDataTable {
             color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-            background-color:#F3F3F3;
             z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
@@ -924,7 +926,7 @@ class SvaDataTable {
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
             serialTh.textContent = '#';
-            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
+            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;';
             tr.appendChild(serialTh);
         }
 
@@ -949,16 +951,16 @@ class SvaDataTable {
             tr.appendChild(th);
         });
         // ========================= Workflow Logic ======================
-        if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+        if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
-            addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
+            addColumn.style = 'cursor:pointer; text-align:center;';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
+            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;';
             if (frappe.user_roles.includes("Administrator")) {
                 action_th.appendChild(this.createSettingsButton());
                 tr.appendChild(action_th);
@@ -990,73 +992,13 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
+
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
         const dropdownBtn = document.createElement('span');
         dropdownBtn.classList.add('h4');
-        dropdownBtn.style = 'cursor:pointer;';
-        dropdownBtn.setAttribute('data-toggle', 'dropdown');
-        dropdownBtn.innerHTML = "&#8942;";
-
-        const dropdownMenu = document.createElement('div');
-        dropdownMenu.classList.add('dropdown-menu');
-        dropdownMenu.style.position = 'absolute !important';
-        dropdownMenu.style.zIndex = '9999 !important';
-        // View Button
-        if (this.conf_perms.length && this.permissions.length) {
-            if (this.permissions.includes('read')) {
-                const viewOption = document.createElement('a');
-                viewOption.classList.add('dropdown-item');
-                viewOption.textContent = "View";
-                viewOption.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype, primaryKey, 'view');
-                });
-                dropdownMenu.appendChild(viewOption);
-            }
-            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
-                if (this.permissions.includes('write')) {
-                    const editOption = document.createElement('a');
-                    editOption.classList.add('dropdown-item');
-                    editOption.textContent = "Edit";
-                    editOption.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype, primaryKey, 'write');
-                    });
-                    dropdownMenu.appendChild(editOption);
-                }
-                if (this.permissions.includes('delete')) {
-                    const deleteOption = document.createElement('a');
-                    deleteOption.classList.add('dropdown-item');
-                    deleteOption.textContent = "Delete";
-                    deleteOption.addEventListener('click', async () => {
-                        await this.deleteRecord(this.doctype, primaryKey);
-                    });
-                    dropdownMenu.appendChild(deleteOption);
-                }
-            }
-        }
-        if (this.childLinks?.length) {
-            this.childLinks.forEach(async link => {
-                const linkOption = document.createElement('a');
-                linkOption.classList.add('dropdown-item');
-                linkOption.textContent = link.link_doctype;
-                linkOption.addEventListener('click', async () => {
-                    await this.childTableDialog(link.link_doctype, primaryKey, row, link);
-                });
-                dropdownMenu.appendChild(linkOption);
-            });
-        }
-        dropdown.appendChild(dropdownBtn);
-        dropdown.appendChild(dropdownMenu);
-        return dropdown;
-    }
-    createActionColumn(row, primaryKey) {
-        const dropdown = document.createElement('div');
-        dropdown.classList.add('dropdown');
-
-        const dropdownBtn = document.createElement('span');
-        dropdownBtn.classList.add('h4');
-        dropdownBtn.style = 'cursor:pointer;';
+        dropdownBtn.style.cursor = 'pointer';
         dropdownBtn.setAttribute('data-toggle', 'dropdown');
         dropdownBtn.innerHTML = "&#8942;";
 
@@ -1066,105 +1008,112 @@ class SvaDataTable {
         dropdownMenu.style.zIndex = '9999';
         dropdownMenu.style.display = 'none';
 
+        const appendDropdownOption = (text, onClickHandler) => {
+            const option = document.createElement('a');
+            option.classList.add('dropdown-item');
+            option.textContent = text;
+            option.addEventListener('click', onClickHandler);
+            dropdownMenu.appendChild(option);
+        };
+
         // View Button
-        if (this.conf_perms.length && this.permissions.length) {
-            if (this.permissions.includes('read')) {
-                const viewOption = document.createElement('a');
-                viewOption.classList.add('dropdown-item');
-                viewOption.textContent = "View";
-                viewOption.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+        if (this.conf_perms.length && this.permissions.length && this.permissions.includes('read')) {
+            appendDropdownOption('View', async () => {
+                await this.createFormDialog(this.doctype, primaryKey, 'view');
+            });
+        }
+
+        // Edit and Delete Buttons
+        if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
+            if (this.permissions.includes('write')) {
+                appendDropdownOption('Edit', async () => {
+                    await this.createFormDialog(this.doctype, primaryKey, 'write');
                 });
-                dropdownMenu.appendChild(viewOption);
             }
-            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
-                if (this.permissions.includes('write')) {
-                    const editOption = document.createElement('a');
-                    editOption.classList.add('dropdown-item');
-                    editOption.textContent = "Edit";
-                    editOption.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype, primaryKey, 'write');
-                    });
-                    dropdownMenu.appendChild(editOption);
-                }
-                if (this.permissions.includes('delete')) {
-                    const deleteOption = document.createElement('a');
-                    deleteOption.classList.add('dropdown-item');
-                    deleteOption.textContent = "Delete";
-                    deleteOption.addEventListener('click', async () => {
-                        await this.deleteRecord(this.doctype, primaryKey);
-                    });
-                    dropdownMenu.appendChild(deleteOption);
-                }
+            if (this.permissions.includes('delete')) {
+                appendDropdownOption('Delete', async () => {
+                    await this.deleteRecord(this.doctype, primaryKey);
+                });
             }
         }
+
+        // Child Links
         if (this.childLinks?.length) {
-            this.childLinks.forEach(async link => {
-                const linkOption = document.createElement('a');
-                linkOption.classList.add('dropdown-item');
-                linkOption.textContent = link.link_doctype;
-                linkOption.addEventListener('click', async () => {
+            this.childLinks.forEach(async (link) => {
+                appendDropdownOption(link.link_doctype, async () => {
                     await this.childTableDialog(link.link_doctype, primaryKey, row, link);
                 });
-                dropdownMenu.appendChild(linkOption);
             });
         }
 
         dropdown.appendChild(dropdownBtn);
         document.body.appendChild(dropdownMenu);
 
-        dropdownBtn.addEventListener('click', (event) => {
+        const toggleDropdown = (event) => {
             event.stopPropagation();
             const rect = dropdownBtn.getBoundingClientRect();
-
             const dropdownWidth = dropdownMenu.offsetWidth || 150; // Default width in case offsetWidth is 0
             dropdownMenu.style.top = `${rect.bottom}px`;
             dropdownMenu.style.left = `${rect.left - dropdownWidth}px`; // Adjust position for left-side popup
             dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
-        });
+        };
 
+        dropdownBtn.addEventListener('click', toggleDropdown);
+
+        // Close dropdown when clicking outside
         document.addEventListener('click', () => {
             dropdownMenu.style.display = 'none';
         });
 
         return dropdown;
     }
+
     createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
         }
+
         const tbody = document.createElement('tbody');
         this.tBody = tbody;
         let rowIndex = 0;
         const batchSize = this.options?.pageLimit || 30;
-        tbody.style = `
-            white-space: nowrap;`
-            ;
+        tbody.style.whiteSpace = 'nowrap';
+
         if (this.currentSort) {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
+
         const renderBatch = async () => {
+            const fragment = document.createDocumentFragment(); // Use a document fragment to batch DOM changes
+
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
                 const tr = document.createElement('tr');
                 let primaryKey = row?.name || row?.rowIndex || rowIndex?.id || rowIndex;
-                tr.style = 'max-height:32px !important; height:32px !important;';
+                tr.style.maxHeight = '32px';
+                tr.style.height = '32px';
+                tr.style.backgroundColor = '#fff';
 
+                // Serial Number Column
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
-                    serialTd.style = 'min-width:40px; text-align:center;position:sticky;left:0px;background-color:#fff;';
-                    if (this.page > 1) {
-                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
-                    } else {
-                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${rowIndex + 1}</a>`;
-                    }
+                    serialTd.style.minWidth = '40px';
+                    serialTd.style.textAlign = 'center';
+                    serialTd.style.position = 'sticky';
+                    serialTd.style.left = '0px';
+                    serialTd.style.backgroundColor = '#fff';
+
+                    const serialNumber = this.page > 1
+                        ? ((this.page - 1) * this.limit) + (rowIndex + 1)
+                        : rowIndex + 1;
+
+                    serialTd.innerHTML = `<a href="/app/${this.doctype?.split(' ').join('-')?.toLowerCase() || this.doctype.toLowerCase()}/${row['name']}">${serialNumber}</a>`;
                     tr.appendChild(serialTd);
                 }
 
                 let left = 0;
                 let freezeColumnsAtLeft = 1;
-
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
@@ -1172,7 +1121,8 @@ class SvaDataTable {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-                    td.textContent = row[column.fieldname] || "";
+
+                    td.textContent = row[column.fieldname] || '';
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
@@ -1180,66 +1130,82 @@ class SvaDataTable {
                     }
                     tr.appendChild(td);
                 });
+
                 // ========================= Workflow Logic ===================
-                if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
-                    const wf_select = document.createElement('select');
-                    wf_select.classList.add('form-select', 'rounded');
-                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
-                    // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-
-                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
-                        this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
-
-                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
-
+                if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
-                    wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-                    let me = this;
-                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
-                        this.workflow.transitions
-                            .filter(link => frappe.user_roles.includes(link.allowed))
-                            .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
-                            .join('');
+                    const closureStates = this.workflow?.states?.filter(s => ['Positive', 'Negative'].includes(s.custom_closure)).map(e => e.state);
+                    const isClosed = closureStates.includes(row['workflow_state']);
+                    const wfActionTd = document.createElement('td');
+                    const el = document.createElement('select');
+                    el.classList.add('form-select', 'rounded');
+                    el.setAttribute('title', row['workflow_state'] || 'No state available');
+                    el.style.width = '100px';
+                    el.style.minWidth = '100px';
+                    el.style.padding = '2px 5px';
+                    el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                    if (isClosed) {
+                        el.disabled = true;
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>`;
+                        el.style['-webkit-appearance'] = 'none';
+                        el.style['-moz-appearance'] = 'none';
+                        el.style['appearance'] = 'none';
+                        el.style['background-color'] = 'transparent';
+                        el.style['text-align'] = 'center';
+                        wfActionTd.appendChild(el);
+                    } else {
+                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row['workflow_state']) ||
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row['workflow_state']));
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>` +
+                            [...new Set(this.workflow.transitions
+                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                                .map(e => e.action))]
+                                .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
+                                .join('');
 
-                    wf_select.addEventListener('change', async (event) => {
-                        const action = event.target.value;
-                        const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
-                        // Store the current state to reset later if needed
-                        const originalState = wf_select.getAttribute('title');
-                        if (link) {
-                            if(window.onWorkflowStateChange){
-                                await window.onWorkflowStateChange(this, link, primaryKey, wf_select, originalState);
-                            }else{
-                                await this.wf_action(link, primaryKey, wf_select, originalState)
+                        el.addEventListener('change', async (event) => {
+                            const action = event.target.value;
+                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            const originalState = el?.getAttribute('title');
+                            if (link) {
+                                if (window.onWorkflowStateChange) {
+                                    await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
+                                } else {
+                                    await this.wf_action(link, primaryKey, el, originalState);
+                                }
+                                el.value = '';
+                                el.title = originalState;
                             }
-                            wf_select.value = "";
-                            wf_select.title = originalState;
-                        }
-                    });
+                        });
 
-                    const wf_action_td = document.createElement('td');
-                    wf_action_td.style = "text-align: center;";
-                    wf_action_td.appendChild(wf_select);
-                    tr.appendChild(wf_action_td);
+                        wfActionTd.appendChild(el);
+                    }
+                    wfActionTd.style.textAlign = 'center';
+                    tr.appendChild(wfActionTd);
                 }
 
                 // ========================= Workflow End ===================
-                if (this.conf_perms.length || this.childLinks?.length) {
-                    const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
-                    action_td.appendChild(this.createActionColumn(row, primaryKey));
-                    tr.appendChild(action_td);
+                if ((this.frm.doc.docstatus === 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                    const actionTd = document.createElement('td');
+                    actionTd.style.minWidth = '50px';
+                    actionTd.style.textAlign = 'center';
+                    actionTd.style.position = 'sticky';
+                    actionTd.style.right = '0px';
+                    actionTd.appendChild(this.createActionColumn(row, primaryKey));
+                    tr.appendChild(actionTd);
                 }
-                this.tBody.appendChild(tr);
+
+                fragment.appendChild(tr);
                 rowIndex++;
             }
+
+            tbody.appendChild(fragment); // Append all rows at once to minimize reflows
         };
+
         const handleScroll = () => {
             const scrollTop = this.table_wrapper.scrollTop;
-            if (scrollTop > this.lastScrollTop) {
-                if (this.table_wrapper.scrollTop + this.table_wrapper.clientHeight >= this.table_wrapper.scrollHeight) {
-                    renderBatch();
-                }
+            if (scrollTop > this.lastScrollTop && this.table_wrapper.scrollTop + this.table_wrapper.clientHeight >= this.table_wrapper.scrollHeight) {
+                renderBatch();
             }
             this.lastScrollTop = scrollTop;
         };
@@ -1248,6 +1214,7 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
+
     // ================================ Workflow Action  Logic ================================
     async wf_action(selected_state_info, docname, wf_select_el, prevState) {
         let me = this;
@@ -1560,23 +1527,32 @@ class SvaDataTable {
         }
     }
     createNoDataFoundPage() {
-        const noDataFoundPage = document.createElement('tr');
-        noDataFoundPage.id = 'noDataFoundPage';
-        noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
-        noDataFoundPage.style.fontSize = '20px';
-        const noDataFoundText = document.createElement('td');
-        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0)); // Ensure columns are defined properly
-        noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
-        noDataFoundText.style.paddingTop = '100px';
-        noDataFoundText.style.color = 'grey';
-        // noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
-        let message = document.createElement('p');
-        message.textContent = "You haven't created a record yet";
-        message.style.color = 'grey';
-        noDataFoundPage.style.backgroundColor = '#F8F8F8'
-        noDataFoundText.appendChild(message)
-        noDataFoundPage.appendChild(noDataFoundText);
-        return noDataFoundPage;
+        const tr = document.createElement('tr');
+        tr.id = 'tr';
+        tr.style.height = '200px'; // Use viewport height to set a more responsive height
+        tr.style.fontSize = '20px';
+        const td = document.createElement('td');
+        td.colSpan = (
+            this.columns?.length ?? 3) + (
+                (
+                    this.options?.serialNumberColumn ? 1 : 0) +
+                    ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0) +
+                    ((this.wf_transitions_allowed || this.wf_editable_allowed) ? 1 : 0)
+                ); // Ensure columns are defined properly
+
+        td.innerHTML = `
+                <div class="msg-box no-border">
+                    <div class="mb-4">
+                        <svg class="icon icon-xl" style="stroke: var(--text-light);">
+                            <use href="#icon-small-file"></use>
+                        </svg>
+                    </div>
+                    <p>You haven't created a rocord yet</p>
+
+                </div>
+        `
+        tr.appendChild(td);
+        return tr;
     }
     handleNoPermission() {
         let noPermissionPage = document.createElement('div');
