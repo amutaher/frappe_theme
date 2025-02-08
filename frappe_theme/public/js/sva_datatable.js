@@ -829,6 +829,11 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
+        if(dialog.get_value('frequency') && mode === 'create') {
+            setTimeout(() => {
+             this.handleFrequencyField();
+            }, 1000);
+         }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
