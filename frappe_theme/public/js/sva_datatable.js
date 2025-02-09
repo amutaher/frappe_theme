@@ -593,7 +593,7 @@ class SvaDataTable {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
         if(window?.SVADialog?.[this.doctype]){
-            window?.SVADialog?.[this.doctype]('create', fields);
+            window?.SVADialog?.[this.doctype](mode, fields);
             return;
         }
         if (mode === 'create' || mode === 'write') {
@@ -1299,7 +1299,7 @@ class SvaDataTable {
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
-            size: 'extra-large',
+            size: 'extra-large', // small, large, extra-large
             fields: [{
                 fieldname: 'table',
                 fieldtype: 'HTML',
@@ -1612,7 +1612,7 @@ class SvaDataTable {
         } else if (hasMultipleColumns) {
             return "large";  // Sections with 2+ columns need a larger dialog
         } else {
-            return "large"; // Default size
+            return "small"; // Default size
         }
     }
 
