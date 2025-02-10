@@ -36,8 +36,12 @@ class SVANumberCard {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
                             const card = this.createCard({
+                                cardName: cardConfig.number_card,
                                 title: cardConfig.card_label || cardData.label || cardData.name,
                                 value: cardData.result !== undefined ? cardData.result : '--',
+                                reportName: cardData.report_name,
+                                doctype: cardData.document_type,
+                                filters: cardData.filters_json ? JSON.parse(cardData.filters_json) : {},
                                 options: {
                                     icon: cardConfig.icon_value,
                                     subtitle: cardData.document_type,
@@ -105,7 +109,19 @@ class SVANumberCard {
                 <div class="number-card-content">
                     <div class="number-card-header">
                         <h3 class="number-card-title" ${titleStyle ? `style="${titleStyle}"` : ''}>${config.title || ''}</h3>
-                        ${iconHtml}
+                        <div class="number-card-actions">
+                            ${iconHtml}
+                            <div class="number-card-menu">
+                                <button class="number-card-menu-btn">
+                                    <i class="fa fa-ellipsis-h"></i>
+                                </button>
+                                <div class="number-card-menu-dropdown">
+                                    <button class="number-card-menu-item refresh-card">
+                                        <i class="fa fa-refresh"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
                     ${options.subtitle ? `<div class="number-card-subtitle">${options.subtitle}</div>` : ''}
@@ -113,11 +129,77 @@ class SVANumberCard {
             </div>
         `;
 
-        if (config.onClick) {
-            card.querySelector('.number-card-container').addEventListener('click', () => {
-                config.onClick(this.frm);
-            });
-        }
+        // Add menu toggle functionality
+        const menuBtn = card.querySelector('.number-card-menu-btn');
+        const menuDropdown = card.querySelector('.number-card-menu-dropdown');
+        const refreshBtn = card.querySelector('.refresh-card');
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target)) {
+                menuDropdown.classList.remove('show');
+            }
+        });
+
+        // Toggle dropdown
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('show');
+        });
+
+        // Refresh card
+        refreshBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.remove('show');
+
+            // Show loading state for this card
+            const cardContainer = card.querySelector('.number-card-container');
+            cardContainer.style.opacity = '0.5';
+            cardContainer.style.pointerEvents = 'none';
+
+            try {
+                // Fetch updated data for this specific card
+                const cardData = await this.fetchNumberCardData(config.cardName);
+                if (cardData) {
+                    // Update card value
+                    const valueElement = card.querySelector('.number-card-value');
+                    const currencySymbol = this.shouldShowCurrency(cardData.result) ? '₹' : '';
+                    valueElement.textContent = `${currencySymbol}${this.formatValue(cardData.result)}`;
+                }
+            } catch (error) {
+                console.error('Error refreshing card:', error);
+                frappe.show_alert({
+                    message: __('Error refreshing card'),
+                    indicator: 'red'
+                });
+            } finally {
+                // Reset card state
+                cardContainer.style.opacity = '';
+                cardContainer.style.pointerEvents = '';
+            }
+        });
+
+        // Add click handler for card
+        const cardContainer = card.querySelector('.number-card-container');
+        cardContainer.style.cursor = 'pointer';
+
+        cardContainer.addEventListener('click', (e) => {
+            // Don't trigger click if clicking menu or its children
+            if (e.target.closest('.number-card-menu')) {
+                return;
+            }
+
+            if (config.reportName) {
+                // For report-based cards, redirect to the report
+                frappe.set_route('query-report', config.reportName);
+            } else if (config.doctype) {
+                // For document-based cards, redirect to list view with filters
+                frappe.route_options = config.filters || {};
+                frappe.set_route('List', config.doctype);
+            }
+        });
+
+        // Remove hover effects
 
         return card;
     }
@@ -314,17 +396,12 @@ class SVANumberCard {
             .number-card-container {
                 background: var(--card-bg);
                 border-radius: 6px;
-                padding: 12px;
+                padding: 8px;
                 box-shadow: var(--card-shadow);
-                transition: transform 0.2s, box-shadow 0.2s;
                 border: 1px solid var(--border-color);
                 height: 100%;
                 display: flex;
                 flex-direction: column;
-            }
-            .number-card-container:hover {
-                transform: translateY(-2px);
-                box-shadow: var(--shadow-md);
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -340,7 +417,57 @@ class SVANumberCard {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 8px;
+                margin-bottom: 4px;
+            }
+            .number-card-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .number-card-menu {
+                position: relative;
+            }
+            .number-card-menu-btn {
+                background: none;
+                border: none;
+                padding: 4px;
+                cursor: pointer;
+                color: var(--text-muted);
+                border-radius: 4px;
+            }
+            .number-card-menu-btn:hover {
+                background: var(--bg-light-gray);
+            }
+            .number-card-menu-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                box-shadow: var(--shadow-sm);
+                display: none;
+                z-index: 100;
+                min-width: 70px;
+            }
+            .number-card-menu-dropdown.show {
+                display: block;
+            }
+            .number-card-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 8px;
+                width: 100%;
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--text-color);
+                font-size: 12px;
+                border-radius: 4px;
+            }
+            .number-card-menu-item:hover {
+                background: var(--bg-light-gray);
             }
             .number-card-icon {
                 width: 20px;
@@ -375,14 +502,14 @@ class SVANumberCard {
                 line-height: 1.3;
             }
             .number-card-value {
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 600;
                 color: var(--text-color);
                 margin: 2px 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                line-height: 1.2;
+                line-height: 1;
             }
             .number-card-subtitle {
                 font-size: 10px;
