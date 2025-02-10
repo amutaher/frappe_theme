@@ -28,7 +28,7 @@ class SvaDataTable {
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
-        onFieldClick = () => { }, onFieldValueChange = () => { }
+        onFieldClick = () => { }, onFieldValueChange = () => { },
     }) {
         // console.log("SVA DataTable constructor",doctype);
         this.label = label
@@ -69,7 +69,7 @@ class SvaDataTable {
         this.reloadTable();
         return this.wrapper;
     }
-    async reloadTable(reset = false) {
+    reloadTable(reset = false) {
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -592,6 +592,10 @@ class SvaDataTable {
     async createFormDialog(doctype, name = undefined, mode = 'create') {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
+        if(window?.SVADialog?.[this.doctype]){
+            window?.SVADialog?.[this.doctype](mode, fields);
+            return;
+        }
         if (mode === 'create' || mode === 'write') {
             if (name) {
                 let doc = await frappe.db.get_doc(doctype, name);
@@ -725,7 +729,12 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        f.fields = tableFields;
+                        f.fields = tableFields.map(e=>{
+                            if(["achievement"].includes(e.fieldname)){
+                                e.in_list_view = 0
+                            }
+                            return e
+                        });
                         if (f.fieldname === 'planning_table') {
                             f.cannot_add_rows = 1;
                             f.cannot_delete_rows = 1;
@@ -773,6 +782,7 @@ class SvaDataTable {
 
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
+            size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
             primary_action: async (values) => {
@@ -829,6 +839,11 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
+        if(dialog.get_value('frequency') && mode === 'create') {
+            setTimeout(() => {
+             this.handleFrequencyField();
+            }, 1000);
+         }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -1238,6 +1253,7 @@ class SvaDataTable {
         const workflowFormValue = await new Promise((resolve) => {
             const dialog = new frappe.ui.Dialog({
                 title: "Confirm",
+                size:this.getDialogSize(popupFields),
                 fields: popupFields,
                 primary_action_label: "Proceed",
                 primary_action: (values) => {
@@ -1283,6 +1299,7 @@ class SvaDataTable {
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
+            size: 'extra-large', // small, large, extra-large
             fields: [{
                 fieldname: 'table',
                 fieldtype: 'HTML',
@@ -1295,8 +1312,14 @@ class SvaDataTable {
             this.rows[idx] = updated_doc;
             this.updateTableBody();
         }.bind(this);
-        let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
-        $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
+        $(dialog.$wrapper).on('show.bs.modal', function () {
+            $(this).removeAttr('aria-hidden');
+        });
+        $(dialog.$wrapper).on('hidden.bs.modal', function () {
+            $(this).attr('aria-hidden', 'true');
+        });
+        // let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
+        // $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
@@ -1567,5 +1590,31 @@ class SvaDataTable {
             this.wrapper.appendChild(noPermissionPage);
         }
     }
+    getDialogSize(fields) {
+        let hasChildTable = fields.some(field => field.fieldtype === "Table");
+        let hasMultipleColumns = false;
+
+        let currentColumnCount = 0; // Track columns in a section
+        for (let field of fields) {
+            if (field.fieldtype === "Section Break") {
+                currentColumnCount = 0; // Reset column count on new section
+            } else if (field.fieldtype === "Column Break") {
+                currentColumnCount++; // Increase column count
+            }
+
+            if (currentColumnCount >= 1) { // At least one column break = 2 columns
+                hasMultipleColumns = true;
+            }
+        }
+
+        if (hasChildTable) {
+            return "extra-large";  // Child tables require more space
+        } else if (hasMultipleColumns) {
+            return "large";  // Sections with 2+ columns need a larger dialog
+        } else {
+            return "small"; // Default size
+        }
+    }
+
 }
 
