@@ -200,12 +200,13 @@ class SVANumberCard {
                     name: cardName
                 }
             });
-
+            // console.log(docResponse, "docResponse");
             if (!docResponse.docs || !docResponse.docs[0]) {
                 throw new Error('No document found');
             }
 
             const doc = docResponse.docs[0];
+            // console.log(doc, "doc");
             // / Parse filters_json from the doc
             let filters_json = typeof doc.filters_json === 'string'
                 ? JSON.parse(doc.filters_json)
@@ -221,8 +222,10 @@ class SVANumberCard {
 
             // Get the document type from the card
             if (!doc.document_type && doc.report_name) {
+                console.log(doc.report_name, "doc.report_name");
                 // If it's a report type card, get the document type from the report
                 const reportDoc = await frappe.db.get_value('Report', doc.report_name, ['ref_doctype']);
+                console.log(reportDoc, "reportDoc");
                 if (reportDoc?.message?.ref_doctype) {
                     doc.document_type = reportDoc.message.ref_doctype;
                 }
@@ -233,26 +236,52 @@ class SVANumberCard {
                 return null;
             }
 
-            const resultResponse = await frappe.call({
-                method: 'frappe.desk.doctype.number_card.number_card.get_result',
-                args: {
-                    card: cardName,
-                    doc: {
-                        name: doc.name,
-                        document_type: doc.document_type,
-                        label: doc.label,
-                        function: doc.function,
-                        aggregate_function_based_on: doc.aggregate_function_based_on,
-                        filters_json: doc.filters_json,
-                        is_standard: doc.is_standard,
-                        parent_document_type: doc.parent_document_type,
+            let resultResponse;
+            if (doc.report_name) {
+                // Handle report-based cards
+                const reportData = await frappe.call({
+                    method: 'frappe.desk.query_report.run',
+                    args: {
                         report_name: doc.report_name,
-                        report_field: doc.report_field,
-                        type: doc.type
-                    },
-                    filters: filters
+                        filters: filters
+                    }
+                });
+
+                if (reportData?.message?.result && doc.report_field) {
+                    // Extract the value from the report data using the specified field
+                    const result = reportData.message.result;
+                    if (result.length > 0 && doc.report_field in result[0]) {
+                        resultResponse = { message: result[0][doc.report_field] };
+                    } else {
+                        resultResponse = { message: 0 };
+                    }
+                } else {
+                    resultResponse = { message: 0 };
                 }
-            });
+            } else {
+                // Handle regular document-based cards
+                resultResponse = await frappe.call({
+                    method: 'frappe.desk.doctype.number_card.number_card.get_result',
+                    args: {
+                        card: cardName,
+                        doc: {
+                            name: doc.name,
+                            document_type: doc.document_type,
+                            label: doc.label,
+                            function: doc.function,
+                            aggregate_function_based_on: doc.aggregate_function_based_on,
+                            filters_json: doc.filters_json,
+                            is_standard: doc.is_standard,
+                            parent_document_type: doc.parent_document_type,
+                            report_name: doc.report_name,
+                            report_field: doc.report_field,
+                            type: doc.type
+                        },
+                        filters: filters
+                    }
+                });
+            }
+            // console.log(resultResponse, "resultResponse");
 
             return {
                 ...doc,
