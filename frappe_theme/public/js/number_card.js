@@ -138,7 +138,6 @@ class SVANumberCard {
                         <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
                         ${iconHtml}
                     </div>
-                    ${options.subtitle ? `<div class="number-card-subtitle">${options.subtitle}</div>` : ''}
                 </div>
             </div>
         `;
@@ -501,7 +500,7 @@ class SVANumberCard {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-top: 4px;
+                // margin-top: 4px;
             }
             .number-card-actions {
                 display: flex;
