@@ -24,7 +24,7 @@ class SVANumberCard {
         }
 
         // Show loading state
-        isLoading(true, this.wrapper);
+        // isLoading(true, this.wrapper);
 
         if (this.numberCards.length > 0) {
             const container = document.createElement('div');
@@ -32,7 +32,6 @@ class SVANumberCard {
 
             try {
                 for (let cardConfig of this.numberCards) {
-                    console.log(cardConfig, 'cardConfig');
                     try {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
@@ -44,6 +43,7 @@ class SVANumberCard {
                                 doctype: cardData.document_type,
                                 filters: cardData.filters_json ? JSON.parse(cardData.filters_json) : {},
                                 info: cardConfig.info || '',
+                                fieldtype: cardData.fieldtype,
                                 options: {
                                     icon: cardConfig.icon_value,
                                     subtitle: cardData.document_type,
@@ -72,7 +72,7 @@ class SVANumberCard {
         }
 
         // Hide loading state
-        isLoading(false, this.wrapper);
+        // isLoading(false, this.wrapper);
 
         this.addStyles();
     }
@@ -96,7 +96,7 @@ class SVANumberCard {
             </div>
         ` : '';
 
-        const currencySymbol = this.shouldShowCurrency(config.value) ? '₹' : '';
+        const currencySymbol = this.shouldShowCurrency(config.value, config.fieldtype) ? '₹' : '';
 
         const containerStyle = [
             options.backgroundColor ? `background-color: ${options.backgroundColor}` : '',
@@ -218,9 +218,9 @@ class SVANumberCard {
         return card;
     }
 
-    shouldShowCurrency(value) {
+    shouldShowCurrency(value, fieldtype) {
         // Check if the value should show currency symbol
-        return typeof value === 'number' && !isNaN(value);
+        return fieldtype === 'Currency' && typeof value === 'number' && !isNaN(value);
     }
 
     createErrorCard(cardName) {
@@ -313,7 +313,25 @@ class SVANumberCard {
 
             // Only add the name filter if we have both a document type and a docname
             if (doc.document_type && this.frm.docname) {
-                filters.push([doc.document_type, 'grant', '=', this.frm.docname]);
+                let res = await frappe.db.get_list('DocField', { filters: { 'parent': doc.document_type, fieldtype: 'Link', 'options': ['IN', ['DocType', this.frm.doctype]] }, fields: ['fieldname', 'options'] });
+                let cus_ref_res = await frappe.db.get_list('Custom Field', { filters: { 'dt': doc.document_type, fieldtype: 'Link', 'options': ['IN', ['DocType', this.frm.doctype]] }, fields: ['fieldname', 'options'] });
+                let filds = res.concat(cus_ref_res).filter((item) => !["amended_from", "parent_grant"].includes(item.fieldname));
+                if (filds.length > 0) {
+                    let field = filds[0];
+                    if (field.options == 'DocType') {
+                        let fieldname = await frappe.db.get_list('DocField', { filters: { 'parent': doc.document_type, fieldtype: 'Dynamic Link', options: field.fieldname }, fields: ['fieldname'] });
+                        let fieldname2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': doc.document_type, fieldtype: 'Dynamic Link', options: field.fieldname }, fields: ['fieldname'] });
+                        let fieldname3 = fieldname.concat(fieldname2);
+                        if (fieldname3.length > 0) {
+                            let final_field = fieldname3[0];
+                            filters.push([doc.document_type, final_field.fieldname, '=', this.frm.docname]);
+                        }
+                    } else {
+                        filters.push([this.frm.doctype, [field.fieldname], '=', this.frm.docname]);
+                    }
+                }
+                // console.log(filters, "res");
+                // filters.push([doc.document_type, 'grant', '=', this.frm.docname]);
             }
 
             // Get the document type from the card
@@ -340,17 +358,25 @@ class SVANumberCard {
                         filters: filters
                     }
                 });
+                console.log(reportData, "reportData");
 
                 if (reportData?.message?.result && doc.report_field) {
                     // Extract the value from the report data using the specified field
                     const result = reportData.message.result;
+                    // Find the column definition to check if it's Currency type
+                    const columnDef = reportData.message.columns?.find(col => col.fieldname === doc.report_field);
+                    const isCurrency = columnDef?.fieldtype === 'Currency';
+
                     if (result.length > 0 && doc.report_field in result[0]) {
-                        resultResponse = { message: result[0][doc.report_field] };
+                        resultResponse = {
+                            message: result[0][doc.report_field],
+                            fieldtype: isCurrency ? 'Currency' : null
+                        };
                     } else {
-                        resultResponse = { message: 0 };
+                        resultResponse = { message: 0, fieldtype: isCurrency ? 'Currency' : null };
                     }
                 } else {
-                    resultResponse = { message: 0 };
+                    resultResponse = { message: 0, fieldtype: null };
                 }
             } else {
                 // Handle regular document-based cards
