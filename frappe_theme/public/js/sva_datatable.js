@@ -137,8 +137,8 @@ class SvaDataTable {
                     }
                     isLoading(false, this.wrapper);
                 })
-            }else{
-                console.log("Permission issues",this.doctype);
+            } else {
+                console.log("Permission issues", this.doctype);
             }
         } else {
             isLoading(true, this.wrapper);
@@ -592,7 +592,7 @@ class SvaDataTable {
     async createFormDialog(doctype, name = undefined, mode = 'create') {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
-        if(window?.SVADialog?.[this.doctype]){
+        if (window?.SVADialog?.[this.doctype]) {
             window?.SVADialog?.[this.doctype](mode, fields);
             return;
         }
@@ -729,8 +729,8 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        f.fields = tableFields.map(e=>{
-                            if(["achievement"].includes(e.fieldname)){
+                        f.fields = tableFields.map(e => {
+                            if (["achievement"].includes(e.fieldname)) {
                                 e.in_list_view = 0
                             }
                             return e
@@ -839,11 +839,11 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
-        if(dialog.get_value('frequency') && mode === 'create') {
+        if (dialog.get_value('frequency') && mode === 'create') {
             setTimeout(() => {
-             this.handleFrequencyField();
+                this.handleFrequencyField();
             }, 1000);
-         }
+        }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -918,7 +918,7 @@ class SvaDataTable {
     }
     createTable() {
         const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered','form-grid-container','form-grid');
+        table.classList.add('table', 'table-bordered', 'form-grid-container', 'form-grid');
         table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
         table.appendChild(this.createTableHead());
         table.appendChild(this.createTableBody());
@@ -1154,7 +1154,12 @@ class SvaDataTable {
                     const wfActionTd = document.createElement('td');
                     const el = document.createElement('select');
                     el.classList.add('form-select', 'rounded');
-                    el.setAttribute('title', row['workflow_state'] || 'No state available');
+                    const titleText = this.workflow.transitions
+                        .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                        .map(e => `${e.action} by ${e.allowed}`)
+                        .join("\n");
+
+                    el.setAttribute('title', titleText);
                     el.style.width = '100px';
                     el.style.minWidth = '100px';
                     el.style.padding = '2px 5px';
@@ -1253,7 +1258,7 @@ class SvaDataTable {
         const workflowFormValue = await new Promise((resolve) => {
             const dialog = new frappe.ui.Dialog({
                 title: "Confirm",
-                size:this.getDialogSize(popupFields),
+                size: this.getDialogSize(popupFields),
                 fields: popupFields,
                 primary_action_label: "Proceed",
                 primary_action: (values) => {
@@ -1279,9 +1284,9 @@ class SvaDataTable {
             if (response?.exc) throw new Error("Update failed");
             const row = me.rows.find((r) => r.name === docname);
             row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-            if(workflowFormValue?.wf_comment){
+            if (workflowFormValue?.wf_comment) {
                 row.wf_comment = workflowFormValue.wf_comment;
-            }else{
+            } else {
                 const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
                 row.wf_comment = comment;
             }
@@ -1559,9 +1564,9 @@ class SvaDataTable {
             this.columns?.length ?? 3) + (
                 (
                     this.options?.serialNumberColumn ? 1 : 0) +
-                    ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0) +
-                    ((this.wf_transitions_allowed || this.wf_editable_allowed) ? 1 : 0)
-                ); // Ensure columns are defined properly
+                ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0) +
+                ((this.wf_transitions_allowed || this.wf_editable_allowed) ? 1 : 0)
+            ); // Ensure columns are defined properly
 
         td.innerHTML = `
                 <div class="msg-box no-border">
