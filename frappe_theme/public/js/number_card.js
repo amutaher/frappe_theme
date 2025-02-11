@@ -32,12 +32,18 @@ class SVANumberCard {
 
             try {
                 for (let cardConfig of this.numberCards) {
+                    console.log(cardConfig, 'cardConfig');
                     try {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
                             const card = this.createCard({
+                                cardName: cardConfig.number_card,
                                 title: cardConfig.card_label || cardData.label || cardData.name,
                                 value: cardData.result !== undefined ? cardData.result : '--',
+                                reportName: cardData.report_name,
+                                doctype: cardData.document_type,
+                                filters: cardData.filters_json ? JSON.parse(cardData.filters_json) : {},
+                                info: cardConfig.info || '',
                                 options: {
                                     icon: cardConfig.icon_value,
                                     subtitle: cardData.document_type,
@@ -100,24 +106,114 @@ class SVANumberCard {
         const titleStyle = options.textColor ? `color: ${options.textColor}` : '';
         const valueStyle = options.valueColor ? `color: ${options.valueColor}` : '';
 
+        const infoIconHtml = config.info ? `
+            <div class="number-card-info">
+                <i class="fa fa-info-circle"></i>
+                <div class="number-card-tooltip">${frappe.utils.escape_html(config.info)}</div>
+            </div>
+        ` : '';
+
         card.innerHTML = `
             <div class="number-card-container" ${containerStyle ? `style="${containerStyle}"` : ''}>
                 <div class="number-card-content">
                     <div class="number-card-header">
-                        <h3 class="number-card-title" ${titleStyle ? `style="${titleStyle}"` : ''}>${config.title || ''}</h3>
+                        <div class="number-card-title-section">
+                            <h3 class="number-card-title" ${titleStyle ? `style="${titleStyle}"` : ''}>${config.title || ''}</h3>
+                            ${infoIconHtml}
+                        </div>
+                        <div class="number-card-actions">
+                            <div class="number-card-menu">
+                                <button class="number-card-menu-btn">
+                                    <i class="fa fa-ellipsis-h"></i>
+                                </button>
+                                <div class="number-card-menu-dropdown">
+                                    <button class="number-card-menu-item refresh-card">
+                                        <i class="fa fa-refresh"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="number-card-main">
+                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
                         ${iconHtml}
                     </div>
-                    <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
                     ${options.subtitle ? `<div class="number-card-subtitle">${options.subtitle}</div>` : ''}
                 </div>
             </div>
         `;
 
-        if (config.onClick) {
-            card.querySelector('.number-card-container').addEventListener('click', () => {
-                config.onClick(this.frm);
-            });
-        }
+        // Add menu toggle functionality
+        const menuBtn = card.querySelector('.number-card-menu-btn');
+        const menuDropdown = card.querySelector('.number-card-menu-dropdown');
+        const refreshBtn = card.querySelector('.refresh-card');
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target)) {
+                menuDropdown.classList.remove('show');
+            }
+        });
+
+        // Toggle dropdown
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('show');
+        });
+
+        // Refresh card
+        refreshBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.remove('show');
+
+            // Show loading state for this card
+            const cardContainer = card.querySelector('.number-card-container');
+            cardContainer.style.opacity = '0.5';
+            cardContainer.style.pointerEvents = 'none';
+
+            try {
+                // Fetch updated data for this specific card
+                const cardData = await this.fetchNumberCardData(config.cardName);
+                if (cardData) {
+                    // Update card value
+                    const valueElement = card.querySelector('.number-card-value');
+                    const currencySymbol = this.shouldShowCurrency(cardData.result) ? '₹' : '';
+                    valueElement.textContent = `${currencySymbol}${this.formatValue(cardData.result)}`;
+                }
+            } catch (error) {
+                console.error('Error refreshing card:', error);
+                frappe.show_alert({
+                    message: __('Error refreshing card'),
+                    indicator: 'red'
+                });
+            } finally {
+                // Reset card state
+                cardContainer.style.opacity = '';
+                cardContainer.style.pointerEvents = '';
+            }
+        });
+
+        // Add click handler for card
+        const cardContainer = card.querySelector('.number-card-container');
+        cardContainer.style.cursor = 'pointer';
+
+        cardContainer.addEventListener('click', (e) => {
+            // Don't trigger click if clicking menu or its children
+            if (e.target.closest('.number-card-menu')) {
+                return;
+            }
+
+            if (config.reportName) {
+                // For report-based cards, redirect to the report
+                frappe.set_route('query-report', config.reportName);
+            } else if (config.doctype) {
+                // For document-based cards, redirect to list view with filters
+                frappe.route_options = config.filters || {};
+                frappe.set_route('List', config.doctype);
+            }
+        });
+
+        // Remove hover effects
 
         return card;
     }
@@ -200,12 +296,13 @@ class SVANumberCard {
                     name: cardName
                 }
             });
-
+            // console.log(docResponse, "docResponse");
             if (!docResponse.docs || !docResponse.docs[0]) {
                 throw new Error('No document found');
             }
 
             const doc = docResponse.docs[0];
+            // console.log(doc, "doc");
             // / Parse filters_json from the doc
             let filters_json = typeof doc.filters_json === 'string'
                 ? JSON.parse(doc.filters_json)
@@ -233,26 +330,52 @@ class SVANumberCard {
                 return null;
             }
 
-            const resultResponse = await frappe.call({
-                method: 'frappe.desk.doctype.number_card.number_card.get_result',
-                args: {
-                    card: cardName,
-                    doc: {
-                        name: doc.name,
-                        document_type: doc.document_type,
-                        label: doc.label,
-                        function: doc.function,
-                        aggregate_function_based_on: doc.aggregate_function_based_on,
-                        filters_json: doc.filters_json,
-                        is_standard: doc.is_standard,
-                        parent_document_type: doc.parent_document_type,
+            let resultResponse;
+            if (doc.report_name) {
+                // Handle report-based cards
+                const reportData = await frappe.call({
+                    method: 'frappe.desk.query_report.run',
+                    args: {
                         report_name: doc.report_name,
-                        report_field: doc.report_field,
-                        type: doc.type
-                    },
-                    filters: filters
+                        filters: filters
+                    }
+                });
+
+                if (reportData?.message?.result && doc.report_field) {
+                    // Extract the value from the report data using the specified field
+                    const result = reportData.message.result;
+                    if (result.length > 0 && doc.report_field in result[0]) {
+                        resultResponse = { message: result[0][doc.report_field] };
+                    } else {
+                        resultResponse = { message: 0 };
+                    }
+                } else {
+                    resultResponse = { message: 0 };
                 }
-            });
+            } else {
+                // Handle regular document-based cards
+                resultResponse = await frappe.call({
+                    method: 'frappe.desk.doctype.number_card.number_card.get_result',
+                    args: {
+                        card: cardName,
+                        doc: {
+                            name: doc.name,
+                            document_type: doc.document_type,
+                            label: doc.label,
+                            function: doc.function,
+                            aggregate_function_based_on: doc.aggregate_function_based_on,
+                            filters_json: doc.filters_json,
+                            is_standard: doc.is_standard,
+                            parent_document_type: doc.parent_document_type,
+                            report_name: doc.report_name,
+                            report_field: doc.report_field,
+                            type: doc.type
+                        },
+                        filters: filters
+                    }
+                });
+            }
+            // console.log(resultResponse, "resultResponse");
 
             return {
                 ...doc,
@@ -285,17 +408,12 @@ class SVANumberCard {
             .number-card-container {
                 background: var(--card-bg);
                 border-radius: 6px;
-                padding: 12px;
+                padding: 6px 8px;
                 box-shadow: var(--card-shadow);
-                transition: transform 0.2s, box-shadow 0.2s;
                 border: 1px solid var(--border-color);
-                height: 100%;
+                min-height: 72px;
                 display: flex;
                 flex-direction: column;
-            }
-            .number-card-container:hover {
-                transform: translateY(-2px);
-                box-shadow: var(--shadow-md);
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -311,11 +429,107 @@ class SVANumberCard {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 8px;
+                margin-bottom: 4px;
+            }
+            .number-card-title-section {
+                display: flex;
+                align-items: flex-start;
+                gap: 6px;
+                flex: 1;
+                min-width: 0;
+            }
+            .number-card-info {
+                position: relative;
+                display: flex;
+                align-items: center;
+                padding-top: 2px;
+            }
+            .number-card-info i {
+                font-size: 14px;
+                color: var(--text-color);
+                cursor: help;
+                opacity: 0.7;
+            }
+            .number-card-tooltip {
+                position: absolute;
+                top: -8px;
+                left: 24px;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                padding: 6px 8px;
+                border-radius: 4px;
+                box-shadow: var(--shadow-sm);
+                font-size: 11px;
+                min-width: 150px;
+                max-width: 250px;
+                white-space: normal;
+                display: none;
+                z-index: 1000;
+                color: var(--text-color);
+                word-wrap: break-word;
+            }
+            .number-card-info:hover .number-card-tooltip {
+                display: block;
+            }
+            .number-card-main {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-top: 4px;
+            }
+            .number-card-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .number-card-menu {
+                position: relative;
+            }
+            .number-card-menu-btn {
+                background: none;
+                border: none;
+                padding: 4px;
+                cursor: pointer;
+                color: var(--text-muted);
+                border-radius: 4px;
+            }
+            .number-card-menu-btn:hover {
+                background: var(--bg-light-gray);
+            }
+            .number-card-menu-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                box-shadow: var(--shadow-sm);
+                display: none;
+                z-index: 100;
+                min-width: 70px;
+            }
+            .number-card-menu-dropdown.show {
+                display: block;
+            }
+            .number-card-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 8px;
+                width: 100%;
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--text-color);
+                font-size: 12px;
+                border-radius: 4px;
+            }
+            .number-card-menu-item:hover {
+                background: var(--bg-light-gray);
             }
             .number-card-icon {
-                width: 20px;
-                height: 20px;
+                width: 32px;
+                height: 32px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -323,9 +537,10 @@ class SVANumberCard {
                 background: var(--bg-light-gray);
                 transition: background-color 0.2s;
                 flex-shrink: 0;
+                margin-left: 12px;
             }
             .number-card-icon i {
-                font-size: 10px;
+                font-size: 16px;
                 color: var(--text-color);
             }
             .number-card-content {
@@ -339,21 +554,22 @@ class SVANumberCard {
                 font-size: 12px;
                 color: var(--text-muted);
                 font-weight: 500;
-                white-space: nowrap;
+                line-height: 1.2;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
                 overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: calc(100% - 40px);
-                line-height: 1.3;
+                word-break: break-word;
             }
             .number-card-value {
-                font-size: 18px;
+                font-size: 20px;
                 font-weight: 600;
                 color: var(--text-color);
                 margin: 2px 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                line-height: 1.2;
+                line-height: 1;
             }
             .number-card-subtitle {
                 font-size: 10px;
