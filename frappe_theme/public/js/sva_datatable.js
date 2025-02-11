@@ -1446,21 +1446,35 @@ class SvaDataTable {
             description: ''
         };
         if (['Link', 'HTML'].includes(columnField.fieldtype)) {
-            const control = frappe.ui.form.make_control({
-                parent: td,
-                df: columnField,
-                render_input: true,
-                only_input: true,
-            });
-            setTimeout(() => {
-                control.input?.classList?.remove('bold');
-            }, 0);
-            $(control.input).css({ width: '100%', minWidth: '150px', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
-            $(td).css({ height: '32px !important' });
-            if (row[column.fieldname]) {
-                control.set_value(row[column.fieldname]);
+            // const control = frappe.ui.form.make_control({
+            //     parent: td,
+            //     df: columnField,
+            //     render_input: true,
+            //     only_input: true,
+            // });
+            // setTimeout(() => {
+            //     control.input?.classList?.remove('bold');
+            // }, 0);
+            // $(control.input).css({ width: '100%', minWidth: '150px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
+            if(frappe.utils.get_link_title(column.options, row[column.fieldname])){
+                td.innerText = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+            }else{
+                try {
+                    frappe.utils.fetch_link_title(column.options,row[column.fieldname]).then(res => {
+                        td.innerText = res || "";
+                        td.title = res || "";
+                    })
+                } catch (error) {
+                    td.innerText = row[column.fieldname] || "";
+                    td.title = row[column.fieldname] || "";
+                }
             }
-            control.refresh();
+            $(td).css({ height: '32px',width:'200px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', padding: '0px 5px' });
+            // if (row[column.fieldname]) {
+            //     control.set_value(row[column.fieldname]);
+            // }
+            // control.refresh();
             return;
         } else {
             if (columnField?.has_link) {
@@ -1468,7 +1482,7 @@ class SvaDataTable {
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                $(td).css({ height: '32px', cursor: 'pointer', color: 'blue', padding: '0px 5px' });
+                $(td).css({ height: '32px', cursor: 'pointer', color: 'blue',width:'200px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
                 $(td).css({ height: '32px',width:'200px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', padding: '0px 5px' });
             }
