@@ -70,7 +70,6 @@ class SvaDataTable {
         return this.wrapper;
     }
     reloadTable(reset = false) {
-
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 isLoading(true, this.wrapper);
@@ -1374,7 +1373,7 @@ class SvaDataTable {
     getCellStyle(column, freezeColumnsAtLeft, left) {
         return this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft
             ? `position: sticky; left:${left} px; z-index: 2; background-color: white; min-width:${column.width} px; max-width:${column.width} px; padding: 0px`
-            : `min-width:${column.width || 150} px; max-width:${column.width} px; padding: 0px !important; `;
+            : `min-width:${column.width || 150} px; max-width:${column.width || 200} px; padding: 0px !important;`;
     }
 
     createEditableField(td, column, row) {
@@ -1471,7 +1470,7 @@ class SvaDataTable {
                 })
                 $(td).css({ height: '32px', cursor: 'pointer', color: 'blue', padding: '0px 5px' });
             } else {
-                $(td).css({ height: '32px', padding: '0px 5px' });
+                $(td).css({ height: '32px',width:'200px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', padding: '0px 5px' });
             }
             if (columnField.fieldtype === 'Currency') {
                 td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
@@ -1490,7 +1489,7 @@ class SvaDataTable {
             }
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname].toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
+                    minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                 }) || 0;
                 td.style = 'text-align:right;';
@@ -1516,6 +1515,7 @@ class SvaDataTable {
                 return;
             }
             td.textContent = row[column.fieldname] || "";
+            td.title = row[column.fieldname] || "";
         }
     }
     async getDocList() {
