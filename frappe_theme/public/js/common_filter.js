@@ -6,15 +6,15 @@ class CommonFilter {
         filterFields = [],
         defaultFilters = []
     }) {
-        this.parent = typeof parent === 'string' ? document.querySelector(parent) : parent;
-        this.doctype = doctype;
-        this.onFilterChange = onFilterChange;
-        this.filterFields = filterFields;
-        this.defaultFilters = defaultFilters;
-        this.filters = {};
-        this.filter_list = null;
+        // this.parent = typeof parent === 'string' ? document.querySelector(parent) : parent;
+        // this.doctype = doctype;
+        // this.onFilterChange = onFilterChange;
+        // this.filterFields = filterFields;
+        // this.defaultFilters = defaultFilters;
+        // this.filters = {};
+        // this.filter_list = null;
 
-        this.init();
+        // this.init();
     }
 
     init() {
