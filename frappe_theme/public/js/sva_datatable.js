@@ -1489,7 +1489,7 @@ class SvaDataTable {
             }
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname].toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
+                    minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                 }) || 0;
                 td.style = 'text-align:right;';
