@@ -1,34 +1,41 @@
 frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
-    refresh(docname) {
-        super.refresh(docname);
+    async refresh(docname) {
+        await super.refresh(docname);
+        // console.log(this, 'super.refresh');
+
         if (frappe.ui.form.handlers[this.doctype]) {
             if (frappe.ui.form.handlers[this.doctype].refresh) {
-                frappe.ui.form.handlers[this.doctype].refresh = [...frappe.ui.form.handlers[this.doctype]?.refresh, async (frm) => {
-                    await this.custom_refresh(frm);
-                }]
+                frappe.ui.form.handlers[this.doctype].refresh = [
+                    ...frappe.ui.form.handlers[this.doctype]?.refresh, this.custom_refresh.bind(this)]
             } else {
-                frappe.ui.form.handlers[this.doctype].refresh = [async (frm) => {
-                    await this.custom_refresh(frm);
-                }]
+                frappe.ui.form.handlers[this.doctype].refresh = [this.custom_refresh.bind(this)]
+            }
+            if (frappe.ui.form.handlers[this.doctype].on_tab_change) {
+                frappe.ui.form.handlers[this.doctype].on_tab_change = [
+                    ...frappe.ui.form.handlers[this.doctype].on_tab_change,
+                    this._activeTab.bind(this)
+                ]
+            }else{
+                frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)]
             }
         } else {
             frappe.ui.form.handlers[this.doctype] = {
-                refresh: [async (frm) => {
-                    await this.custom_refresh(frm);
-                }]
+                refresh: [this.custom_refresh.bind(this)],
+                on_tab_change:[this._activeTab.bind(this)]
             }
         }
 
+
+    }
+    async _activeTab(frm){
+        let tab_field = frm.get_active_tab()?.df?.fieldname;
+        await this.tabContent(frm, tab_field);
     }
     async custom_refresh(frm) {
         let me = this;
         me.goToCommentButton(frm);
         let tab_field = frm.get_active_tab()?.df?.fieldname;
         me.tabContent(frm, tab_field)
-        $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
-            let tab_field = frm.get_active_tab()?.df?.fieldname;
-            me.tabContent(frm, tab_field);
-        });
         let props = await me.getPropertySetterData(cur_frm.doc.doctype);
         if (props.length) {
             for (let prop of props) {
@@ -39,9 +46,53 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             }
         }
     }
+    getDataElement = (fieldname) => {
+        return new Promise((resolve, reject) => {
+            let wrapper = document.querySelector(`[data-fieldname="${fieldname}"]`);
+            if (!wrapper) {
+                let maxTime = 5000; // 5 seconds
+                let intervalTime = 500; // 1 second
+                let interval = setInterval(() => {
+                    wrapper = document.querySelector(`[data-fieldname="${fieldname}"]`);
+                    if (wrapper) {
+                        clearInterval(interval);
+                        resolve(wrapper);
+                    }else if (maxTime <= 0) {
+                        resolve(null)
+                    }
+                    maxTime -= intervalTime;
+                }, intervalTime);
+            } else {
+                resolve(wrapper)
+            }
+        });
+    }
+    renderCustomComponent = async (frm, fieldname, template) => {
+        let el = document.createElement('div');
+        frm.set_df_property(fieldname, 'options', el);
+        isLoading(true, el);
+        switch (template) {
+            case "Gallery":
+                new GalleryComponent(frm, el);
+                break;
+            case "Email":
+                new EmailComponent(frm, el);
+                break;
+            case "Tasks":
+                await getTaskList(frm, fieldname);
+                break;
+            case "Timeline":
+                new TimelineGenerator(frm, el);
+                break;
+            case "Notes":
+                new NotesManager(frm, el);
+                break;
+            default:
+                break;
+        }
+        isLoading(false, el);
+    }
     tabContent = async (frm, tab_field) => {
-        // debugger;
-        console.log(tab_field, 'tab_field INSIDE')
         if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
             let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
             let tab_fields = []
@@ -72,17 +123,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     });
 
                     if (vm.length > 0) {
+                        // console.log("vm", vm);
+
                         let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
-                        const wrapper = document.querySelector(`[data-fieldname="${fld}"]`);
-
-                        // Clear any existing dashboard instances
-                        if (wrapper._dashboard) {
-                            wrapper._dashboard = null;
-                        }
-                        wrapper.innerHTML = ''; // Clear the wrapper
-
+                        const wrapper = document.createElement('div');
+                        frm.set_df_property(fld, 'options', wrapper);
                         isLoading(true, wrapper);
-
                         // Initialize SVADashboardManager and store reference
                         if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
                             wrapper._dashboard = new SVADashboardManager({
@@ -92,7 +138,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                 charts: visualizationMapper?.charts || []
                             });
                         }
-
                         isLoading(false, wrapper);
                     }
                 } else {
@@ -112,37 +157,15 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                         document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved').remove();
                     }
                     if (_f?.connection_type == "Is Custom Design") {
-                        if (_f?.template == "Gallery" && GalleryComponent) {
-                            isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            let gallery = new GalleryComponent(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            frm.set_df_property(_f.html_field, 'options', gallery);
-                            isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                        }
-                        if (_f?.template == "Email" && EmailComponent) {
-                            isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            let email = new EmailComponent(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            frm.set_df_property(_f.html_field, 'options', email);
-                            isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                        }
-                        if (_f?.template == "Tasks" && getTaskList) {
-                            isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            await getTaskList(frm, _f.html_field);
-                            isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                        }
-                        if (_f?.template == "Timeline" && TimelineGenerator) {
-                            let timeline = new TimelineGenerator(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            frm.set_df_property(_f.html_field, 'options', timeline);
-                        }
-                        if (_f?.template == "Notes" && NotesManager) {
-                            let notes = new NotesManager(frm, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
-                            frm.set_df_property(_f.html_field, 'options', notes);
-                        }
+                        this.renderCustomComponent(frm, _f.html_field, _f.template)
                     } else {
                         let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-                        isLoading(true, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                        let wrapper = document.createElement('div');
+                        frm.set_df_property(_f.html_field, 'options', wrapper);
+                        isLoading(true, wrapper);
                         let result = new SvaDataTable({
                             label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
-                            wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
+                            wrapper: wrapper, // Wrapper element   // Pass your data
                             doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
                             frm: frm,       // Pass the current form object (optional)
                             connection: _f,
@@ -161,7 +184,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                     window?.onFieldClick(obj);
                                 }
                             },
-                            onFieldValueChange: function (e, b, c, d, f) {
+                            onFieldValueChange: function (e) {
                                 if (e && window?.onFieldValueChange) {
                                     let obj = {
                                         dt: e?.target?.getAttribute('data-dt'),
@@ -174,8 +197,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                 }
                             }
                         });
-                        frm.set_df_property(_f.html_field, 'options', result);
-                        isLoading(false, document.querySelector(`[data-fieldname="${_f.html_field}"]`));
+                        isLoading(false, wrapper);
                     }
                 }
             }

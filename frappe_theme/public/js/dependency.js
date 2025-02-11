@@ -64,6 +64,8 @@ const getPageType = () => {
 frappe.router.on('change', async () => {
     window.onFieldClick = undefined
     window.onFieldValueChange = undefined
+    window.onWorkflowStateChange = undefined
+    window.SVADialog = {}
     if (getPageType() == "Form") {
         let interval;
         let elapsedTime = 0;

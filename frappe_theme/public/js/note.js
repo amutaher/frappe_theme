@@ -8,9 +8,11 @@ class NotesManager {
     }
 
     setupWrapper(wrapper) {
-        while (wrapper.firstChild) {
-            wrapper.removeChild(wrapper.firstChild);
-        }
+        // remove all children of wrapper
+        wrapper.innerHTML = '';
+        // while (wrapper.firstChild) {
+        //     wrapper.removeChild(wrapper.firstChild);
+        // }
 
         const notesWrapper = document.createElement('div');
         notesWrapper.id = 'notes-wrapper';
@@ -143,7 +145,7 @@ class NotesManager {
         .note_message {
             display: flex;
             min-height: 500px;
-            height: 100%;   
+            height: 100%;
             justify-content: center;
             align-items: center;
         }
@@ -154,7 +156,7 @@ class NotesManager {
         }
         .note-group {
             margin-bottom: 20px;
-              
+
         }
         .group-title {
             font-size: 14px;
@@ -192,7 +194,7 @@ class NotesManager {
             background-color: red !important;
 
         }
-       
+
 
 
         .note-content {

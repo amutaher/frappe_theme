@@ -28,9 +28,9 @@ class SvaDataTable {
         wrapper, columns = [], rows = [], limit = 10,
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
-        onFieldClick = () => { }, onFieldValueChange = () => { }
+        onFieldClick = () => { }, onFieldValueChange = () => { },
     }) {
-
+        // console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
         this.rows = rows;
@@ -59,15 +59,18 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.wf_editable_allowed = false;
+        this.wf_transitions_allowed = false;
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
-        this.reloadTable();
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
+        this.reloadTable();
         return this.wrapper;
     }
     reloadTable(reset = false) {
+
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 isLoading(true, this.wrapper);
@@ -80,6 +83,8 @@ class SvaDataTable {
                         this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
                             fields: ['name', 'style']
                         });
+                        this.wf_editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                        this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                     }
                     // ================================ Workflow End ================================
                     try {
@@ -132,6 +137,8 @@ class SvaDataTable {
                     }
                     isLoading(false, this.wrapper);
                 })
+            }else{
+                console.log("Permission issues",this.doctype);
             }
         } else {
             isLoading(true, this.wrapper);
@@ -585,6 +592,10 @@ class SvaDataTable {
     async createFormDialog(doctype, name = undefined, mode = 'create') {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
+        if(window?.SVADialog?.[this.doctype]){
+            window?.SVADialog?.[this.doctype](mode, fields);
+            return;
+        }
         if (mode === 'create' || mode === 'write') {
             if (name) {
                 let doc = await frappe.db.get_doc(doctype, name);
@@ -718,7 +729,12 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        f.fields = tableFields;
+                        f.fields = tableFields.map(e=>{
+                            if(["achievement"].includes(e.fieldname)){
+                                e.in_list_view = 0
+                            }
+                            return e
+                        });
                         if (f.fieldname === 'planning_table') {
                             f.cannot_add_rows = 1;
                             f.cannot_delete_rows = 1;
@@ -766,6 +782,7 @@ class SvaDataTable {
 
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
+            size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
             primary_action: async (values) => {
@@ -822,6 +839,11 @@ class SvaDataTable {
             dialog.get_secondary_btn().hide();
         }
         dialog.show();
+        if(dialog.get_value('frequency') && mode === 'create') {
+            setTimeout(() => {
+             this.handleFrequencyField();
+            }, 1000);
+         }
         if (!name) {
             if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
                 let financial_years_field = dialog?.fields_dict?.financial_years;
@@ -896,7 +918,7 @@ class SvaDataTable {
     }
     createTable() {
         const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered');
+        table.classList.add('table', 'table-bordered','form-grid-container','form-grid');
         table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
         table.appendChild(this.createTableHead());
         table.appendChild(this.createTableBody());
@@ -912,7 +934,6 @@ class SvaDataTable {
             color:${this.options?.style?.tableHeader?.color || '#525252'};
             font-size:${this.options?.style?.tableHeader?.fontSize || '12px'};
             font-weight:${this.options?.style?.tableHeader?.fontWeight || 'normal'};
-            background-color:#F3F3F3;
             z-index:3; font-weight:200 !important;white-space: nowrap;`
             ;
         const tr = document.createElement('tr');
@@ -920,7 +941,7 @@ class SvaDataTable {
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
             serialTh.textContent = '#';
-            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
+            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;';
             tr.appendChild(serialTh);
         }
 
@@ -945,16 +966,16 @@ class SvaDataTable {
             tr.appendChild(th);
         });
         // ========================= Workflow Logic ======================
-        if (this.workflow && this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed))) {
+        if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
             const addColumn = document.createElement('th');
             addColumn.textContent = 'Approval';
-            addColumn.style = 'background-color:#F3F3F3; cursor:pointer; text-align:center;';
+            addColumn.style = 'cursor:pointer; text-align:center;';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
+            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;';
             if (frappe.user_roles.includes("Administrator")) {
                 action_th.appendChild(this.createSettingsButton());
                 tr.appendChild(action_th);
@@ -986,73 +1007,13 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
+
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
         const dropdownBtn = document.createElement('span');
         dropdownBtn.classList.add('h4');
-        dropdownBtn.style = 'cursor:pointer;';
-        dropdownBtn.setAttribute('data-toggle', 'dropdown');
-        dropdownBtn.innerHTML = "&#8942;";
-
-        const dropdownMenu = document.createElement('div');
-        dropdownMenu.classList.add('dropdown-menu');
-        dropdownMenu.style.position = 'absolute !important';
-        dropdownMenu.style.zIndex = '9999 !important';
-        // View Button
-        if (this.conf_perms.length && this.permissions.length) {
-            if (this.permissions.includes('read')) {
-                const viewOption = document.createElement('a');
-                viewOption.classList.add('dropdown-item');
-                viewOption.textContent = "View";
-                viewOption.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype, primaryKey, 'view');
-                });
-                dropdownMenu.appendChild(viewOption);
-            }
-            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
-                if (this.permissions.includes('write')) {
-                    const editOption = document.createElement('a');
-                    editOption.classList.add('dropdown-item');
-                    editOption.textContent = "Edit";
-                    editOption.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype, primaryKey, 'write');
-                    });
-                    dropdownMenu.appendChild(editOption);
-                }
-                if (this.permissions.includes('delete')) {
-                    const deleteOption = document.createElement('a');
-                    deleteOption.classList.add('dropdown-item');
-                    deleteOption.textContent = "Delete";
-                    deleteOption.addEventListener('click', async () => {
-                        await this.deleteRecord(this.doctype, primaryKey);
-                    });
-                    dropdownMenu.appendChild(deleteOption);
-                }
-            }
-        }
-        if (this.childLinks?.length) {
-            this.childLinks.forEach(async link => {
-                const linkOption = document.createElement('a');
-                linkOption.classList.add('dropdown-item');
-                linkOption.textContent = link.link_doctype;
-                linkOption.addEventListener('click', async () => {
-                    await this.childTableDialog(link.link_doctype, primaryKey, row, link);
-                });
-                dropdownMenu.appendChild(linkOption);
-            });
-        }
-        dropdown.appendChild(dropdownBtn);
-        dropdown.appendChild(dropdownMenu);
-        return dropdown;
-    }
-    createActionColumn(row, primaryKey) {
-        const dropdown = document.createElement('div');
-        dropdown.classList.add('dropdown');
-
-        const dropdownBtn = document.createElement('span');
-        dropdownBtn.classList.add('h4');
-        dropdownBtn.style = 'cursor:pointer;';
+        dropdownBtn.style.cursor = 'pointer';
         dropdownBtn.setAttribute('data-toggle', 'dropdown');
         dropdownBtn.innerHTML = "&#8942;";
 
@@ -1062,105 +1023,112 @@ class SvaDataTable {
         dropdownMenu.style.zIndex = '9999';
         dropdownMenu.style.display = 'none';
 
+        const appendDropdownOption = (text, onClickHandler) => {
+            const option = document.createElement('a');
+            option.classList.add('dropdown-item');
+            option.textContent = text;
+            option.addEventListener('click', onClickHandler);
+            dropdownMenu.appendChild(option);
+        };
+
         // View Button
-        if (this.conf_perms.length && this.permissions.length) {
-            if (this.permissions.includes('read')) {
-                const viewOption = document.createElement('a');
-                viewOption.classList.add('dropdown-item');
-                viewOption.textContent = "View";
-                viewOption.addEventListener('click', async () => {
-                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+        if (this.conf_perms.length && this.permissions.length && this.permissions.includes('read')) {
+            appendDropdownOption('View', async () => {
+                await this.createFormDialog(this.doctype, primaryKey, 'view');
+            });
+        }
+
+        // Edit and Delete Buttons
+        if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
+            if (this.permissions.includes('write')) {
+                appendDropdownOption('Edit', async () => {
+                    await this.createFormDialog(this.doctype, primaryKey, 'write');
                 });
-                dropdownMenu.appendChild(viewOption);
             }
-            if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
-                if (this.permissions.includes('write')) {
-                    const editOption = document.createElement('a');
-                    editOption.classList.add('dropdown-item');
-                    editOption.textContent = "Edit";
-                    editOption.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype, primaryKey, 'write');
-                    });
-                    dropdownMenu.appendChild(editOption);
-                }
-                if (this.permissions.includes('delete')) {
-                    const deleteOption = document.createElement('a');
-                    deleteOption.classList.add('dropdown-item');
-                    deleteOption.textContent = "Delete";
-                    deleteOption.addEventListener('click', async () => {
-                        await this.deleteRecord(this.doctype, primaryKey);
-                    });
-                    dropdownMenu.appendChild(deleteOption);
-                }
+            if (this.permissions.includes('delete')) {
+                appendDropdownOption('Delete', async () => {
+                    await this.deleteRecord(this.doctype, primaryKey);
+                });
             }
         }
+
+        // Child Links
         if (this.childLinks?.length) {
-            this.childLinks.forEach(async link => {
-                const linkOption = document.createElement('a');
-                linkOption.classList.add('dropdown-item');
-                linkOption.textContent = link.link_doctype;
-                linkOption.addEventListener('click', async () => {
+            this.childLinks.forEach(async (link) => {
+                appendDropdownOption(link.link_doctype, async () => {
                     await this.childTableDialog(link.link_doctype, primaryKey, row, link);
                 });
-                dropdownMenu.appendChild(linkOption);
             });
         }
 
         dropdown.appendChild(dropdownBtn);
         document.body.appendChild(dropdownMenu);
 
-        dropdownBtn.addEventListener('click', (event) => {
+        const toggleDropdown = (event) => {
             event.stopPropagation();
             const rect = dropdownBtn.getBoundingClientRect();
-
             const dropdownWidth = dropdownMenu.offsetWidth || 150; // Default width in case offsetWidth is 0
             dropdownMenu.style.top = `${rect.bottom}px`;
             dropdownMenu.style.left = `${rect.left - dropdownWidth}px`; // Adjust position for left-side popup
             dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
-        });
+        };
 
+        dropdownBtn.addEventListener('click', toggleDropdown);
+
+        // Close dropdown when clicking outside
         document.addEventListener('click', () => {
             dropdownMenu.style.display = 'none';
         });
 
         return dropdown;
     }
+
     createTableBody() {
         if (this.rows.length === 0) {
             return this.createNoDataFoundPage();
         }
+
         const tbody = document.createElement('tbody');
         this.tBody = tbody;
         let rowIndex = 0;
         const batchSize = this.options?.pageLimit || 30;
-        tbody.style = `
-            white-space: nowrap;`
-            ;
+        tbody.style.whiteSpace = 'nowrap';
+
         if (this.currentSort) {
             this.sortByColumn(this.currentSort.column, this.currentSort.direction, false);
         }
+
         const renderBatch = async () => {
+            const fragment = document.createDocumentFragment(); // Use a document fragment to batch DOM changes
+
             for (let i = 0; i < batchSize && rowIndex < this.rows.length; i++) {
                 const row = this.rows[rowIndex];
                 row.rowIndex = rowIndex;
                 const tr = document.createElement('tr');
                 let primaryKey = row?.name || row?.rowIndex || rowIndex?.id || rowIndex;
-                tr.style = 'max-height:32px !important; height:32px !important;';
+                tr.style.maxHeight = '32px';
+                tr.style.height = '32px';
+                tr.style.backgroundColor = '#fff';
 
+                // Serial Number Column
                 if (this.options.serialNumberColumn) {
                     const serialTd = document.createElement('td');
-                    serialTd.style = 'min-width:40px; text-align:center;position:sticky;left:0px;background-color:#fff;';
-                    if (this.page > 1) {
-                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${((this.page - 1) * this.limit) + (rowIndex + 1)}</a>`;
-                    } else {
-                        serialTd.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row['name']}" >${rowIndex + 1}</a>`;
-                    }
+                    serialTd.style.minWidth = '40px';
+                    serialTd.style.textAlign = 'center';
+                    serialTd.style.position = 'sticky';
+                    serialTd.style.left = '0px';
+                    serialTd.style.backgroundColor = '#fff';
+
+                    const serialNumber = this.page > 1
+                        ? ((this.page - 1) * this.limit) + (rowIndex + 1)
+                        : rowIndex + 1;
+
+                    serialTd.innerHTML = `<a href="/app/${this.doctype?.split(' ').join('-')?.toLowerCase() || this.doctype.toLowerCase()}/${row['name']}">${serialNumber}</a>`;
                     tr.appendChild(serialTd);
                 }
 
                 let left = 0;
                 let freezeColumnsAtLeft = 1;
-
                 this.columns.forEach((column) => {
                     const td = document.createElement('td');
                     td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
@@ -1168,7 +1136,8 @@ class SvaDataTable {
                         left += column.width;
                         freezeColumnsAtLeft++;
                     }
-                    td.textContent = row[column.fieldname] || "";
+
+                    td.textContent = row[column.fieldname] || '';
                     if (this.options.editable) {
                         this.createEditableField(td, column, row);
                     } else {
@@ -1176,63 +1145,82 @@ class SvaDataTable {
                     }
                     tr.appendChild(td);
                 });
+
                 // ========================= Workflow Logic ===================
-                if (this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed))) {
-                    const wf_select = document.createElement('select');
-                    wf_select.classList.add('form-select', 'rounded');
-                    wf_select.setAttribute('title', row['workflow_state'] || 'No state available');
-                    // wf_select.disabled = ['Approved', 'Rejected'].includes(row['workflow_state']);
-
-                    wf_select.disabled = this.frm?.doc?.docstatus != 0 || ['Approved', 'Rejected'].includes(row['workflow_state']) ||
-                        this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state && tr.state !== row['workflow_state']) === true;
-
-                    wf_select.style = 'width:100px; min-width:100px;  padding:2px 5px;';
-
+                if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
                     const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
-                    wf_select.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                    const closureStates = this.workflow?.states?.filter(s => ['Positive', 'Negative'].includes(s.custom_closure)).map(e => e.state);
+                    const isClosed = closureStates.includes(row['workflow_state']);
+                    const wfActionTd = document.createElement('td');
+                    const el = document.createElement('select');
+                    el.classList.add('form-select', 'rounded');
+                    el.setAttribute('title', row['workflow_state'] || 'No state available');
+                    el.style.width = '100px';
+                    el.style.minWidth = '100px';
+                    el.style.padding = '2px 5px';
+                    el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+                    if (isClosed) {
+                        el.disabled = true;
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>`;
+                        el.style['-webkit-appearance'] = 'none';
+                        el.style['-moz-appearance'] = 'none';
+                        el.style['appearance'] = 'none';
+                        el.style['background-color'] = 'transparent';
+                        el.style['text-align'] = 'center';
+                        wfActionTd.appendChild(el);
+                    } else {
+                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row['workflow_state']) ||
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row['workflow_state']));
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>` +
+                            [...new Set(this.workflow.transitions
+                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                                .map(e => e.action))]
+                                .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
+                                .join('');
 
-                    wf_select.innerHTML = `<option value="" style=" color:black" selected disabled>${row['workflow_state']}</option>` +
-                        this.workflow.transitions
-                            .filter(link => frappe.user_roles.includes(link.allowed))
-                            .map(link => `<option value="${link.action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${link.action}</option>`)
-                            .join('');
+                        el.addEventListener('change', async (event) => {
+                            const action = event.target.value;
+                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            const originalState = el?.getAttribute('title');
+                            if (link) {
+                                if (window.onWorkflowStateChange) {
+                                    await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
+                                } else {
+                                    await this.wf_action(link, primaryKey, el, originalState);
+                                }
+                                el.value = '';
+                                el.title = originalState;
+                            }
+                        });
 
-                    wf_select.addEventListener('change', async (event) => {
-                        const action = event.target.value;
-                        const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
-                        // Store the current state to reset later if needed
-                        const originalState = wf_select.getAttribute('title');
-                        if (link) {
-                            await this.wf_action(link, primaryKey, wf_select, originalState)
-                            // If proceed is false (Cancel clicked), reset the select element
-                            wf_select.value = "";
-                            wf_select.title = originalState;
-                        }
-                    });
-
-                    const wf_action_td = document.createElement('td');
-                    wf_action_td.style = "text-align: center;";
-                    wf_action_td.appendChild(wf_select);
-                    tr.appendChild(wf_action_td);
+                        wfActionTd.appendChild(el);
+                    }
+                    wfActionTd.style.textAlign = 'center';
+                    tr.appendChild(wfActionTd);
                 }
 
                 // ========================= Workflow End ===================
-                if (this.conf_perms.length || this.childLinks?.length) {
-                    const action_td = document.createElement('td');
-                    action_td.style = 'min-width:100px; text-align:center;position:sticky;right:0px;background-color:#fff;';
-                    action_td.appendChild(this.createActionColumn(row, primaryKey));
-                    tr.appendChild(action_td);
+                if ((this.frm.doc.docstatus === 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                    const actionTd = document.createElement('td');
+                    actionTd.style.minWidth = '50px';
+                    actionTd.style.textAlign = 'center';
+                    actionTd.style.position = 'sticky';
+                    actionTd.style.right = '0px';
+                    actionTd.appendChild(this.createActionColumn(row, primaryKey));
+                    tr.appendChild(actionTd);
                 }
-                this.tBody.appendChild(tr);
+
+                fragment.appendChild(tr);
                 rowIndex++;
             }
+
+            tbody.appendChild(fragment); // Append all rows at once to minimize reflows
         };
+
         const handleScroll = () => {
             const scrollTop = this.table_wrapper.scrollTop;
-            if (scrollTop > this.lastScrollTop) {
-                if (this.table_wrapper.scrollTop + this.table_wrapper.clientHeight >= this.table_wrapper.scrollHeight) {
-                    renderBatch();
-                }
+            if (scrollTop > this.lastScrollTop && this.table_wrapper.scrollTop + this.table_wrapper.clientHeight >= this.table_wrapper.scrollHeight) {
+                renderBatch();
             }
             this.lastScrollTop = scrollTop;
         };
@@ -1241,53 +1229,66 @@ class SvaDataTable {
         renderBatch();
         return tbody;
     }
+
     // ================================ Workflow Action  Logic ================================
-    async wf_action(link, primaryKey, wf_select, originalState) {
-        const bg = this.workflow_state_bg?.find(bg => bg.name === link.next_state && bg?.style);
-        const isCommentRequired = ["Reject", "Review"].includes(link.action);
+    async wf_action(selected_state_info, docname, wf_select_el, prevState) {
+        let me = this;
+        const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
+        let meta = await frappe.call({
+            method: 'frappe_theme.api.get_meta',
+            args: { doctype: me.doctype },
+        });
+        const fields = meta?.message?.fields?.filter(field => {
+            return field?.wf_state_field == selected_state_info.action
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1 } });
         const popupFields = [
             {
                 label: "Action Test",
                 fieldname: "action_test",
                 fieldtype: "HTML",
-                options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${link.action}</span></p>`,
+                options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${selected_state_info.action}</span></p>`,
             },
-            ...(isCommentRequired
-                ? [{ label: "Comment", fieldname: "comment", fieldtype: "Small Text", reqd: 1 }]
-                : []),
+            ...(fields ? fields : []),
         ];
-        const comment = await new Promise((resolve) => {
+        const workflowFormValue = await new Promise((resolve) => {
             const dialog = new frappe.ui.Dialog({
                 title: "Confirm",
+                size:this.getDialogSize(popupFields),
                 fields: popupFields,
                 primary_action_label: "Proceed",
                 primary_action: (values) => {
                     dialog.hide();
-                    resolve(values.comment || null);
+                    resolve(values);
                 },
                 secondary_action_label: "Cancel",
                 secondary_action: () => {
                     dialog.hide();
-                    wf_select.value = ""; // Reset dropdown value
-                    wf_select.title = originalState;
-                    frappe.show_alert({ message: `${link.action} Action has been cancelled.`, indicator: "orange" });
+                    wf_select_el.value = ""; // Reset dropdown value
+                    wf_select_el.title = prevState;
+                    frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
                 },
             });
             dialog.show();
         });
         try {
             const updateFields = {
-                [this.workflow.workflow_state_field]: link.next_state,
-                ...(comment && { wf_comment: comment }),
+                [me.workflow.workflow_state_field]: selected_state_info.next_state,
+                ...(workflowFormValue && workflowFormValue),
             };
-            const response = await frappe.db.set_value(this.doctype, primaryKey, updateFields);
+            const response = await frappe.db.set_value(me.doctype, docname, updateFields);
             if (response?.exc) throw new Error("Update failed");
-            const row = this.rows.find((r) => r.name === primaryKey);
-            row[this.workflow.workflow_state_field] = link.next_state;
-            row.wf_comment = comment;
-            this.rows[row.rowIndex] = row;
-            this.updateTableBody();
-            frappe.show_alert({ message: `${link.next_state} successfully`, indicator: "green" });
+            const row = me.rows.find((r) => r.name === docname);
+            row[me.workflow.workflow_state_field] = selected_state_info.next_state;
+            if(workflowFormValue?.wf_comment){
+                row.wf_comment = workflowFormValue.wf_comment;
+            }else{
+                const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                row.wf_comment = comment;
+            }
+            Object.assign(row, workflowFormValue);
+            me.rows[row.rowIndex] = row;
+            me.updateTableBody();
+            frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
         } catch (error) {
             frappe.show_alert({ message: "An error occurred.", indicator: "red" });
             console.error(error);
@@ -1298,6 +1299,7 @@ class SvaDataTable {
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
             title: doctype,
+            size: 'extra-large', // small, large, extra-large
             fields: [{
                 fieldname: 'table',
                 fieldtype: 'HTML',
@@ -1310,8 +1312,14 @@ class SvaDataTable {
             this.rows[idx] = updated_doc;
             this.updateTableBody();
         }.bind(this);
-        let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
-        $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
+        $(dialog.$wrapper).on('show.bs.modal', function () {
+            $(this).removeAttr('aria-hidden');
+        });
+        $(dialog.$wrapper).on('hidden.bs.modal', function () {
+            $(this).attr('aria-hidden', 'true');
+        });
+        // let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
+        // $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
         dialog.show();
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
@@ -1324,8 +1332,6 @@ class SvaDataTable {
             },
         });
     }
-
-
     sortByColumn(column, direction, updateTable = true) {
         const columnName = column.fieldname || column;
         let sorted_rows = this.rows.sort((a, b) => {
@@ -1544,23 +1550,32 @@ class SvaDataTable {
         }
     }
     createNoDataFoundPage() {
-        const noDataFoundPage = document.createElement('tr');
-        noDataFoundPage.id = 'noDataFoundPage';
-        noDataFoundPage.style.height = '300px'; // Use viewport height to set a more responsive height
-        noDataFoundPage.style.fontSize = '20px';
-        const noDataFoundText = document.createElement('td');
-        noDataFoundText.colSpan = (this.columns?.length ?? 3) + ((this.options?.serialNumberColumn ? 1 : 0) + ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0)); // Ensure columns are defined properly
-        noDataFoundText.style.textAlign = 'center'; // Center the text horizontally
-        noDataFoundText.style.paddingTop = '100px';
-        noDataFoundText.style.color = 'grey';
-        // noDataFoundText.innerHTML = "<img style='width:100px;height:100px;' src='/assets/mgrant/images/no-data-found.png'/>";
-        let message = document.createElement('p');
-        message.textContent = "You haven't created a record yet";
-        message.style.color = 'grey';
-        noDataFoundPage.style.backgroundColor = '#F8F8F8'
-        noDataFoundText.appendChild(message)
-        noDataFoundPage.appendChild(noDataFoundText);
-        return noDataFoundPage;
+        const tr = document.createElement('tr');
+        tr.id = 'tr';
+        tr.style.height = '200px'; // Use viewport height to set a more responsive height
+        tr.style.fontSize = '20px';
+        const td = document.createElement('td');
+        td.colSpan = (
+            this.columns?.length ?? 3) + (
+                (
+                    this.options?.serialNumberColumn ? 1 : 0) +
+                    ((this.conf_perms.includes('write') || this.conf_perms.includes('delete')) ? 1 : 0) +
+                    ((this.wf_transitions_allowed || this.wf_editable_allowed) ? 1 : 0)
+                ); // Ensure columns are defined properly
+
+        td.innerHTML = `
+                <div class="msg-box no-border">
+                    <div class="mb-4">
+                        <svg class="icon icon-xl" style="stroke: var(--text-light);">
+                            <use href="#icon-small-file"></use>
+                        </svg>
+                    </div>
+                    <p>You haven't created a rocord yet</p>
+
+                </div>
+        `
+        tr.appendChild(td);
+        return tr;
     }
     handleNoPermission() {
         let noPermissionPage = document.createElement('div');
@@ -1575,5 +1590,31 @@ class SvaDataTable {
             this.wrapper.appendChild(noPermissionPage);
         }
     }
+    getDialogSize(fields) {
+        let hasChildTable = fields.some(field => field.fieldtype === "Table");
+        let hasMultipleColumns = false;
+
+        let currentColumnCount = 0; // Track columns in a section
+        for (let field of fields) {
+            if (field.fieldtype === "Section Break") {
+                currentColumnCount = 0; // Reset column count on new section
+            } else if (field.fieldtype === "Column Break") {
+                currentColumnCount++; // Increase column count
+            }
+
+            if (currentColumnCount >= 1) { // At least one column break = 2 columns
+                hasMultipleColumns = true;
+            }
+        }
+
+        if (hasChildTable) {
+            return "extra-large";  // Child tables require more space
+        } else if (hasMultipleColumns) {
+            return "large";  // Sections with 2+ columns need a larger dialog
+        } else {
+            return "small"; // Default size
+        }
+    }
+
 }
 
