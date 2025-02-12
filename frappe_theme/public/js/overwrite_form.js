@@ -15,19 +15,19 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     ...frappe.ui.form.handlers[this.doctype].on_tab_change,
                     this._activeTab.bind(this)
                 ]
-            }else{
+            } else {
                 frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)]
             }
         } else {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change:[this._activeTab.bind(this)]
+                on_tab_change: [this._activeTab.bind(this)]
             }
         }
 
 
     }
-    async _activeTab(frm){
+    async _activeTab(frm) {
         let tab_field = frm.get_active_tab()?.df?.fieldname;
         await this.tabContent(frm, tab_field);
     }
@@ -57,7 +57,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     if (wrapper) {
                         clearInterval(interval);
                         resolve(wrapper);
-                    }else if (maxTime <= 0) {
+                    } else if (maxTime <= 0) {
                         resolve(null)
                     }
                     maxTime -= intervalTime;
@@ -71,7 +71,10 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         let el = document.createElement('div');
         frm.set_df_property(fieldname, 'options', el);
         let id=`custom-component-${fieldname}`
-        isLoading(true, el, template, id);
+
+        let loader = new Loader(el, id);
+        loader.show();
+
         switch (template) {
             case "Gallery":
                 new GalleryComponent(frm, el);
@@ -91,7 +94,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             default:
                 break;
         }
-        isLoading(false, el, id);
+        loader.hide();
     }
     tabContent = async (frm, tab_field) => {
         if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
@@ -133,6 +136,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             for (let vm of vm_docs.filter(f=> vm_fields.includes(f.wrapper_field))) {
                 let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm.name);
                 const wrapper = document.createElement('div');
+                wrapper.id = `${vm.wrapper_field}-wrapper`;
                 frm.set_df_property(vm.wrapper_field, 'options', wrapper);
                 // Initialize SVADashboardManager and store reference
                 if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {

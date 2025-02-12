@@ -1,14 +1,13 @@
 {
     "actions": [],
     "allow_rename": 1,
-    "autoname": "format:VM-{######}",
+    "autoname": "format:{doctype_field}-VM",
     "creation": "2024-01-25 13:31:45",
     "doctype": "DocType",
     "engine": "InnoDB",
     "field_order": [
         "mapper_type",
         "doctype_field",
-        "wrapper_field",
         "section_break_1",
         "cards",
         "section_break_2",
@@ -30,12 +29,7 @@
             "options": "DocType",
             "reqd": 1
         },
-        {
-            "fieldname": "wrapper_field",
-            "fieldtype": "Select",
-            "label": "Wrapper Field",
-            "reqd": 1
-        },
+
         {
             "depends_on": "eval:doc.mapper_type=='Number Card' || doc.mapper_type=='Both'",
             "fieldname": "section_break_1",

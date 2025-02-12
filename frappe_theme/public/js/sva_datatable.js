@@ -71,7 +71,10 @@ class SvaDataTable {
         return this.wrapper;
     }
     async reloadTable(reset = false) {
-        isLoading(true, this.wrapper);
+
+        let loader = new Loader(this.wrapper);
+        loader.show();
+
         await this.setupWrapper(this.wrapper)
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -149,7 +152,7 @@ class SvaDataTable {
             }
             this.tBody = this.table.querySelector('tbody');
         }
-        isLoading(false, this.wrapper);
+        loader.hide();
     }
     setupHeader() {
         let row = document.createElement('div');
@@ -188,12 +191,11 @@ class SvaDataTable {
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 
-        if (this.label) {
-            let label_wrapper = document.createElement('div');
-            label_wrapper.id = 'label-wrapper';
-            label_wrapper.innerHTML = `<p style="font-weight:bold;">${this.label}</p>`
-            leftAlignedColumns.push(label_wrapper)
-        }
+        let label_wrapper = document.createElement('div');
+        label_wrapper.id = 'label-wrapper';
+        label_wrapper.innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`
+        leftAlignedColumns.push(label_wrapper)
+
         let list_filter = document.createElement('div');
         list_filter.id = 'list_filter';
         list_filter.style = `

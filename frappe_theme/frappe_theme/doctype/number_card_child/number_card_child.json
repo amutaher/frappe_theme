@@ -1,148 +1,163 @@
 {
- "actions": [],
- "creation": "2024-01-25 13:31:45",
- "doctype": "DocType",
- "editable_grid": 1,
- "engine": "InnoDB",
- "field_order": [
-  "number_card",
-  "card_label",
-  "icon_section",
-  "icon_type",
-  "column_break_1",
-  "icon_value",
-  "icon_color",
-  "style_section",
-  "background_color",
-  "column_break_2",
-  "text_color",
-  "value_color",
-  "hover_section",
-  "hover_background_color",
-  "column_break_3",
-  "hover_text_color",
-  "hover_value_color",
-  "section_break_1",
-  "sequence",
-  "is_visible"
- ],
- "fields": [
-  {
-   "fieldname": "number_card",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Number Card",
-   "options": "Number Card",
-   "reqd": 1
-  },
-  {
-   "fieldname": "card_label",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Card Label"
-  },
-  {
-   "fieldname": "icon_section",
-   "fieldtype": "Section Break",
-   "label": "Icon Settings"
-  },
-  {
-   "default": "FontAwesome",
-   "fieldname": "icon_type",
-   "fieldtype": "Select",
-   "label": "Icon Type",
-   "options": "FontAwesome\nCustom"
-  },
-  {
-   "fieldname": "column_break_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "description": "For FontAwesome, use class name (e.g., fa fa-user). For Custom, use full icon HTML.",
-   "fieldname": "icon_value",
-   "fieldtype": "Data",
-   "label": "Icon"
-  },
-  {
-   "fieldname": "icon_color",
-   "fieldtype": "Color",
-   "label": "Icon Color"
-  },
-  {
-   "fieldname": "style_section",
-   "fieldtype": "Section Break",
-   "label": "Style Settings"
-  },
-  {
-   "fieldname": "background_color",
-   "fieldtype": "Color",
-   "label": "Background Color"
-  },
-  {
-   "fieldname": "column_break_2",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "text_color",
-   "fieldtype": "Color",
-   "label": "Label Color"
-  },
-  {
-   "fieldname": "value_color",
-   "fieldtype": "Color",
-   "label": "Value Color"
-  },
-  {
-   "fieldname": "hover_section",
-   "fieldtype": "Section Break",
-   "label": "Hover Effects"
-  },
-  {
-   "fieldname": "hover_background_color",
-   "fieldtype": "Color",
-   "label": "Hover Background Color"
-  },
-  {
-   "fieldname": "column_break_3",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "hover_text_color",
-   "fieldtype": "Color",
-   "label": "Hover Label Color"
-  },
-  {
-   "fieldname": "hover_value_color",
-   "fieldtype": "Color",
-   "label": "Hover Value Color"
-  },
-  {
-   "fieldname": "section_break_1",
-   "fieldtype": "Section Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "sequence",
-   "fieldtype": "Int",
-   "label": "Sequence"
-  },
-  {
-   "default": "1",
-   "fieldname": "is_visible",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Is Visible"
-  }
- ],
- "istable": 1,
- "links": [],
- "modified": "2025-02-12 23:13:52.511105",
- "modified_by": "Administrator",
- "module": "Frappe Theme",
- "name": "Number Card Child",
- "owner": "Administrator",
- "permissions": [],
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
+  "actions": [],
+  "creation": "2024-01-25 13:31:45",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "number_card",
+    "card_label",
+    "wrapper_field",
+    "info",
+    "icon_section",
+    "icon_type",
+    "column_break_1",
+    "icon_value",
+    "icon_color",
+    "style_section",
+    "background_color",
+    "column_break_2",
+    "text_color",
+    "value_color",
+    "hover_section",
+    "hover_background_color",
+    "column_break_3",
+    "hover_text_color",
+    "hover_value_color",
+    "section_break_1",
+    "sequence",
+    "is_visible"
+  ],
+  "fields": [
+    {
+      "fieldname": "number_card",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Number Card",
+      "options": "Number Card",
+      "reqd": 1
+    },
+    {
+      "fieldname": "card_label",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Card Label"
+    },
+    {
+      "fieldname": "icon_section",
+      "fieldtype": "Section Break",
+      "label": "Icon Settings"
+    },
+    {
+      "default": "FontAwesome",
+      "fieldname": "icon_type",
+      "fieldtype": "Select",
+      "label": "Icon Type",
+      "options": "FontAwesome\nCustom"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "description": "For FontAwesome, use class name (e.g., fa fa-user). For Custom, use full icon HTML.",
+      "fieldname": "icon_value",
+      "fieldtype": "Data",
+      "label": "Icon"
+    },
+    {
+      "fieldname": "icon_color",
+      "fieldtype": "Color",
+      "label": "Icon Color"
+    },
+    {
+      "fieldname": "style_section",
+      "fieldtype": "Section Break",
+      "label": "Style Settings"
+    },
+    {
+      "fieldname": "background_color",
+      "fieldtype": "Color",
+      "label": "Background Color"
+    },
+    {
+      "fieldname": "column_break_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "text_color",
+      "fieldtype": "Color",
+      "label": "Label Color"
+    },
+    {
+      "fieldname": "value_color",
+      "fieldtype": "Color",
+      "label": "Value Color"
+    },
+    {
+      "fieldname": "hover_section",
+      "fieldtype": "Section Break",
+      "label": "Hover Effects"
+    },
+    {
+      "fieldname": "hover_background_color",
+      "fieldtype": "Color",
+      "label": "Hover Background Color"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "hover_text_color",
+      "fieldtype": "Color",
+      "label": "Hover Label Color"
+    },
+    {
+      "fieldname": "hover_value_color",
+      "fieldtype": "Color",
+      "label": "Hover Value Color"
+    },
+    {
+      "fieldname": "section_break_1",
+      "fieldtype": "Section Break"
+    },
+    {
+      "default": "0",
+      "fieldname": "sequence",
+      "fieldtype": "Int",
+      "label": "Sequence"
+    },
+    {
+      "default": "1",
+      "fieldname": "is_visible",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Is Visible"
+    },
+    {
+      "fieldname": "info",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Info"
+    },
+    {
+      "fieldname": "wrapper_field",
+      "fieldtype": "Select",
+      "label": "Wrapper Field",
+      "reqd": 1,
+      "in_list_view": 1
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2025-02-12 23:13:52.511105",
+  "modified_by": "Administrator",
+  "module": "Frappe Theme",
+  "name": "Number Card Child",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
 }
