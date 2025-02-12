@@ -24,7 +24,7 @@ class SVANumberCard {
         }
 
         // Show loading state
-        // isLoading(true, this.wrapper);
+        isLoading(true, this.wrapper);
 
         if (this.numberCards.length > 0) {
             const container = document.createElement('div');
@@ -72,7 +72,7 @@ class SVANumberCard {
         }
 
         // Hide loading state
-        // isLoading(false, this.wrapper);
+        isLoading(false, this.wrapper);
 
         this.addStyles();
     }
