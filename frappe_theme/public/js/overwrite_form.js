@@ -70,7 +70,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     renderCustomComponent = async (frm, fieldname, template) => {
         let el = document.createElement('div');
         frm.set_df_property(fieldname, 'options', el);
-        isLoading(true, el);
+        let id=`custom-component-${fieldname}`
+        isLoading(true, el, template, id);
         switch (template) {
             case "Gallery":
                 new GalleryComponent(frm, el);
@@ -79,8 +80,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 new EmailComponent(frm, el);
                 break;
             case "Tasks":
-                console.log("Tasks:tab",frm);
-
                 new mGrantTask(frm,el);
                 break;
             case "Timeline":
@@ -92,11 +91,10 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             default:
                 break;
         }
-        isLoading(false, el);
+        isLoading(false, el, id);
     }
     tabContent = async (frm, tab_field) => {
         if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
-            let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
             let tab_fields = []
             let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
             if ((tab_field_index + 1) > frm.meta?.fields.length) {
@@ -111,39 +109,39 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     tab_fields.push(f.fieldname)
                 }
             }
+
+            let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+            let vm_docs = await frappe.db.get_list('Visualization Mapper', {
+                filters: {
+                    doctype_field: frm.doc.doctype
+                },
+                fields: ['name', 'wrapper_field'],
+                limit: 1000
+            });
+
             let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
-            let visualizationFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
-            for (let fld of visualizationFields) {
-                if (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
-                    let vm = await frappe.db.get_list('Visualization Mapper', {
-                        filters: {
-                            doctype_field: frm.doc.doctype,
-                            wrapper_field: fld
-                        },
-                        pluck: 'name',
-                        limit: 1
+            let vm_fields = vm_docs.filter(f => tab_fields.includes(f.wrapper_field)).map(f=>f.wrapper_field)
+
+            let relevant_html_fields = [...dtFields.map(f=>f.html_field), ...vm_fields]
+            let other_mapped_fields = [
+                ...dts.child_doctypes?.filter(f =>!relevant_html_fields.includes(f.html_field)).map(f=>f.html_field),
+                ...vm_docs.filter(f =>!relevant_html_fields.includes(f.wrapper_field)).map(f=>f.wrapper_field)
+            ]
+            for(let field of other_mapped_fields){
+                frm.set_df_property(field, 'options', '');
+            }
+            for (let vm of vm_docs.filter(f=> vm_fields.includes(f.wrapper_field))) {
+                let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm.name);
+                const wrapper = document.createElement('div');
+                frm.set_df_property(vm.wrapper_field, 'options', wrapper);
+                // Initialize SVADashboardManager and store reference
+                if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
+                    wrapper._dashboard = new SVADashboardManager({
+                        wrapper: wrapper,
+                        frm: frm,
+                        numberCards: visualizationMapper?.cards || [],
+                        charts: visualizationMapper?.charts || []
                     });
-
-                    if (vm.length > 0) {
-                        // console.log("vm", vm);
-
-                        let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
-                        const wrapper = document.createElement('div');
-                        frm.set_df_property(fld, 'options', wrapper);
-                        isLoading(true, wrapper);
-                        // Initialize SVADashboardManager and store reference
-                        if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
-                            wrapper._dashboard = new SVADashboardManager({
-                                wrapper: wrapper,
-                                frm: frm,
-                                numberCards: visualizationMapper?.cards || [],
-                                charts: visualizationMapper?.charts || []
-                            });
-                        }
-                        isLoading(false, wrapper);
-                    }
-                } else {
-                    console.log('Visualization Mapper does not exist');
                 }
             }
             for (let _f of dtFields) {
@@ -163,8 +161,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     } else {
                         let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
                         let wrapper = document.createElement('div');
+                        wrapper.id = `sva-datatable-wrapper-${_f.html_field}`;
                         frm.set_df_property(_f.html_field, 'options', wrapper);
-                        isLoading(true, wrapper);
                         let result = new SvaDataTable({
                             label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
                             wrapper: wrapper, // Wrapper element   // Pass your data
@@ -199,7 +197,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                 }
                             }
                         });
-                        isLoading(false, wrapper);
                     }
                 }
             }

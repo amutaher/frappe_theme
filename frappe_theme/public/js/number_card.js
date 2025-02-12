@@ -326,7 +326,7 @@ class SVANumberCard {
                             filters.push([doc.document_type, final_field.fieldname, '=', this.frm.docname]);
                         }
                     } else {
-                        filters.push([this.frm.doctype, [field.fieldname], '=', this.frm.docname]);
+                        filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
                     }
                 }
                 // console.log(filters, "res");
@@ -396,7 +396,7 @@ class SVANumberCard {
                             report_field: doc.report_field,
                             type: doc.type
                         },
-                        filters: filters
+                        filters:filters
                     }
                 });
             }
