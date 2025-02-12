@@ -679,6 +679,9 @@ class SvaDataTable {
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
+                            if(f.fieldname == "workflow_state"){
+                                continue;
+                            }
                             f.default = this.frm.parentRow[f.fieldname];
                             f.read_only = 1;
                         }
@@ -1006,7 +1009,7 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
-
+        const positiveClosureState = this.workflow?.states?.find(s =>  s.custom_closure == "Positive");
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
@@ -1040,14 +1043,30 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
             if (this.permissions.includes('write')) {
-                appendDropdownOption('Edit', async () => {
-                    await this.createFormDialog(this.doctype, primaryKey, 'write');
-                });
+                if (positiveClosureState && row['workflow_state']){
+                    if((positiveClosureState.state != row['workflow_state'])){
+                        appendDropdownOption('Edit', async () => {
+                            await this.createFormDialog(this.doctype, primaryKey, 'write');
+                        });
+                    }
+                }else{
+                    appendDropdownOption('Edit', async () => {
+                        await this.createFormDialog(this.doctype, primaryKey, 'write');
+                    });
+                }
             }
             if (this.permissions.includes('delete')) {
-                appendDropdownOption('Delete', async () => {
-                    await this.deleteRecord(this.doctype, primaryKey);
-                });
+                if (positiveClosureState && row['workflow_state']){
+                    if((positiveClosureState.state != row['workflow_state'])){
+                        appendDropdownOption('Delete', async () => {
+                            await this.deleteRecord(this.doctype, primaryKey);
+                        });
+                    }
+                }else{
+                    appendDropdownOption('Delete', async () => {
+                        await this.deleteRecord(this.doctype, primaryKey);
+                    });
+                }
             }
         }
 
@@ -1254,14 +1273,14 @@ class SvaDataTable {
             },
             ...(fields ? fields : []),
         ];
+        let dialog;
         const workflowFormValue = await new Promise((resolve) => {
-            const dialog = new frappe.ui.Dialog({
+            dialog = new frappe.ui.Dialog({
                 title: "Confirm",
                 size: this.getDialogSize(popupFields),
                 fields: popupFields,
                 primary_action_label: "Proceed",
                 primary_action: (values) => {
-                    dialog.hide();
                     resolve(values);
                 },
                 secondary_action_label: "Cancel",
@@ -1280,6 +1299,7 @@ class SvaDataTable {
                 ...(workflowFormValue && workflowFormValue),
             };
             const response = await frappe.db.set_value(me.doctype, docname, updateFields);
+            dialog.hide();
             if (response?.exc) throw new Error("Update failed");
             const row = me.rows.find((r) => r.name === docname);
             row[me.workflow.workflow_state_field] = selected_state_info.next_state;
