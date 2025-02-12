@@ -33,15 +33,15 @@ class VisualizationMapper(Document):
     
     def validate_cards(self):
         if self.cards:
-            seen_cards = set()
+            # seen_cards = set()
             from frappe_theme.api import get_html_fields
             html_fields = get_html_fields(self.doctype_field)
             
             for card in self.cards:
                 # Validate number card uniqueness
-                if card.number_card in seen_cards:
-                    frappe.throw(f"Duplicate card {card.number_card} not allowed")
-                seen_cards.add(card.number_card)
+                # if card.number_card in seen_cards:
+                #     frappe.throw(f"Duplicate card {card.number_card} not allowed")
+                # seen_cards.add(card.number_card)
                 
                 # Validate wrapper field exists and is HTML
                 if not card.wrapper_field:
@@ -51,15 +51,15 @@ class VisualizationMapper(Document):
     
     def validate_charts(self):
         if self.charts:
-            seen_charts = set()
+            # seen_charts = set()
             from frappe_theme.api import get_html_fields
             html_fields = get_html_fields(self.doctype_field)
             
             for chart in self.charts:
                 # Validate chart uniqueness
-                if chart.dashboard_chart in seen_charts:
-                    frappe.throw(f"Duplicate chart {chart.dashboard_chart} not allowed")
-                seen_charts.add(chart.dashboard_chart)
+                # if chart.dashboard_chart in seen_charts:
+                #     frappe.throw(f"Duplicate chart {chart.dashboard_chart} not allowed")
+                # seen_charts.add(chart.dashboard_chart)
                 
                 # Validate wrapper field exists and is HTML
                 if not chart.wrapper_field:
