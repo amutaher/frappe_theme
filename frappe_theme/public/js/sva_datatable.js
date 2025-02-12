@@ -679,6 +679,9 @@ class SvaDataTable {
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
+                            if(f.fieldname == "workflow_state"){
+                                continue;
+                            }
                             f.default = this.frm.parentRow[f.fieldname];
                             f.read_only = 1;
                         }
@@ -972,7 +975,7 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
+        if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;';
             if (frappe.user_roles.includes("Administrator")) {
@@ -1445,16 +1448,31 @@ class SvaDataTable {
             read_only: 1,
             description: ''
         };
-        if (['Link', 'HTML'].includes(columnField.fieldtype)) {
+        if (column.fieldtype === 'Link') {
+            if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
+                td.innerText = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+            } else {
+                try {
+                    frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
+                        td.innerText = res || "";
+                        td.title = res || "";
+                    })
+                } catch (error) {
+                    td.innerText = row[column.fieldname] || "";
+                    td.title = row[column.fieldname] || "";
+                }
+            }
+            $(td).css({ height: '32px', width: '200px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            return;
+        }
+        if (['HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
                 df: columnField,
                 render_input: true,
                 only_input: true,
             });
-            setTimeout(() => {
-                control.input?.classList?.remove('bold');
-            }, 0);
             $(control.input).css({ width: '100%', minWidth: '150px', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
             $(td).css({ height: '32px !important' });
             if (row[column.fieldname]) {
@@ -1470,7 +1488,7 @@ class SvaDataTable {
                 })
                 $(td).css({ height: '32px', cursor: 'pointer', color: 'blue', padding: '0px 5px' });
             } else {
-                $(td).css({ height: '32px',width:'200px',maxWidth:'200px',whiteSpace: 'nowrap',overflow: 'hidden',textOverflow: 'ellipsis', padding: '0px 5px' });
+                $(td).css({ height: '32px', width: '200px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
             if (columnField.fieldtype === 'Currency') {
                 td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
