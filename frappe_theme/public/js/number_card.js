@@ -31,7 +31,10 @@ class SVANumberCard {
             container.className = 'sva-cards-container';
 
             try {
-                for (let cardConfig of this.numberCards) {
+                // Filter out invisible cards
+                const visibleCards = this.numberCards.filter(card => card.is_visible);
+
+                for (let cardConfig of visibleCards) {
                     try {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
