@@ -79,7 +79,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 new EmailComponent(frm, el);
                 break;
             case "Tasks":
-                await getTaskList(frm, fieldname);
+                console.log("Tasks:tab",frm);
+
+                new mGrantTask(frm,el);
                 break;
             case "Timeline":
                 new TimelineGenerator(frm, el);
