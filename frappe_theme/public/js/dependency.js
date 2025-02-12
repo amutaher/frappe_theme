@@ -1,4 +1,3 @@
-
 const getData = async (dt) => {
     return new Promise((resolve, reject) => {
         frappe.call({
@@ -27,76 +26,6 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
     }
 }
 
-const tabContent = async (frm, tab_field) => {
-    // console.log("tabContent");
-
-    // debugger
-    if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
-        let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
-        let tab_fields = []
-        let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
-        if ((tab_field_index + 1) > frm.meta?.fields.length) {
-            return;
-        }
-        for (let i = (tab_field_index + 1); i < frm.meta?.fields.length; i++) {
-            let f = frm.meta?.fields[i]
-            if (f.fieldtype == 'Tab Break') {
-                break;
-            }
-            if (f.fieldtype == 'HTML') {
-                tab_fields.push(f.fieldname)
-            }
-        }
-        let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
-        for (let _f of dtFields) {
-            if(frm.doc.__islocal){
-                if(!document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
-                    document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;">
-                        <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>
-                        Save ${frm.doctype} to add ${_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype)} items.
-                    </div>`;
-                }
-            }else{
-                if(document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved')){
-                    document.querySelector(`[data-fieldname="${_f.html_field}"]`).querySelector('#form-not-saved').remove();
-                }
-                if (_f?.connection_type == "Is Custom Design") {
-                    if (_f?.template == "Gallery") {
-                        gallery_image(frm, _f.html_field);
-                    }
-                    if (_f?.template == "Email") {
-                        communication(frm, _f.html_field);
-                    }
-                    if (_f?.template == "Tasks") {
-                        getTaskList(frm, _f.html_field);
-                    }
-                    if (_f?.template == "Timeline") {
-                        showTimelines(frm, _f.html_field);
-                    }
-                    if (_f?.template == "Notes") {
-                        await render_note(frm, _f.html_field);
-                    }
-                } else {
-                    let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-                    // if (document.querySelector(`[data-fieldname="${_f.html_field}"]`).children.length > 0) {
-                    //     document.querySelector(`[data-fieldname="${_f.html_field}"]`).ch;
-                    // }
-                    new SvaDataTable({
-                        wrapper: document.querySelector(`[data-fieldname="${_f.html_field}"]`), // Wrapper element   // Pass your data
-                        doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
-                        frm: frm,       // Pass the current form object (optional)
-                        connection: _f,
-                        childLinks: childLinks,
-                        options: {
-                            serialNumberColumn: true, // Enable serial number column (optional)
-                            editable: false,      // Enable editing (optional),
-                        }
-                    });
-                }
-            }
-        }
-    }
-}
 const mapEvents = (props) => {
     let obj = {};
     if (props.length) {
@@ -111,38 +40,6 @@ const mapEvents = (props) => {
         }
     }
     return {
-        onload(frm) {
-        },
-        refresh: async function (frm) {
-            if (!frm.doc.__islocal) {
-                frm.add_custom_button('💬', () => {
-                    const commentSection = document.querySelector('.comment-box');
-                    if (commentSection) {
-                        commentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                });
-            }
-            if (props.length) {
-                for (let prop of props) {
-                    if (prop) {
-                        let abc = prop.value.split("->")
-                        apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
-                    }
-                }
-            }
-            // if (!frm.__tabEventAttached) {
-                let tab_field = frm.get_active_tab()?.df?.fieldname;
-                // console.log("tab_field",tab_field);
-                tabContent(frm, tab_field)
-                $('a[data-toggle="tab"]').on('shown.bs.tab', async function (e) {
-                    let tab_field = frm.get_active_tab()?.df?.fieldname;
-                    tabContent(frm, tab_field);
-                });
-            //     frm.__tabEventAttached = true;
-            // }
-        },
-        onload_post_render:async function (frm) {
-        },
         ...obj
     }
 }
@@ -156,31 +53,35 @@ async function setDynamicProperties() {
             }
             let props = await getData(cur_frm.doc.doctype);
             frappe.ui.form.on(cur_frm.doc.doctype, mapEvents(props ?? []));
-            frappe.ui.form.trigger(cur_frm.doc.doctype, 'refresh', cur_frm);
         } catch (error) {
             console.error("Error setting dynamic properties:", error);
         }
     }
 }
+const getPageType = () => {
+    return frappe.get_route()?.[0];
+}
 frappe.router.on('change', async () => {
-    let interval;
-    let elapsedTime = 0;
-    const checkInterval = 500; // Check every 500 ms
-    const maxTime = 10000; // 10 seconds in milliseconds
-    // console.log(window.location.pathname,cur_frm);
-
-    interval = setInterval(async function () {
-        elapsedTime += checkInterval;
-
-        // Condition: Stop if the desired value exists in cur_frm
-        if ((cur_frm) || elapsedTime >= maxTime) {
-            // $('.layout-side-section').remove();
-            clearInterval(interval);
-            // console.log("route:chnage");
-            await setDynamicProperties();
-            return;
-        }
-    }, checkInterval);
+    window.onFieldClick = undefined
+    window.onFieldValueChange = undefined
+    window.onWorkflowStateChange = undefined
+    window.SVADialog = {}
+    if (getPageType() == "Form") {
+        let interval;
+        let elapsedTime = 0;
+        const checkInterval = 1000; // Check every 500 ms
+        const maxTime = 10000; // 10 seconds in milliseconds
+        interval = setInterval(async function () {
+            elapsedTime += checkInterval;
+            if ((cur_frm) || elapsedTime >= maxTime) {
+                clearInterval(interval);
+                await setDynamicProperties();
+                return;
+            }
+        }, checkInterval);
+    } else {
+        cur_frm = undefined
+    }
 });
 
 const set_properties = async (doctype) => {
