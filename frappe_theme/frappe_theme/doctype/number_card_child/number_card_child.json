@@ -7,6 +7,7 @@
  "field_order": [
   "number_card",
   "card_label",
+  "wrapper_field",
   "info",
   "icon_section",
   "icon_type",
@@ -139,6 +140,13 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Info"
+  },
+  {
+   "fieldname": "wrapper_field",
+   "fieldtype": "Select",
+   "label": "Wrapper Field",
+   "reqd": 1,
+   "in_list_view": 1
   }
  ],
  "istable": 1,

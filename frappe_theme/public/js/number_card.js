@@ -31,7 +31,10 @@ class SVANumberCard {
             container.className = 'sva-cards-container';
 
             try {
-                for (let cardConfig of this.numberCards) {
+                // Filter out invisible cards
+                const visibleCards = this.numberCards.filter(card => card.is_visible);
+
+                for (let cardConfig of visibleCards) {
                     try {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
@@ -96,11 +99,8 @@ class SVANumberCard {
             </div>
         ` : '';
 
-        const currencySymbol = this.shouldShowCurrency(config.value, config.fieldtype) ? '₹' : '';
-
         const containerStyle = [
-            options.backgroundColor ? `background-color: ${options.backgroundColor}` : '',
-            config.onClick ? 'cursor: pointer' : ''
+            options.backgroundColor ? `background-color: ${options.backgroundColor}` : ''
         ].filter(Boolean).join(';');
 
         const titleStyle = options.textColor ? `color: ${options.textColor}` : '';
@@ -135,7 +135,7 @@ class SVANumberCard {
                         </div>
                     </div>
                     <div class="number-card-main">
-                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
+                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${this.formatValue(config.value, config.fieldtype)}</div>
                         ${iconHtml}
                     </div>
                 </div>
@@ -176,8 +176,7 @@ class SVANumberCard {
                 if (cardData) {
                     // Update card value
                     const valueElement = card.querySelector('.number-card-value');
-                    const currencySymbol = this.shouldShowCurrency(cardData.result) ? '₹' : '';
-                    valueElement.textContent = `${currencySymbol}${this.formatValue(cardData.result)}`;
+                    valueElement.textContent = this.formatValue(cardData.result, cardData.fieldtype);
                 }
             } catch (error) {
                 console.error('Error refreshing card:', error);
@@ -192,34 +191,43 @@ class SVANumberCard {
             }
         });
 
-        // Add click handler for card
-        const cardContainer = card.querySelector('.number-card-container');
-        cardContainer.style.cursor = 'pointer';
-
-        cardContainer.addEventListener('click', (e) => {
-            // Don't trigger click if clicking menu or its children
-            if (e.target.closest('.number-card-menu')) {
-                return;
-            }
-
-            if (config.reportName) {
-                // For report-based cards, redirect to the report
-                frappe.set_route('query-report', config.reportName);
-            } else if (config.doctype) {
-                // For document-based cards, redirect to list view with filters
-                frappe.route_options = config.filters || {};
-                frappe.set_route('List', config.doctype);
-            }
-        });
-
-        // Remove hover effects
-
         return card;
     }
 
     shouldShowCurrency(value, fieldtype) {
-        // Check if the value should show currency symbol
+        // Check if the value should show currency symbol based on fieldtype
         return fieldtype === 'Currency' && typeof value === 'number' && !isNaN(value);
+    }
+
+    formatValue(value, fieldtype) {
+        if (value === undefined || value === null) return '--';
+        if (value === '--') return value;
+
+        if (typeof value === 'number') {
+            // Get absolute value for comparison
+            const absValue = Math.abs(value);
+
+            // For Currency fields, use format_currency
+            if (fieldtype === 'Currency') {
+                return format_currency(value, frappe.defaults.get_default("currency"));
+            }
+
+            // For non-currency numbers, use simple formatting with suffixes
+            if (absValue >= 10000000) { // ≥ 1 Cr
+                const crValue = (value / 10000000).toFixed(2);
+                return crValue + ' Cr';
+            } else if (absValue >= 100000) { // ≥ 1 L
+                const lValue = (value / 100000).toFixed(2);
+                return lValue + ' L';
+            } else if (absValue >= 1000) { // ≥ 1 K
+                const kValue = (value / 1000).toFixed(2);
+                return kValue + ' K';
+            }
+
+            // For regular numbers, return as is with 2 decimal places if needed
+            return value % 1 !== 0 ? value.toFixed(2) : value.toString();
+        }
+        return value;
     }
 
     createErrorCard(cardName) {
@@ -239,51 +247,6 @@ class SVANumberCard {
             </div>
         `;
         return card;
-    }
-
-    formatValue(value) {
-        if (value === undefined || value === null) return '--';
-        if (value === '--') return value;
-
-        if (typeof value === 'number') {
-            // Convert to absolute value for comparison
-            const absValue = Math.abs(value);
-
-            // Format according to Indian number system
-            const formatIndianNumber = (num) => {
-                const numStr = num.toString();
-                if (numStr.includes('.')) {
-                    const [intPart, decPart] = numStr.split('.');
-                    return this.formatIndianInteger(intPart) + '.' + decPart;
-                }
-                return this.formatIndianInteger(numStr);
-            };
-
-            // Add appropriate suffix based on magnitude
-            if (absValue >= 10000000) { // ≥ 1 Cr
-                const crValue = (value / 10000000).toFixed(2);
-                return formatIndianNumber(crValue) + ' Cr';
-            } else if (absValue >= 100000) { // ≥ 1 L
-                const lValue = (value / 100000).toFixed(2);
-                return formatIndianNumber(lValue) + ' L';
-            } else if (absValue >= 1000) { // ≥ 1 K
-                const kValue = (value / 1000).toFixed(2);
-                return formatIndianNumber(kValue) + ' K';
-            }
-
-            return formatIndianNumber(value);
-        }
-        return value;
-    }
-
-    formatIndianInteger(numStr) {
-        numStr = numStr.toString().replace(/,/g, '');
-        const lastThree = numStr.substring(numStr.length - 3);
-        const otherNumbers = numStr.substring(0, numStr.length - 3);
-        if (otherNumbers !== '') {
-            return otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree;
-        }
-        return lastThree;
     }
 
     async fetchNumberCardData(cardName) {

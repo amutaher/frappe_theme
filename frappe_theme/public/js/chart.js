@@ -37,8 +37,11 @@ class SVADashboardChart {
             container.className = 'sva-charts-container';
 
             try {
+                // Filter out invisible charts
+                const visibleCharts = this.charts.filter(chart => chart.is_visible);
+
                 let index = 0;
-                for (let chartConfig of this.charts) {
+                for (let chartConfig of visibleCharts) {
                     try {
                         const chartData = await this.fetchChartData(chartConfig.dashboard_chart);
                         console.log('Chart data:', chartData);
