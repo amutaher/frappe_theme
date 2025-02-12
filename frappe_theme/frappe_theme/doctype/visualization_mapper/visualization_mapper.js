@@ -127,18 +127,18 @@ frappe.ui.form.on('Number Card Child', {
         let row = locals[cdt][cdn];
         if (!row.number_card) return;
 
-        // Check for duplicates
-        let duplicate = frm.doc.cards.find(card =>
-            card.name !== row.name &&
-            card.number_card === row.number_card
-        );
+        // // Check for duplicates
+        // let duplicate = frm.doc.cards.find(card =>
+        //     card.name !== row.name &&
+        //     card.number_card === row.number_card
+        // );
 
-        if (duplicate) {
-            // Clear the selection
-            frappe.model.set_value(cdt, cdn, 'number_card', '');
-            frappe.throw(__(`Number Card "${row.number_card}" is already selected in row ${duplicate.idx}`));
-            return;
-        }
+        // if (duplicate) {
+        //     // Clear the selection
+        //     frappe.model.set_value(cdt, cdn, 'number_card', '');
+        //     frappe.throw(__(`Number Card "${row.number_card}" is already selected in row ${duplicate.idx}`));
+        //     return;
+        // }
 
         // If no duplicate, update the label
         update_card_label(frm, row);
@@ -182,18 +182,18 @@ frappe.ui.form.on('Dashboard Chart Child', {
         let row = locals[cdt][cdn];
         if (!row.dashboard_chart) return;
 
-        // Check for duplicates
-        let duplicate = frm.doc.charts.find(chart =>
-            chart.name !== row.name &&
-            chart.dashboard_chart === row.dashboard_chart
-        );
+        // // Check for duplicates
+        // let duplicate = frm.doc.charts.find(chart =>
+        //     chart.name !== row.name &&
+        //     chart.dashboard_chart === row.dashboard_chart
+        // );
 
-        if (duplicate) {
-            // Clear the selection
-            frappe.model.set_value(cdt, cdn, 'dashboard_chart', '');
-            frappe.throw(__(`Dashboard Chart "${row.dashboard_chart}" is already selected in row ${duplicate.idx}`));
-            return;
-        }
+        // if (duplicate) {
+        //     // Clear the selection
+        //     frappe.model.set_value(cdt, cdn, 'dashboard_chart', '');
+        //     frappe.throw(__(`Dashboard Chart "${row.dashboard_chart}" is already selected in row ${duplicate.idx}`));
+        //     return;
+        // }
 
         // If no duplicate, update the label
         update_chart_label(frm, row);
