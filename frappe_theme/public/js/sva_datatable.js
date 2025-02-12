@@ -679,6 +679,9 @@ class SvaDataTable {
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
+                            if(f.fieldname == "workflow_state"){
+                                continue;
+                            }
                             f.default = this.frm.parentRow[f.fieldname];
                             f.read_only = 1;
                         }
