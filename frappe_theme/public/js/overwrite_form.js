@@ -15,19 +15,19 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     ...frappe.ui.form.handlers[this.doctype].on_tab_change,
                     this._activeTab.bind(this)
                 ]
-            }else{
+            } else {
                 frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)]
             }
         } else {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change:[this._activeTab.bind(this)]
+                on_tab_change: [this._activeTab.bind(this)]
             }
         }
 
 
     }
-    async _activeTab(frm){
+    async _activeTab(frm) {
         let tab_field = frm.get_active_tab()?.df?.fieldname;
         await this.tabContent(frm, tab_field);
     }
@@ -57,7 +57,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     if (wrapper) {
                         clearInterval(interval);
                         resolve(wrapper);
-                    }else if (maxTime <= 0) {
+                    } else if (maxTime <= 0) {
                         resolve(null)
                     }
                     maxTime -= intervalTime;
@@ -79,9 +79,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 new EmailComponent(frm, el);
                 break;
             case "Tasks":
-                console.log("Tasks:tab",frm);
+                console.log("Tasks:tab", frm);
 
-                new mGrantTask(frm,el);
+                new mGrantTask(frm, el);
                 break;
             case "Timeline":
                 new TimelineGenerator(frm, el);
@@ -114,30 +114,36 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
             let visualizationFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
             for (let fld of visualizationFields) {
-                if (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
-                    let vm = await frappe.db.get_list('Visualization Mapper', {
-                        filters: {
-                            doctype_field: frm.doc.doctype,
-                            wrapper_field: fld
-                        },
-                        pluck: 'name',
-                        limit: 1
-                    });
+                let vm = await frappe.db.get_list('Visualization Mapper', {
+                    filters: {
+                        doctype_field: frm.doc.doctype,
+                    },
+                    pluck: 'name',
+                    limit: 1
+                });
 
-                    if (vm.length > 0) {
-                        // console.log("vm", vm);
+                // Check if any card or chart in the mapper uses this wrapper field
+                if (vm.length > 0) {
+                    let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
+                    let hasMatchingCard = visualizationMapper.cards?.some(card => card.wrapper_field === fld);
+                    let hasMatchingChart = visualizationMapper.charts?.some(chart => chart.wrapper_field === fld);
 
-                        let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
+                    if (hasMatchingCard || hasMatchingChart) {
                         const wrapper = document.createElement('div');
                         frm.set_df_property(fld, 'options', wrapper);
                         isLoading(true, wrapper);
-                        // Initialize SVADashboardManager and store reference
-                        if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
+
+                        // Filter cards and charts based on their wrapper field
+                        const cardsForField = visualizationMapper.cards?.filter(card => card.wrapper_field === fld) || [];
+                        const chartsForField = visualizationMapper.charts?.filter(chart => chart.wrapper_field === fld) || [];
+
+                        // Initialize SVADashboardManager with only the cards/charts for this field
+                        if (cardsForField.length > 0 || chartsForField.length > 0) {
                             wrapper._dashboard = new SVADashboardManager({
                                 wrapper: wrapper,
                                 frm: frm,
-                                numberCards: visualizationMapper?.cards || [],
-                                charts: visualizationMapper?.charts || []
+                                numberCards: cardsForField,
+                                charts: chartsForField
                             });
                         }
                         isLoading(false, wrapper);
