@@ -33,6 +33,7 @@ class SvaDataTable {
         // console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
+        this.wrapper = wrapper;
         this.rows = rows;
         this.columns = columns;
 
@@ -51,7 +52,7 @@ class SvaDataTable {
         this.conf_perms = JSON.parse(this.connection?.crud_permissions ?? '[]');
         this.header = JSON.parse(this.connection?.listview_settings ?? '[]');
         this.childLinks = childLinks;
-        this.wrapper = this.setupWrapper(wrapper);
+        // this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.table_wrapper = document.createElement('div');
         this.table_wrapper.id = 'table_wrapper';
@@ -69,78 +70,78 @@ class SvaDataTable {
         this.reloadTable();
         return this.wrapper;
     }
-    reloadTable(reset = false) {
+    async reloadTable(reset = false) {
+
+        let loader = new Loader(this.wrapper);
+        loader.show();
+
+        await this.setupWrapper(this.wrapper)
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
-                isLoading(true, this.wrapper);
-                this.get_permissions(this.doctype).then(async perms => {
-                    this.permissions = perms;
-                    // ================================ Workflow Logic  ================================
-                    this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
-                    if (this.workflow.message.name) {
-                        this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
-                        this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
-                            fields: ['name', 'style']
-                        });
-                        this.wf_editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
-                        this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
-                    }
-                    // ================================ Workflow End ================================
-                    try {
-                        if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
-                            let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
-                            if (msgw) {
-                                this.mgrant_settings = msgw
-                            }
+                this.permissions = await this.get_permissions(this.doctype);
+                 // ================================ Workflow Logic  ================================
+                this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
+                if (this.workflow.message.name) {
+                    this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
+                    this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
+                        fields: ['name', 'style']
+                    });
+                    this.wf_editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
+                    this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
+                }
+                // ================================ Workflow End ================================
+                try {
+                    if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
+                        let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
+                        if (msgw) {
+                            this.mgrant_settings = msgw
                         }
-                    } catch (e) {
-                        this.mgrant_settings = {}
-                        console.log(e)
                     }
+                } catch (e) {
+                    this.mgrant_settings = {}
+                    console.log(e)
+                }
 
-                    if (perms.length && perms.includes('read')) {
-                        let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
-                        if (this.header.length) {
-                            this.columns = [];
-                            for (let h of this.header) {
-                                if (h.fieldname === 'name') {
-                                    this.columns.push({ fieldname: 'name', label: 'ID' });
-                                    continue;
-                                } else {
-                                    let field = columns.message.find(f => f.fieldname === h.fieldname);
-                                    if (field) {
-                                        this.columns.push(field);
-                                    }
+                if (this.permissions.length && this.permissions.includes('read')) {
+                    let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                    if (this.header.length) {
+                        this.columns = [];
+                        for (let h of this.header) {
+                            if (h.fieldname === 'name') {
+                                this.columns.push({ fieldname: 'name', label: 'ID' });
+                                continue;
+                            } else {
+                                let field = columns.message.find(f => f.fieldname === h.fieldname);
+                                if (field) {
+                                    this.columns.push(field);
                                 }
                             }
-                        } else {
-                            this.columns = [...columns.message.filter(f => f.in_list_view)];
                         }
-                        this.rows = await this.getDocList()
-                        this.table = this.createTable();
-                        if (!this.table_wrapper.querySelector('table') && !reset) {
-                            this.table_wrapper.appendChild(this.table);
-                        } else {
-                            this.table_wrapper.querySelector('table').replaceWith(this.table);
-                        }
-                        this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
-                        if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
-                            this.wrapper.appendChild(this.table_wrapper);
-                        } else {
-                            this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
-                        }
-                        this.tBody = this.table.querySelector('tbody');
-                        this.setupFooter(this.wrapper);
                     } else {
-                        this.handleNoPermission();
+                        this.columns = [...columns.message.filter(f => f.in_list_view)];
                     }
-                    isLoading(false, this.wrapper);
-                })
+                    this.rows = await this.getDocList()
+                    this.table = this.createTable();
+                    if (!this.table_wrapper.querySelector('table') && !reset) {
+                        this.table_wrapper.appendChild(this.table);
+                    } else {
+                        this.table_wrapper.querySelector('table').replaceWith(this.table);
+                    }
+                    this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
+                    if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
+                        this.wrapper.appendChild(this.table_wrapper);
+                    } else {
+                        this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
+                    }
+                    this.tBody = this.table.querySelector('tbody');
+                    this.setupFooter(this.wrapper);
+                } else {
+                    this.handleNoPermission();
+                }
             } else {
                 console.log("Permission issues", this.doctype);
             }
         } else {
-            isLoading(true, this.wrapper);
             this.table = this.createTable();
             if (!this.table_wrapper.querySelector('table')) {
                 this.table_wrapper.appendChild(this.table);
@@ -150,81 +151,93 @@ class SvaDataTable {
                 this.wrapper.appendChild(this.table_wrapper);
             }
             this.tBody = this.table.querySelector('tbody');
-            isLoading(false, this.wrapper);
         }
+        loader.hide();
     }
     setupHeader() {
         let row = document.createElement('div');
-        row.setAttribute('class', 'row');
+        row.style = `
+            display: flex;
+            justify-content: space-between; /* Ensures left and right alignment */
+            width: 100%;
+        `
+        let leftColStyle = `
+            display: flex;
+            justify-content: flex-start; /* Aligns items to the left */
+            gap: 10px;
+        `
+        let rightColStyle = `
+            display: flex;
+            justify-content: flex-end; /* Aligns items to the right */
+            gap: 10px;
+        `;
         // add button to import data
         // if (this.permissions?.length && this.permissions.includes('create')) {
-        let import_button = document.createElement('button');
-        import_button.id = 'import_button';
-        import_button.classList.add('btn', 'btn-secondary', 'btn-sm');
-        import_button.textContent = 'Import';
-        import_button.style = 'margin-bottom:10px; margin-left: auto; margin-right: 14px;';
+        // let import_button = document.createElement('button');
+        // import_button.id = 'import_button';
+        // import_button.classList.add('btn', 'btn-secondary', 'btn-sm');
+        // import_button.textContent = 'Import';
+        // import_button.style = 'margin-bottom:10px; margin-left: auto; margin-right: 14px;';
 
-        import_button.onclick = async () => {
-            let dialog = new CustomListView({
-                frm: this.frm,
-                connection: this.connection
-            });
-            dialog.custom_import();
-        }
+        // import_button.onclick = async () => {
+        //     let dialog = new CustomListView({
+        //         frm: this.frm,
+        //         connection: this.connection
+        //     });
+        //     dialog.custom_import();
+        // }
         // row.appendChild(import_button);
         // }
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 
-        if (this.label) {
-            let label_wrapper = document.createElement('div');
-            label_wrapper.id = 'label-wrapper';
-            label_wrapper.setAttribute('class', 'col-md-3');
-            label_wrapper.innerHTML = `<p style="font-weight:bold;">${this.label}</p>`
-            leftAlignedColumns.push(label_wrapper)
-        }
+        let label_wrapper = document.createElement('div');
+        label_wrapper.id = 'label-wrapper';
+        label_wrapper.innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`
+        leftAlignedColumns.push(label_wrapper)
 
-        let count_wrapper = document.createElement('div');
-        count_wrapper.id = 'count-wrapper';
-        rightAlignedColumns.push(count_wrapper)
-
+        let list_filter = document.createElement('div');
+        list_filter.id = 'list_filter';
+        list_filter.style = `
+            padding-bottom: 10px;
+        `;
+        new CustomFilterArea({
+            wrapper: list_filter,
+            doctype: this.doctype,
+            on_change: (filters) => {
+                if (filters.length == 0) {
+                    if (this.additional_list_filters.length) {
+                        this.additional_list_filters = []
+                        this.reloadTable(true);
+                    }
+                } else {
+                    this.additional_list_filters = filters
+                    this.reloadTable(true);
+                }
+            }
+        })
         let options_wrapper = document.createElement('div');
+
         options_wrapper.id = 'options-wrapper';
-        options_wrapper.style = 'display:flex;justify-content:space-between;align-items:center;padding:0px 0px 5px 0px;gap:5px;';
+        options_wrapper.appendChild(list_filter);
+
         rightAlignedColumns.push(options_wrapper);
 
-        [...leftAlignedColumns, ...rightAlignedColumns].forEach(e => {
+        for(let e of leftAlignedColumns){
+            e.style = leftColStyle;
             row.appendChild(e)
-        })
+        }
+        for(let e of rightAlignedColumns){
+            e.style = rightColStyle;
+            row.appendChild(e)
+        }
+
         return row;
     }
-    setupWrapper(wrapper) {
+    async setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
         wrapper.appendChild(this.setupHeader())
         // create a createWrapperHeader function
-
-
-
-        // if (!wrapper.querySelector('div#options-wrapper').querySelector('div#list_filter')) {
-        //     let list_filter = document.createElement('div');
-        //     list_filter.id = 'list_filter';
-        //     new CustomFilterArea({
-        //         wrapper: list_filter,
-        //         doctype: this.doctype,
-        //         on_change: (filters) => {
-        //             if (filters.length == 0) {
-        //                 if (this.additional_list_filters.length) {
-        //                     this.additional_list_filters = []
-        //                     this.reloadTable(true);
-        //                 }
-        //             } else {
-        //                 this.additional_list_filters = filters
-        //                 this.reloadTable(true);
-        //             }
-        //         }
-        //     })
-        //     wrapper.querySelector('div#options-wrapper').appendChild(list_filter);
-        // }
         return wrapper;
     }
     createSettingsButton() {
@@ -304,33 +317,7 @@ class SvaDataTable {
 
         return tableWrapper;
     }
-    // async setupTotalCount() {
-    //     if (!this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element')) {
-    //         let filters = []
-    //         if (this.connection?.connection_type === 'Referenced') {
-    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-    //         } else {
-    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-    //         }
-    // this.total = await frappe.db.count(this.doctype, { filters: filters });
-    //         let count = document.createElement('span');
-    //         count.id = 'count-element';
-    //         count.innerHTML = `<span>Total records: ${this.total}</span>`;
-    //         count.style = 'font-size:12px;';
-    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').appendChild(count);
-    //     } else {
-    //         let filters = []
-    //         if (this.connection?.connection_type === 'Referenced') {
-    //             filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-    //             filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
-    //         } else {
-    //             filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-    //         }
-    //         this.total = await frappe.db.count(this.doctype, { filters: filters });
-    //         this.wrapper.querySelector('#header-element').querySelector('#count-wrapper').querySelector('#count-element').innerHTML = `<span>Total records: ${this.total}</span>`;
-    //     }
-    // }
+
     async setupFooter(wrapper) {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
@@ -595,6 +582,12 @@ class SvaDataTable {
             window?.SVADialog?.[this.doctype](mode, fields);
             return;
         }
+        if(window?.SVAHandleParentFieldProps){
+            let f = window?.SVAHandleParentFieldProps(fields, doctype, name, mode);
+            if(f){
+                fields = [...f];
+            }
+        }
         if (mode === 'create' || mode === 'write') {
             if (name) {
                 let doc = await frappe.db.get_doc(doctype, name);
@@ -781,7 +774,6 @@ class SvaDataTable {
                 }
             }
         }
-
         const dialog = new frappe.ui.Dialog({
             title: `Create ${doctype}`,
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
@@ -1263,7 +1255,8 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1 } });
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, options: field.options } });
+
         const popupFields = [
             {
                 label: "Action Test",
