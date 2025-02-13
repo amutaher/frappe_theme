@@ -71,15 +71,13 @@ class SvaDataTable {
         return this.wrapper;
     }
     async reloadTable(reset = false) {
-
         let loader = new Loader(this.wrapper);
         loader.show();
-
         await this.setupWrapper(this.wrapper)
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
-                 // ================================ Workflow Logic  ================================
+                // ================================ Workflow Logic  ================================
                 this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
                 if (this.workflow.message.name) {
                     this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
@@ -121,11 +119,11 @@ class SvaDataTable {
                         this.columns = [...columns.message.filter(f => f.in_list_view)];
                     }
                     this.rows = await this.getDocList()
-                    this.table = this.createTable();
+                    this.table_element = this.createTable();
                     if (!this.table_wrapper.querySelector('table') && !reset) {
-                        this.table_wrapper.appendChild(this.table);
+                        this.table_wrapper.appendChild(this.table_element);
                     } else {
-                        this.table_wrapper.querySelector('table').replaceWith(this.table);
+                        this.table_wrapper.querySelector('table').replaceWith(this.table_element);
                     }
                     this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
                     if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
@@ -142,9 +140,9 @@ class SvaDataTable {
                 console.log("Permission issues", this.doctype);
             }
         } else {
-            this.table = this.createTable();
+            this.table_element = this.createTable();
             if (!this.table_wrapper.querySelector('table')) {
-                this.table_wrapper.appendChild(this.table);
+                this.table_wrapper.appendChild(this.table_element);
             }
             this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
             if (!this.wrapper.querySelector('#table_wrapper')) {
@@ -223,11 +221,11 @@ class SvaDataTable {
         options_wrapper.appendChild(list_filter);
 
         rightAlignedColumns.push(options_wrapper);
-        for(let e of leftAlignedColumns){
+        for (let e of leftAlignedColumns) {
             e.style = leftColStyle;
             row.appendChild(e)
         }
-        for(let e of rightAlignedColumns){
+        for (let e of rightAlignedColumns) {
             e.style = rightColStyle;
             row.appendChild(e)
         }
@@ -236,7 +234,7 @@ class SvaDataTable {
     }
     async setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
-        if(!wrapper.querySelector('div#header-element')){
+        if (!wrapper.querySelector('div#header-element')) {
             wrapper.appendChild(this.setupHeader())
         }
         return wrapper;
@@ -581,9 +579,9 @@ class SvaDataTable {
             window?.SVADialog?.[this.doctype](mode, fields);
             return;
         }
-        if(window?.SVAHandleParentFieldProps){
+        if (window?.SVAHandleParentFieldProps) {
             let f = window?.SVAHandleParentFieldProps(fields, doctype, name, mode);
-            if(f){
+            if (f) {
                 fields = [...f];
             }
         }
@@ -671,7 +669,7 @@ class SvaDataTable {
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
-                            if(f.fieldname == "workflow_state"){
+                            if (f.fieldname == "workflow_state") {
                                 continue;
                             }
                             f.default = this.frm.parentRow[f.fieldname];
@@ -913,12 +911,12 @@ class SvaDataTable {
         const el = document.createElement('div');
         el.classList.add('form-grid-container', 'form-grid');
         el.style = 'overflow:auto;';
-        const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered');
-        table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;';
-        table.appendChild(this.createTableHead());
-        el.appendChild(table);
-        table.appendChild(this.createTableBody());
+        this.table = document.createElement('table');
+        this.table.classList.add('table', 'table-bordered');
+        this.table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;';
+        this.table.appendChild(this.createTableHead());
+        el.appendChild(this.table);
+        this.table.appendChild(this.createTableBody());
         return el;
     }
 
@@ -1004,7 +1002,7 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
-        const positiveClosureState = this.workflow?.states?.find(s =>  s.custom_closure == "Positive");
+        const positiveClosureState = this.workflow?.states?.find(s => s.custom_closure == "Positive");
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
@@ -1038,26 +1036,26 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
             if (this.permissions.includes('write')) {
-                if (positiveClosureState && row['workflow_state']){
-                    if((positiveClosureState.state != row['workflow_state'])){
+                if (positiveClosureState && row['workflow_state']) {
+                    if ((positiveClosureState.state != row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
                             await this.createFormDialog(this.doctype, primaryKey, 'write');
                         });
                     }
-                }else{
+                } else {
                     appendDropdownOption('Edit', async () => {
                         await this.createFormDialog(this.doctype, primaryKey, 'write');
                     });
                 }
             }
             if (this.permissions.includes('delete')) {
-                if (positiveClosureState && row['workflow_state']){
-                    if((positiveClosureState.state != row['workflow_state'])){
+                if (positiveClosureState && row['workflow_state']) {
+                    if ((positiveClosureState.state != row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
                     }
-                }else{
+                } else {
                     appendDropdownOption('Delete', async () => {
                         await this.deleteRecord(this.doctype, primaryKey);
                     });
@@ -1588,7 +1586,7 @@ class SvaDataTable {
     }
     createNoDataFoundPage() {
         const tr = document.createElement('tr');
-        tr.id = 'tr';
+        tr.id = 'noDataFoundPage';
         tr.style.height = '200px'; // Use viewport height to set a more responsive height
         tr.style.fontSize = '20px';
         const td = document.createElement('td');
