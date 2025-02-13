@@ -156,6 +156,7 @@ class SvaDataTable {
     }
     setupHeader() {
         let row = document.createElement('div');
+        row.id = 'header-element';
         row.style = `
             display: flex;
             justify-content: space-between; /* Ensures left and right alignment */
@@ -222,7 +223,6 @@ class SvaDataTable {
         options_wrapper.appendChild(list_filter);
 
         rightAlignedColumns.push(options_wrapper);
-
         for(let e of leftAlignedColumns){
             e.style = leftColStyle;
             row.appendChild(e)
@@ -236,8 +236,9 @@ class SvaDataTable {
     }
     async setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
-        wrapper.appendChild(this.setupHeader())
-        // create a createWrapperHeader function
+        if(!wrapper.querySelector('div#header-element')){
+            wrapper.appendChild(this.setupHeader())
+        }
         return wrapper;
     }
     createSettingsButton() {
@@ -911,12 +912,15 @@ class SvaDataTable {
         });
     }
     createTable() {
+        const el = document.createElement('div');
+        el.classList.add('form-grid-container', 'form-grid');
         const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered', 'form-grid-container', 'form-grid');
+        table.classList.add('table', 'table-bordered');
         table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
         table.appendChild(this.createTableHead());
+        el.appendChild(table);
         table.appendChild(this.createTableBody());
-        return table;
+        return el;
     }
 
     createTableHead() {
