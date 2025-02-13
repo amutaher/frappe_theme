@@ -97,7 +97,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         loader.hide();
     }
     tabContent = async (frm, tab_field) => {
-        if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
+        if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
             let tab_fields = []
             let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
             if ((tab_field_index + 1) > frm.meta?.fields.length) {
