@@ -91,13 +91,16 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             case "Notes":
                 new NotesManager(frm, el);
                 break;
+            case "Linked Users":
+                new LinkedUser(frm, el);
+                break;
             default:
                 break;
         }
         loader.hide();
     }
     tabContent = async (frm, tab_field) => {
-        if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
+        if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype)) {
             let tab_fields = []
             let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
             if ((tab_field_index + 1) > frm.meta?.fields.length) {
@@ -114,40 +117,52 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             }
 
             let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
-            let vm_docs = await frappe.db.get_list('Visualization Mapper', {
-                filters: {
-                    doctype_field: frm.doc.doctype
-                },
-                fields: ['name', 'wrapper_field'],
-                limit: 1000
-            });
-
             let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
-            let vm_fields = vm_docs.filter(f => tab_fields.includes(f.wrapper_field)).map(f=>f.wrapper_field)
+            // number_cards, charts
+            let vm_fields = [
+                ...dts?.number_cards?.filter(f => tab_fields.includes(f.html_field)).map(f=>f.html_field),
+                ...dts?.charts?.filter(f => tab_fields.includes(f.html_field)).map(f=>f.html_field)
+            ]
+            let vm_all_fields = [
+                ...dts?.number_cards?.map(f=>f.html_field),
+                ...dts?.charts?.map(f=>f.html_field)
+            ]
 
             let relevant_html_fields = [...dtFields.map(f=>f.html_field), ...vm_fields]
+
             let other_mapped_fields = [
                 ...dts.child_doctypes?.filter(f =>!relevant_html_fields.includes(f.html_field)).map(f=>f.html_field),
-                ...vm_docs.filter(f =>!relevant_html_fields.includes(f.wrapper_field)).map(f=>f.wrapper_field)
+                ...vm_all_fields.filter(f =>!vm_fields.includes(f))
             ]
             for(let field of other_mapped_fields){
                 frm.set_df_property(field, 'options', '');
             }
-            for (let vm of vm_docs.filter(f=> vm_fields.includes(f.wrapper_field))) {
-                let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm.name);
+            for(let card  of dts?.number_cards){
                 const wrapper = document.createElement('div');
-                wrapper.id = `${vm.wrapper_field}-wrapper`;
-                frm.set_df_property(vm.wrapper_field, 'options', wrapper);
+                wrapper.id = `${card.html_field}-wrapper`;
+                frm.set_df_property(card.html_field, 'options', wrapper);
                 // Initialize SVADashboardManager and store reference
-                if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
-                    wrapper._dashboard = new SVADashboardManager({
-                        wrapper: wrapper,
-                        frm: frm,
-                        numberCards: visualizationMapper?.cards || [],
-                        charts: visualizationMapper?.charts || []
-                    });
-                }
+                wrapper._dashboard = new SVADashboardManager({
+                    wrapper: wrapper,
+                    frm: frm,
+                    numberCards: [card],
+                    charts: []
+                });
             }
+
+            for(let chart  of dts?.charts){
+                const wrapper = document.createElement('div');
+                wrapper.id = `${chart.html_field}-wrapper`;
+                frm.set_df_property(chart.html_field, 'options', wrapper);
+                // Initialize SVADashboardManager and store reference
+                wrapper._dashboard = new SVADashboardManager({
+                    wrapper: wrapper,
+                    frm: frm,
+                    numberCards: [],
+                    charts: [chart]
+                });
+            }
+
             for (let _f of dtFields) {
                 if (frm.doc.__islocal) {
                     if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
