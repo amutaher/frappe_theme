@@ -91,6 +91,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             case "Notes":
                 new NotesManager(frm, el);
                 break;
+            case "Linked Users":
+                new LinkedUser(frm, el);
+                break;
             default:
                 break;
         }
