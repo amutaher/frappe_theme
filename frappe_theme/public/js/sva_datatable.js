@@ -263,7 +263,7 @@ class SvaDataTable {
         new ListSettings({
             doctype: this.doctype,
             meta: dtmeta.message,
-            settings: this.connection,
+            settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
             dialog_primary_action: async (listview_settings) => {
                 await frappe.xcall('frappe.client.set_value', {
                     doctype: this.connection.doctype,
@@ -945,15 +945,27 @@ class SvaDataTable {
 
         this.columns.forEach(column => {
             const th = document.createElement('th');
+            let col = this.header.find(h => h.fieldname === column.fieldname);
+            if (col.width) {
+                th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+            }
             th.textContent = column.label || column.name;
 
             if (column.sortable) {
                 this.createSortingIcon(th, column); // Create the sorting dropdown
-                th.style = 'cursor:pointer'; // Add pointer cursor to indicate clickable
+                if (col.width) {
+                    th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;cursor:pointer;`;
+                }else{
+                    th.style = `cursor:pointer;`;
+                }
             }
 
             if (this.options.freezeColumnsAtLeft && this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
-                th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'}`;
+                if (col.width) {
+                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'};min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+                }else{
+                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'}`;
+                }
                 left += column.width;
                 freezeColumnsAtLeft++;
             }
@@ -1454,6 +1466,7 @@ class SvaDataTable {
     }
 
     createNonEditableField(td, column, row) {
+        let col = this.header.find(h => h.fieldname === column.fieldname);
         td.textContent = "";
         let columnField = {
             ...column,
@@ -1475,7 +1488,11 @@ class SvaDataTable {
                     td.title = row[column.fieldname] || "";
                 }
             }
-            $(td).css({ height: '32px', width: '200px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (col.width) {
+                $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            }else{
+                $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            }
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1485,7 +1502,7 @@ class SvaDataTable {
                 render_input: true,
                 only_input: true,
             });
-            $(control.input).css({ width: '100%', minWidth: '150px', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
+            $(control.input).css({ width: '100%', height: '32px', backgroundColor: 'white', margin: '0px', fontSize: '12px', color: 'black', boxShadow: 'none', padding: '0px 5px', cursor: 'normal' });
             $(td).css({ height: '32px !important' });
             if (row[column.fieldname]) {
                 control.set_value(row[column.fieldname]);
@@ -1498,17 +1515,34 @@ class SvaDataTable {
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                $(td).css({ height: '32px', cursor: 'pointer', color: 'blue', padding: '0px 5px' });
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' , cursor: 'pointer', color: 'blue'});
+                }
             } else {
-                $(td).css({ height: '32px', width: '200px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                }
             }
             if (columnField.fieldtype === 'Currency') {
                 td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
-                $(td).css({ textAlign: 'right' });
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px',textAlign: 'right' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px',textAlign: 'right'});
+                }
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
                 td.innerHTML = `<a href = "${row[column.fieldname]}" target = "_blank" >${row[column.fieldname]}</a> `;
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                }
                 return;
             }
             if (columnField.fieldtype === 'Attach Image') {
@@ -1522,15 +1556,29 @@ class SvaDataTable {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                 }) || 0;
-                td.style = 'text-align:right;';
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px',textAlign: 'right' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px',textAlign: 'right'});
+                }
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                }
                 return;
             }
             if (columnField.fieldname == 'name') {
                 td.innerHTML = `<a href = "/app/${this.doctype?.split(' ').length > 1 ? this.doctype?.split(' ')?.join('-')?.toLowerCase() : this.doctype.toLowerCase()}/${row[column.fieldname]}" > ${row[column.fieldname]}</a> `;
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                }
                 return;
             }
             if (columnField.fieldtype == 'Button') {
@@ -1542,9 +1590,19 @@ class SvaDataTable {
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
+                if (col.width) {
+                    $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px',padding: '0px 5px'});
+                }else{
+                    $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px',padding: '0px 5px'});
+                }
                 return;
             }
             td.textContent = row[column.fieldname] || "";
+            if (col.width) {
+                $(td).css({width:`${Number(col.width) * 50}px`,minWidth:`${Number(col.width) * 50}px`,maxWidth:`${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            }else{
+                $(td).css({width:`150px`,minWidth:`150px`,maxWidth:`150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+            }
             td.title = row[column.fieldname] || "";
         }
     }
