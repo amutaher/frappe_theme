@@ -24,8 +24,6 @@ class SVANumberCard {
         }
 
         // Show loading state
-        isLoading(true, this.wrapper);
-
         if (this.numberCards.length > 0) {
             const container = document.createElement('div');
             container.className = 'sva-cards-container';
@@ -73,9 +71,6 @@ class SVANumberCard {
         } else {
             this.showNoDataState();
         }
-
-        // Hide loading state
-        isLoading(false, this.wrapper);
 
         this.addStyles();
     }
@@ -289,7 +284,7 @@ class SVANumberCard {
                             filters.push([doc.document_type, final_field.fieldname, '=', this.frm.docname]);
                         }
                     } else {
-                        filters.push([this.frm.doctype, [field.fieldname], '=', this.frm.docname]);
+                        filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
                     }
                 }
                 // console.log(filters, "res");
@@ -456,7 +451,7 @@ class SVANumberCard {
                             report_field: doc.report_field,
                             type: doc.type
                         },
-                        filters: filters
+                        filters:filters
                     }
                 });
             }
