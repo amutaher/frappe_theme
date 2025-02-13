@@ -111,6 +111,7 @@ class GalleryComponent {
             .card-img-top {
                 width: 100%;
                 height: 200px;
+                border-bottom:1px solid #e2e2e2;
                 object-fit: cover;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
@@ -119,7 +120,7 @@ class GalleryComponent {
                 width: 100%;
                 background: white;
                 border-radius: 8px;
-            
+            border:1px solid #e2e2e2;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.12);
                 transition: transform 0.2s, box-shadow 0.2s;
             }
@@ -192,13 +193,13 @@ class GalleryComponent {
                 color: #1F272E;
             }
             .file-name {
-                padding: 12px;
+                padding: 6px 12px ;
                 font-size: 14px;
                 color: #1F272E;
                 word-break: break-word;
             }
             .file-date {
-                padding: 0 12px 12px;
+                padding: 0 12px 6px;
                 font-size: 12px;
                 color: #6E7073;
             }
@@ -357,19 +358,63 @@ class GalleryComponent {
         `;
     }
 
+    getFileIcon(extension) {
+        const iconMap = {
+            // Documents
+            'pdf': 'fa fa-file-pdf-o',
+            'doc': 'fa fa-file-word-o',
+            'docx': 'fa fa-file-word-o',
+            'txt': 'fa fa-file-text-o',
+            // Spreadsheets
+            'xls': 'fa fa-file-excel-o',
+            'xlsx': 'fa fa-file-excel-o',
+            'csv': 'fa fa-file-excel-o',
+            // Presentations
+            'ppt': 'fa fa-file-powerpoint-o',
+            'pptx': 'fa fa-file-powerpoint-o',
+            // Images
+            'jpg': 'fa fa-file-image-o',
+            'jpeg': 'fa fa-file-image-o',
+            'png': 'fa fa-file-image-o',
+            'gif': 'fa fa-file-image-o',
+            'bmp': 'fa fa-file-image-o',
+            // Video
+            'mp4': 'fa fa-file-video-o',
+            'avi': 'fa fa-file-video-o',
+            'mov': 'fa fa-file-video-o',
+            'wmv': 'fa fa-file-video-o',
+            // Audio
+            'mp3': 'fa fa-file-audio-o',
+            'wav': 'fa fa-file-audio-o',
+            // Archives
+            'zip': 'fa fa-file-archive-o',
+            'rar': 'fa fa-file-archive-o',
+            '7z': 'fa fa-file-archive-o',
+            // Code
+            'js': 'fa fa-file-code-o',
+            'css': 'fa fa-file-code-o',
+            'html': 'fa fa-file-code-o',
+            'py': 'fa fa-file-code-o',
+        };
+
+        return iconMap[extension?.toLowerCase()] || 'fa fa-file-o';
+    }
+
     getFilePreview(file, extension) {
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'];
-        const documentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'ppt', 'pptx', 'txt'];
-        const videoExtensions = ['mp4', 'webm', 'mkv', 'mp3', '3gp', 'avi', 'mov'];
 
         if (imageExtensions.includes(extension)) {
             return `<img src="${file.file_url}" class="card-img-top" alt="${file.file_name}">`;
-        } else if (documentExtensions.includes(extension)) {
-            return `<img src="/assets/frappe/images/document.svg" class="card-img-top" style="object-fit: contain; padding: 20px;">`;
-        } else if (videoExtensions.includes(extension)) {
-            return `<img src="/assets/frappe/images/video.svg" class="card-img-top" style="object-fit: contain; padding: 20px;">`;
         } else {
-            return `<img src="/assets/frappe/images/file.svg" class="card-img-top" style="object-fit: contain; padding: 20px;">`;
+            const iconClass = this.getFileIcon(extension);
+            return `
+                <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa;">
+                    <div class="file-icon text-center">
+                        <i class="${iconClass}" style="font-size: 48px; color: #6c757d;"></i>
+                        <div style="font-size: 12px; margin-top: 8px; color: #6c757d;">.${extension}</div>
+                    </div>
+                </div>
+            `;
         }
     }
 
