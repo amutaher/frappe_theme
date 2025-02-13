@@ -1,13 +1,62 @@
 frappe.ui.form.on('Visualization Mapper', {
+    setup: function (frm) {
+        frm.set_query('doctype_field', function () {
+            return {
+                filters: {
+                    istable: 0
+                }
+            };
+        });
+    },
+
+    doctype_field: function (frm) {
+        if (!frm.doc.doctype_field) return;
+
+        // Get HTML fields from the selected doctype
+        frappe.call({
+            method: 'frappe_theme.api.get_html_fields',
+            args: {
+                doctype: frm.doc.doctype_field
+            },
+            callback: function (r) {
+                if (r.message) {
+                    // Update wrapper_field options for both cards and charts
+                    if (frm.fields_dict.cards) {
+                        frm.fields_dict.cards.grid.update_docfield_property(
+                            'wrapper_field',
+                            'options',
+                            r.message
+                        );
+                        frm.refresh_field('cards');
+                    }
+
+                    if (frm.fields_dict.charts) {
+                        frm.fields_dict.charts.grid.update_docfield_property(
+                            'wrapper_field',
+                            'options',
+                            r.message
+                        );
+                        frm.refresh_field('charts');
+                    }
+
+                    if (r.message.length === 0) {
+                        frappe.show_alert({
+                            message: __('No HTML fields found in the selected DocType'),
+                            indicator: 'orange'
+                        });
+                    }
+                }
+            }
+        });
+    },
+
     refresh: function (frm) {
-        setup_preview_buttons(frm);
         frm.trigger('doctype_field');
         frm.trigger('update_sequences');
     },
 
     mapper_type: function (frm) {
         frm.trigger('update_sequences');
-        setup_preview_buttons(frm);
 
         // Clear irrelevant data based on mapper type
         if (frm.doc.mapper_type === 'Number Card') {
@@ -52,40 +101,10 @@ frappe.ui.form.on('Visualization Mapper', {
         }
     },
 
-    doctype_field: async function (frm) {
-        if (!frm.doc.doctype_field) {
-            await frm.set_value('wrapper_field', '');
-            return;
-        }
-
-        try {
-            const response = await frappe.call({
-                method: "frappe_theme.api.get_html_fields",
-                args: {
-                    doctype: frm.doc.doctype_field,
-                },
-            });
-
-            if (response.message) {
-                let fields = response.message;
-                await frm.set_df_property('wrapper_field', 'options', fields);
-                if (fields.length === 0) {
-                    frappe.show_alert({
-                        message: __('No HTML fields found in the selected DocType'),
-                        indicator: 'orange',
-                    });
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching HTML fields:", error);
-        }
-    },
-
     validate: function (frm) {
         frm.trigger('update_sequences');
     }
 });
-
 
 // Number Card Child table handling
 frappe.ui.form.on('Number Card Child', {
@@ -108,18 +127,18 @@ frappe.ui.form.on('Number Card Child', {
         let row = locals[cdt][cdn];
         if (!row.number_card) return;
 
-        // Check for duplicates
-        let duplicate = frm.doc.cards.find(card =>
-            card.name !== row.name &&
-            card.number_card === row.number_card
-        );
+        // // Check for duplicates
+        // let duplicate = frm.doc.cards.find(card =>
+        //     card.name !== row.name &&
+        //     card.number_card === row.number_card
+        // );
 
-        if (duplicate) {
-            // Clear the selection
-            frappe.model.set_value(cdt, cdn, 'number_card', '');
-            frappe.throw(__(`Number Card "${row.number_card}" is already selected in row ${duplicate.idx}`));
-            return;
-        }
+        // if (duplicate) {
+        //     // Clear the selection
+        //     frappe.model.set_value(cdt, cdn, 'number_card', '');
+        //     frappe.throw(__(`Number Card "${row.number_card}" is already selected in row ${duplicate.idx}`));
+        //     return;
+        // }
 
         // If no duplicate, update the label
         update_card_label(frm, row);
@@ -163,55 +182,25 @@ frappe.ui.form.on('Dashboard Chart Child', {
         let row = locals[cdt][cdn];
         if (!row.dashboard_chart) return;
 
-        // Check for duplicates
-        let duplicate = frm.doc.charts.find(chart =>
-            chart.name !== row.name &&
-            chart.dashboard_chart === row.dashboard_chart
-        );
+        // // Check for duplicates
+        // let duplicate = frm.doc.charts.find(chart =>
+        //     chart.name !== row.name &&
+        //     chart.dashboard_chart === row.dashboard_chart
+        // );
 
-        if (duplicate) {
-            // Clear the selection
-            frappe.model.set_value(cdt, cdn, 'dashboard_chart', '');
-            frappe.throw(__(`Dashboard Chart "${row.dashboard_chart}" is already selected in row ${duplicate.idx}`));
-            return;
-        }
+        // if (duplicate) {
+        //     // Clear the selection
+        //     frappe.model.set_value(cdt, cdn, 'dashboard_chart', '');
+        //     frappe.throw(__(`Dashboard Chart "${row.dashboard_chart}" is already selected in row ${duplicate.idx}`));
+        //     return;
+        // }
 
         // If no duplicate, update the label
         update_chart_label(frm, row);
     }
 });
 
-
 // Helper functions
-function setup_preview_buttons(frm) {
-    // Remove all existing preview buttons
-    frm.page.clear_inner_toolbar();
-
-    // Add a single preview button based on mapper type
-    if (frm.doc.mapper_type) {
-        let preview_label, preview_function;
-
-        switch (frm.doc.mapper_type) {
-            case 'Number Card':
-                preview_label = 'Preview Cards';
-                preview_function = () => preview_visualization(frm, 'cards');
-                break;
-            case 'Dashboard Chart':
-                preview_label = 'Preview Charts';
-                preview_function = () => preview_visualization(frm, 'charts');
-                break;
-            case 'Both':
-                preview_label = 'Preview All';
-                preview_function = () => preview_visualization(frm, 'both');
-                break;
-        }
-
-        if (preview_label) {
-            frm.add_custom_button(__(preview_label), preview_function);
-        }
-    }
-}
-
 function update_card_label(frm, row) {
     frappe.db.get_value('Number Card', row.number_card, ['label'])
         .then(r => {
@@ -300,115 +289,6 @@ function get_fontawesome_icons() {
         'fa-chart-line', 'fa-chart-bar', 'fa-chart-pie',
         'fa-envelope', 'fa-phone', 'fa-comment', 'fa-comments',
         'fa-star', 'fa-heart', 'fa-check', 'fa-times',
-        'fa-cog', 'fa-settings', 'fa-tools', 'fa-wrench',
-        // Add more icons as needed
+        'fa-cog', 'fa-settings', 'fa-tools', 'fa-wrench'
     ];
-}
-
-
-// Unified preview function
-function preview_visualization(frm, type) {
-    const hasCards = frm.doc.cards && frm.doc.cards.length > 0;
-    const hasCharts = frm.doc.charts && frm.doc.charts.length > 0;
-
-    // Validate content exists
-    if ((type === 'cards' && !hasCards) ||
-        (type === 'charts' && !hasCharts) ||
-        (type === 'both' && !hasCards && !hasCharts)) {
-        frappe.msgprint(__('No content available to preview'));
-        return;
-    }
-
-    // Create dialog
-    let dialog_fields = [];
-    let dialog_title = '';
-
-    switch (type) {
-        case 'cards':
-            dialog_title = __('Card Preview');
-            dialog_fields.push({
-                fieldtype: 'HTML',
-                fieldname: 'cards_preview'
-            });
-            break;
-        case 'charts':
-            dialog_title = __('Chart Preview');
-            dialog_fields.push({
-                fieldtype: 'HTML',
-                fieldname: 'charts_preview'
-            });
-            break;
-        case 'both':
-            dialog_title = __('Preview');
-            if (hasCards) {
-                dialog_fields.push({
-                    fieldtype: 'HTML',
-                    fieldname: 'cards_preview',
-                    label: 'Number Cards'
-                });
-            }
-            if (hasCharts) {
-                dialog_fields.push({
-                    fieldtype: 'HTML',
-                    fieldname: 'charts_preview',
-                    label: 'Dashboard Charts'
-                });
-            }
-            break;
-    }
-
-    let d = new frappe.ui.Dialog({
-        title: dialog_title,
-        fields: dialog_fields,
-        size: 'large'
-    });
-
-    d.show();
-
-    // Initialize visualizations
-    if (type === 'cards' || (type === 'both' && hasCards)) {
-        const cardPreviewArea = d.get_field('cards_preview').$wrapper;
-        if (type === 'both') {
-            cardPreviewArea.html(`
-                <div class="preview-section">
-                    <h6 class="preview-section-title">Number Cards</h6>
-                    <div class="preview-section-content cards-preview-content"></div>
-                </div>
-            `);
-            new SVANumberCard({
-                wrapper: cardPreviewArea.find('.cards-preview-content')[0],
-                frm: frm,
-                numberCards: frm.doc.cards.filter(card => card.is_visible)
-            });
-        } else {
-            new SVANumberCard({
-                wrapper: cardPreviewArea[0],
-                frm: frm,
-                numberCards: frm.doc.cards.filter(card => card.is_visible)
-            });
-        }
-    }
-
-    if (type === 'charts' || (type === 'both' && hasCharts)) {
-        const chartPreviewArea = d.get_field('charts_preview').$wrapper;
-        if (type === 'both') {
-            chartPreviewArea.html(`
-                <div class="preview-section">
-                    <h6 class="preview-section-title">Dashboard Charts</h6>
-                    <div class="preview-section-content charts-preview-content"></div>
-                </div>
-            `);
-            new SVADashboardChart({
-                wrapper: chartPreviewArea.find('.charts-preview-content')[0],
-                frm: frm,
-                charts: frm.doc.charts.filter(chart => chart.is_visible)
-            });
-        } else {
-            new SVADashboardChart({
-                wrapper: chartPreviewArea[0],
-                frm: frm,
-                charts: frm.doc.charts.filter(chart => chart.is_visible)
-            });
-        }
-    }
 }
