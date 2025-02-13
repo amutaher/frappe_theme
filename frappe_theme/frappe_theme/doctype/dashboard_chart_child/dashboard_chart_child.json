@@ -7,6 +7,7 @@
     "field_order": [
         "dashboard_chart",
         "chart_label",
+        "wrapper_field",
         "style_section",
         "background_color",
         "column_break_1",
@@ -21,6 +22,13 @@
         "is_visible"
     ],
     "fields": [
+        {
+            "fieldname": "wrapper_field",
+            "fieldtype": "Select",
+            "label": "Wrapper Field",
+            "reqd": 1,
+            "in_list_view": 1
+        },
         {
             "fieldname": "dashboard_chart",
             "fieldtype": "Link",
