@@ -44,7 +44,6 @@ class SVADashboardChart {
                 for (let chartConfig of visibleCharts) {
                     try {
                         const chartData = await this.fetchChartData(chartConfig.dashboard_chart);
-                        console.log('Chart data:', chartData);
                         if (chartData) {
                             const chart = this.createChart({
                                 ...chartData,
