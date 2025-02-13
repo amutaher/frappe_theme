@@ -1,10 +1,46 @@
 // Copyright (c) 2024, Suvaidyam and contributors
 // For license information, please see license.txt
 
-// frappe.ui.form.on("SVADatatable Configuration", {
-//     refresh: function(frm) {
-//     },
-// });
+frappe.ui.form.on("SVADatatable Configuration", {
+    // refresh: function(frm) {
+    // },
+    update_sequences: function (frm) {
+        if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
+            frm.trigger('update_card_sequence');
+        }
+        if (frm.doc.mapper_type === 'Dashboard Chart' || frm.doc.mapper_type === 'Both') {
+            frm.trigger('update_chart_sequence');
+        }
+    },
+
+    update_card_sequence: function (frm) {
+        if (frm.doc.cards && frm.doc.cards.length) {
+            frm.doc.cards.forEach((card, idx) => {
+                frappe.model.set_value(card.doctype, card.name, 'sequence', idx + 1);
+                if (card.number_card && !card.card_label) {
+                    update_card_label(frm, card);
+                }
+            });
+            frm.refresh_field('cards');
+        }
+    },
+
+    update_chart_sequence: function (frm) {
+        if (frm.doc.charts && frm.doc.charts.length) {
+            frm.doc.charts.forEach((chart, idx) => {
+                frappe.model.set_value(chart.doctype, chart.name, 'sequence', idx + 1);
+                if (chart.dashboard_chart && !chart.chart_label) {
+                    update_chart_label(frm, chart);
+                }
+            });
+            frm.refresh_field('charts');
+        }
+    },
+
+    validate: function (frm) {
+        frm.trigger('update_sequences');
+    }
+});
 const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
     let dtmeta = await frappe.call({
@@ -220,7 +256,6 @@ frappe.ui.form.on("SVADatatable Child Conf", {
                 }
             }
         }
-
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         let options = html_fields.map(function (d) { return d.fieldname });
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
@@ -260,6 +295,96 @@ frappe.ui.form.on("SVADatatable Child Conf", {
     },
     async setup_crud_permissions(frm, cdt, cdn) {
         set_crud_permissiions(frm, cdt, cdn);
+    }
+});
+
+
+frappe.ui.form.on('Number Card Child', {
+    async form_render(frm, cdt, cdn) {
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        if (html_fields_2.length) {
+            html_fields = html_fields.concat(html_fields_2);
+        }
+        let options = html_fields.map(function (d) { return d.fieldname });
+        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+    },
+    cards_add: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        row.sequence = (frm.doc.cards || []).length;
+        row.is_visible = 1;
+        frm.refresh_field('cards');
     },
 
+    cards_move: function (frm) {
+        frm.trigger('update_card_sequence');
+    },
+
+    cards_remove: function (frm) {
+        frm.trigger('update_card_sequence');
+    },
+
+    number_card: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.number_card) return;
+        update_card_label(frm, row);
+    }
 });
+
+// Dashboard Chart Child table handling
+frappe.ui.form.on('Dashboard Chart Child', {
+    async form_render(frm, cdt, cdn) {
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        if (html_fields_2.length) {
+            html_fields = html_fields.concat(html_fields_2);
+        }
+        let options = html_fields.map(function (d) { return d.fieldname });
+        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+    },
+    charts_add: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        row.sequence = (frm.doc.charts || []).length;
+        row.is_visible = 1;
+        row.chart_height = 300;
+        row.show_legend = 1;
+        frm.refresh_field('charts');
+    },
+
+    charts_move: function (frm) {
+        frm.trigger('update_chart_sequence');
+    },
+
+    charts_remove: function (frm) {
+        frm.trigger('update_chart_sequence');
+    },
+
+    dashboard_chart: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.dashboard_chart) return;
+        update_chart_label(frm, row);
+    }
+});
+
+// Helper functions
+function update_card_label(frm, row) {
+    frappe.db.get_value('Number Card', row.number_card, ['label'])
+    .then(r => {
+        if (r.message) {
+            frappe.model.set_value(row.doctype, row.name, {
+                'card_label': r.message.label
+            });
+        }
+    });
+}
+
+function update_chart_label(frm, row) {
+    frappe.db.get_value('Dashboard Chart', row.dashboard_chart, ['chart_name'])
+    .then(r => {
+        if (r.message) {
+            frappe.model.set_value(row.doctype, row.name, {
+                'chart_label': r.message.chart_name
+            });
+        }
+    });
+}

@@ -8,7 +8,9 @@
  "field_order": [
   "parent_doctype",
   "child_doctypes",
-  "child_confs"
+  "child_confs",
+  "number_cards",
+  "charts"
  ],
  "fields": [
   {
@@ -32,11 +34,23 @@
    "fieldtype": "Table",
    "label": "Child Confs",
    "options": "SVADatatable Child Conf"
+  },
+  {
+   "fieldname": "number_cards",
+   "fieldtype": "Table",
+   "label": "Number Cards",
+   "options": "Number Card Child"
+  },
+  {
+   "fieldname": "charts",
+   "fieldtype": "Table",
+   "label": "Charts",
+   "options": "Dashboard Chart Child"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-23 19:37:53.233127",
+ "modified": "2025-02-13 09:33:42.875808",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration",
