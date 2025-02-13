@@ -58,7 +58,27 @@ class TimelineGenerator {
                     const title = document.createElement('span');
                     title.style.fontSize = '12px';
                     title.style.fontWeight = 'bold';
-                    title.textContent = __(item.custom_actual_doctype || item.ref_doctype);
+                    console.log('item.custom_actual_doctype :>> ', item.custom_actual_doctype);
+                    if (item.custom_actual_doctype == "") {
+                        console.log('object :>> ', item);
+                    }
+
+                    title.innerHTML = `
+                    <p style="margin-bottom: 2px;">
+                        <span>${item.custom_actual_doctype || item.ref_doctype}</span>  
+                        <a href="#" style="text-decoration: underline; cursor: pointer; font-weight: normal; margin-left: 8px; display: inline-block;">
+                            ${item.custom_actual_document_name || item.docname} 
+                            <span style="font-size: 15px; ">&#8599;</span>
+                        </a>
+                    </p>`;
+
+                    const link = title.querySelector('a');
+                    link.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        frappe.set_route('Form', item.custom_actual_doctype || item.ref_doctype, item.custom_actual_document_name || item.docname);
+                    });
+
+
                     cardWrapper.appendChild(title);
 
                     const card = document.createElement('div');

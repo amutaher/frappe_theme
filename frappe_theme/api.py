@@ -75,3 +75,64 @@ def get_html_fields(doctype):
     except Exception as e:
         frappe.log_error(f"Error getting HTML fields for {doctype}: {str(e)}")
         return []
+
+@frappe.whitelist()
+def execute_number_card_query(report_name, filters=None):
+    try:
+        # Get the report document
+        report_doc = frappe.get_doc('Report', report_name)
+        if not report_doc or not report_doc.query:
+            frappe.throw('Report not found or invalid')
+
+        # Get the base query from the report
+        base_query = report_doc.query
+        
+        # Create subquery
+        query = f"SELECT * FROM ({base_query}) AS subquery"
+        
+        # Add WHERE clause if filters are provided
+        if filters:
+            # Convert string filters to dict if needed
+            if isinstance(filters, str):
+                filters = frappe.parse_json(filters)
+                
+            where_conditions = []
+            for field, value in filters.items():
+                # Clean the field name (remove quotes if present)
+                field = field.strip('\'"')
+                
+                # Safely format the value based on type
+                if isinstance(value, (int, float)):
+                    where_conditions.append(f"{field} = {value}")
+                else:
+                    # Remove any existing quotes and escape single quotes in the value
+                    value = str(value).strip('\'"').replace("'", "\\'") 
+                    where_conditions.append(f"{field} = '{value}'")
+
+            if where_conditions:
+                query += " WHERE " + " AND ".join(where_conditions)
+        
+        # Execute the query
+        result = frappe.db.sql(query, as_dict=True)
+        
+        # Get column information by creating a temporary table
+        temp_table_name = f'temp_report_{frappe.generate_hash()[:10]}'
+        try:
+            # Create temporary table
+            frappe.db.sql(f'CREATE TEMPORARY TABLE `{temp_table_name}` AS {base_query}')
+            
+            # Get column information
+            columns = frappe.db.sql(f'DESCRIBE `{temp_table_name}`', as_dict=True)
+            column_types = {col.Field: col.Type for col in columns}
+            
+            return {
+                'result': result,
+                'column_types': column_types
+            }
+        finally:
+            # Clean up temporary table
+            frappe.db.sql(f'DROP TEMPORARY TABLE IF EXISTS `{temp_table_name}`')
+    except Exception as e:
+        frappe.log_error(f"Error executing number card query: {str(e)}")
+        return None
+

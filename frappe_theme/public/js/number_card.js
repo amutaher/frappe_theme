@@ -24,14 +24,15 @@ class SVANumberCard {
         }
 
         // Show loading state
-        // isLoading(true, this.wrapper);
-
         if (this.numberCards.length > 0) {
             const container = document.createElement('div');
             container.className = 'sva-cards-container';
 
             try {
-                for (let cardConfig of this.numberCards) {
+                // Filter out invisible cards
+                const visibleCards = this.numberCards.filter(card => card.is_visible);
+
+                for (let cardConfig of visibleCards) {
                     try {
                         const cardData = await this.fetchNumberCardData(cardConfig.number_card);
                         if (cardData) {
@@ -71,9 +72,6 @@ class SVANumberCard {
             this.showNoDataState();
         }
 
-        // Hide loading state
-        // isLoading(false, this.wrapper);
-
         this.addStyles();
     }
 
@@ -96,11 +94,8 @@ class SVANumberCard {
             </div>
         ` : '';
 
-        const currencySymbol = this.shouldShowCurrency(config.value, config.fieldtype) ? '₹' : '';
-
         const containerStyle = [
-            options.backgroundColor ? `background-color: ${options.backgroundColor}` : '',
-            config.onClick ? 'cursor: pointer' : ''
+            options.backgroundColor ? `background-color: ${options.backgroundColor}` : ''
         ].filter(Boolean).join(';');
 
         const titleStyle = options.textColor ? `color: ${options.textColor}` : '';
@@ -135,7 +130,7 @@ class SVANumberCard {
                         </div>
                     </div>
                     <div class="number-card-main">
-                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${currencySymbol}${this.formatValue(config.value)}</div>
+                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${this.formatValue(config.value, config.fieldtype)}</div>
                         ${iconHtml}
                     </div>
                 </div>
@@ -176,8 +171,7 @@ class SVANumberCard {
                 if (cardData) {
                     // Update card value
                     const valueElement = card.querySelector('.number-card-value');
-                    const currencySymbol = this.shouldShowCurrency(cardData.result) ? '₹' : '';
-                    valueElement.textContent = `${currencySymbol}${this.formatValue(cardData.result)}`;
+                    valueElement.textContent = this.formatValue(cardData.result, cardData.fieldtype);
                 }
             } catch (error) {
                 console.error('Error refreshing card:', error);
@@ -192,34 +186,43 @@ class SVANumberCard {
             }
         });
 
-        // Add click handler for card
-        const cardContainer = card.querySelector('.number-card-container');
-        cardContainer.style.cursor = 'pointer';
-
-        cardContainer.addEventListener('click', (e) => {
-            // Don't trigger click if clicking menu or its children
-            if (e.target.closest('.number-card-menu')) {
-                return;
-            }
-
-            if (config.reportName) {
-                // For report-based cards, redirect to the report
-                frappe.set_route('query-report', config.reportName);
-            } else if (config.doctype) {
-                // For document-based cards, redirect to list view with filters
-                frappe.route_options = config.filters || {};
-                frappe.set_route('List', config.doctype);
-            }
-        });
-
-        // Remove hover effects
-
         return card;
     }
 
     shouldShowCurrency(value, fieldtype) {
-        // Check if the value should show currency symbol
+        // Check if the value should show currency symbol based on fieldtype
         return fieldtype === 'Currency' && typeof value === 'number' && !isNaN(value);
+    }
+
+    formatValue(value, fieldtype) {
+        if (value === undefined || value === null) return '--';
+        if (value === '--') return value;
+
+        if (typeof value === 'number') {
+            // Get absolute value for comparison
+            const absValue = Math.abs(value);
+
+            // For Currency fields, use format_currency
+            if (fieldtype === 'Currency') {
+                return format_currency(value, frappe.defaults.get_default("currency"));
+            }
+
+            // For non-currency numbers, use simple formatting with suffixes
+            if (absValue >= 10000000) { // ≥ 1 Cr
+                const crValue = (value / 10000000).toFixed(2);
+                return crValue + ' Cr';
+            } else if (absValue >= 100000) { // ≥ 1 L
+                const lValue = (value / 100000).toFixed(2);
+                return lValue + ' L';
+            } else if (absValue >= 1000) { // ≥ 1 K
+                const kValue = (value / 1000).toFixed(2);
+                return kValue + ' K';
+            }
+
+            // For regular numbers, return as is with 2 decimal places if needed
+            return value % 1 !== 0 ? value.toFixed(2) : value.toString();
+        }
+        return value;
     }
 
     createErrorCard(cardName) {
@@ -239,51 +242,6 @@ class SVANumberCard {
             </div>
         `;
         return card;
-    }
-
-    formatValue(value) {
-        if (value === undefined || value === null) return '--';
-        if (value === '--') return value;
-
-        if (typeof value === 'number') {
-            // Convert to absolute value for comparison
-            const absValue = Math.abs(value);
-
-            // Format according to Indian number system
-            const formatIndianNumber = (num) => {
-                const numStr = num.toString();
-                if (numStr.includes('.')) {
-                    const [intPart, decPart] = numStr.split('.');
-                    return this.formatIndianInteger(intPart) + '.' + decPart;
-                }
-                return this.formatIndianInteger(numStr);
-            };
-
-            // Add appropriate suffix based on magnitude
-            if (absValue >= 10000000) { // ≥ 1 Cr
-                const crValue = (value / 10000000).toFixed(2);
-                return formatIndianNumber(crValue) + ' Cr';
-            } else if (absValue >= 100000) { // ≥ 1 L
-                const lValue = (value / 100000).toFixed(2);
-                return formatIndianNumber(lValue) + ' L';
-            } else if (absValue >= 1000) { // ≥ 1 K
-                const kValue = (value / 1000).toFixed(2);
-                return formatIndianNumber(kValue) + ' K';
-            }
-
-            return formatIndianNumber(value);
-        }
-        return value;
-    }
-
-    formatIndianInteger(numStr) {
-        numStr = numStr.toString().replace(/,/g, '');
-        const lastThree = numStr.substring(numStr.length - 3);
-        const otherNumbers = numStr.substring(0, numStr.length - 3);
-        if (otherNumbers !== '') {
-            return otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree;
-        }
-        return lastThree;
     }
 
     async fetchNumberCardData(cardName) {
@@ -326,7 +284,7 @@ class SVANumberCard {
                             filters.push([doc.document_type, final_field.fieldname, '=', this.frm.docname]);
                         }
                     } else {
-                        filters.push([this.frm.doctype, [field.fieldname], '=', this.frm.docname]);
+                        filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
                     }
                 }
                 // console.log(filters, "res");
@@ -336,9 +294,106 @@ class SVANumberCard {
             // Get the document type from the card
             if (!doc.document_type && doc.report_name) {
                 // If it's a report type card, get the document type from the report
-                const reportDoc = await frappe.db.get_value('Report', doc.report_name, ['ref_doctype']);
-                if (reportDoc?.message?.ref_doctype) {
-                    doc.document_type = reportDoc.message.ref_doctype;
+                const reportDoc = await frappe.db.get_doc('Report', doc.report_name);
+
+                if (reportDoc) {
+                    doc.document_type = reportDoc.ref_doctype;
+                    // let baseQuery = reportDoc.query;
+                    // let modifiedQuery = `SELECT * FROM (${baseQuery}) AS subquery`;
+                    // // console.log(modifiedQuery, "modifiedQuery");
+                    const reportFilters = reportDoc.filters || [];
+                    const whereConditions = [];
+
+                    // Add conditions from report filters
+                    reportFilters.forEach(filter => {
+                        // Check if filter fieldname matches current form's docname
+                        if (filter.fieldname === this.frm.doctype.toLowerCase()) {
+                            whereConditions.push(`${filter.fieldname} = '${this.frm.docname}'`);
+                        }
+                        // Add default filter values if present
+                        else if (filter.default) {
+                            whereConditions.push(
+                                `${filter.fieldname} = ${typeof filter.default === 'string' ? `'${filter.default}'` : filter.default}`
+                            );
+                        }
+                        // Check if filter exists in current form's doc
+                        else if (this.frm.doc && this.frm.doc[filter.fieldname] !== undefined) {
+                            const value = this.frm.doc[filter.fieldname];
+                            whereConditions.push(
+                                `${filter.fieldname} = ${typeof value === 'string' ? `'${value}'` : value}`
+                            );
+                        }
+                    });
+
+                    // if (whereConditions.length > 0) {
+                    //     modifiedQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+                    // }
+                    // console.log(modifiedQuery, "modifiedQuery");
+
+                    // Execute the query through Frappe's API
+                    // Convert conditions to a filter object
+                    let json_filters = {};
+                    whereConditions.forEach(condition => {
+                        const matches = condition.match(/([^=]+)\s*=\s*(.+)/);
+                        if (matches) {
+                            const [_, field, value] = matches;
+                            json_filters[field.trim()] = value.trim().replace(/^['"]+|['"]+$/g, '');
+                        }
+                    });
+
+                    try {
+                        const response = await frappe.call({
+                            method: "frappe_theme.api.execute_number_card_query",
+                            args: {
+                                report_name: doc.report_name,
+                                filters: json_filters
+                            }
+                        });
+                        // console.log(response, "response");
+                        if (response?.message?.result && response.message.result.length > 0) {
+                            if (doc.report_field) {
+                                const fieldValue = response.message.result[0][doc.report_field];
+                                const fieldType = response.message.column_types?.[doc.report_field];
+
+                                return {
+                                    ...doc,
+                                    result: fieldValue,
+                                    fieldtype: fieldType?.toLowerCase().includes('decimal') ? 'Currency' : null
+                                };
+                            }
+                        }
+                        return null;
+                    } catch (error) {
+                        console.error('Error executing number card query:', error);
+                        return null;
+                    }
+                    // fr
+                    // try {
+                    //     const result = await frappe.call({
+                    //         method: 'frappe.desk.query_report.run',
+                    //         args: {
+                    //             report_name: doc.report_name,
+                    //             filters: json_filters
+                    //         }
+                    //     });
+                    //     console.log(result, "result");
+
+
+                    //     if (result?.message?.result && result.message.result.length > 0) {
+                    //         if (doc.report_field) {
+                    //             const fieldValue = result.message.result[0][doc.report_field];
+                    //             return {
+                    //                 ...doc,
+                    //                 result: fieldValue,
+                    //                 fieldtype: result.message.columns?.find(col => col.fieldname === doc.report_field)?.fieldtype || null
+                    //             };
+                    //         }
+                    //     }
+                    //     return null;
+                    // } catch (error) {
+                    //     console.error('Error executing report query:', error);
+                    //     return null;
+                    // }
                 }
             }
 
@@ -350,33 +405,33 @@ class SVANumberCard {
             let resultResponse;
             if (doc.report_name) {
                 // Handle report-based cards
-                const reportData = await frappe.call({
-                    method: 'frappe.desk.query_report.run',
-                    args: {
-                        report_name: doc.report_name,
-                        filters: filters
-                    }
-                });
-                console.log(reportData, "reportData");
+                // const reportData = await frappe.call({
+                //     method: 'frappe.desk.query_report.run',
+                //     args: {
+                //         report_name: doc.report_name,
+                //         filters: filters
+                //     }
+                // });
+                // console.log(reportData, "reportData");
 
-                if (reportData?.message?.result && doc.report_field) {
-                    // Extract the value from the report data using the specified field
-                    const result = reportData.message.result;
-                    // Find the column definition to check if it's Currency type
-                    const columnDef = reportData.message.columns?.find(col => col.fieldname === doc.report_field);
-                    const isCurrency = columnDef?.fieldtype === 'Currency';
+                // if (reportData?.message?.result && doc.report_field) {
+                //     // Extract the value from the report data using the specified field
+                //     const result = reportData.message.result;
+                //     // Find the column definition to check if it's Currency type
+                //     const columnDef = reportData.message.columns?.find(col => col.fieldname === doc.report_field);
+                //     const isCurrency = columnDef?.fieldtype === 'Currency';
 
-                    if (result.length > 0 && doc.report_field in result[0]) {
-                        resultResponse = {
-                            message: result[0][doc.report_field],
-                            fieldtype: isCurrency ? 'Currency' : null
-                        };
-                    } else {
-                        resultResponse = { message: 0, fieldtype: isCurrency ? 'Currency' : null };
-                    }
-                } else {
-                    resultResponse = { message: 0, fieldtype: null };
-                }
+                //     if (result.length > 0 && doc.report_field in result[0]) {
+                //         resultResponse = {
+                //             message: result[0][doc.report_field],
+                //             fieldtype: isCurrency ? 'Currency' : null
+                //         };
+                //     } else {
+                //         resultResponse = { message: 0, fieldtype: isCurrency ? 'Currency' : null };
+                //     }
+                // } else {
+                //     resultResponse = { message: 0, fieldtype: null };
+                // }
             } else {
                 // Handle regular document-based cards
                 resultResponse = await frappe.call({
@@ -396,7 +451,7 @@ class SVANumberCard {
                             report_field: doc.report_field,
                             type: doc.type
                         },
-                        filters: filters
+                        filters:filters
                     }
                 });
             }

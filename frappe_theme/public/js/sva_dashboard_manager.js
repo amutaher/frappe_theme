@@ -191,19 +191,19 @@ class SVADashboardManager {
             refreshButton.disabled = true;
             refreshButton.innerHTML = '<i class="fa fa-refresh fa-spin"></i> Refreshing...';
         }
-
+        let loader = new Loader(this.wrapper, 'refresh_all_dashboard');
+        loader.show();
         try {
-            isLoading(true, this.wrapper);
             await this.renderDashboard();
         } catch (error) {
             console.error('Error refreshing dashboard:', error);
         } finally {
-            isLoading(false, this.wrapper);
             if (refreshButton) {
                 refreshButton.disabled = false;
                 refreshButton.innerHTML = '<i class="fa fa-refresh"></i> Refresh';
             }
         }
+        loader.hide()
     }
 
     addStyles() {
