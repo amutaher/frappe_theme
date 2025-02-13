@@ -47,7 +47,7 @@ class LinkedUser {
                                 <a href="${frappe.utils.get_form_link('SVA User', user.name, false)}">${index + 1}</a>
                             </td>
                             <td class="col grid-static-col col-xs-3 ">${user.full_name}</td>
-                            <td> ${user.role_profile}</td>
+                            <td style="white-space: nowrap;"> ${user.role_profile}</td>
                             <td style="white-space: nowrap;">${user.email}</td>
                             <td style="white-space: nowrap;">${user.status}</td>
                             <td>
@@ -325,12 +325,15 @@ class LinkedUser {
         });
 
         // Create the dialog form
-        let fields = fileds?.docs[0]?.fields.filter((field) => !['Tab Break', 'Attach Image', 'Table'].includes(field.fieldtype)).map(field => {
+        let fields = fileds?.docs[0]?.fields.filter((field) =>
+            ['role_profile','first_name','last_name','email','mobile_number'].includes(field.fieldname)
+        ).map(field => {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
                 }
             }
+
             return field;
         });
         let user_form = new frappe.ui.Dialog({
@@ -338,6 +341,11 @@ class LinkedUser {
             fields: fields,
             primary_action_label: primaryActionLabel,
             primary_action: function (values) {
+                let regex = /^[6-9]\d{9}$/;
+                if (values.mobile_number && !regex.test(values.mobile_number)) {
+                    frappe.msgprint('Please enter valid mobile number');
+                    return;
+                }
                 if (action === 'New User') {
                     // Create New User logic
                     frappe.db.insert({
