@@ -301,8 +301,8 @@ frappe.ui.form.on("SVADatatable Child Conf", {
 
 frappe.ui.form.on('Number Card Child', {
     async form_render(frm, cdt, cdn) {
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
@@ -334,8 +334,8 @@ frappe.ui.form.on('Number Card Child', {
 // Dashboard Chart Child table handling
 frappe.ui.form.on('Dashboard Chart Child', {
     async form_render(frm, cdt, cdn) {
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
@@ -369,22 +369,22 @@ frappe.ui.form.on('Dashboard Chart Child', {
 // Helper functions
 function update_card_label(frm, row) {
     frappe.db.get_value('Number Card', row.number_card, ['label'])
-    .then(r => {
-        if (r.message) {
-            frappe.model.set_value(row.doctype, row.name, {
-                'card_label': r.message.label
-            });
-        }
-    });
+        .then(r => {
+            if (r.message) {
+                frappe.model.set_value(row.doctype, row.name, {
+                    'card_label': r.message.label
+                });
+            }
+        });
 }
 
 function update_chart_label(frm, row) {
     frappe.db.get_value('Dashboard Chart', row.dashboard_chart, ['chart_name'])
-    .then(r => {
-        if (r.message) {
-            frappe.model.set_value(row.doctype, row.name, {
-                'chart_label': r.message.chart_name
-            });
-        }
-    });
+        .then(r => {
+            if (r.message) {
+                frappe.model.set_value(row.doctype, row.name, {
+                    'chart_label': r.message.chart_name
+                });
+            }
+        });
 }

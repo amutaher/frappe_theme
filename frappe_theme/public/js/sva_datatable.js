@@ -290,8 +290,6 @@ class SvaDataTable {
             margin-right: 0px;
             padding: 0;
             box-sizing: border-box;
-            overflow-x: scroll;
-            scroll-behavior: smooth;
             border-spacing: none;
         `;
 
@@ -914,9 +912,10 @@ class SvaDataTable {
     createTable() {
         const el = document.createElement('div');
         el.classList.add('form-grid-container', 'form-grid');
+        el.style = 'overflow:auto;';
         const table = document.createElement('table');
         table.classList.add('table', 'table-bordered');
-        table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;overflow:auto;';
+        table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;';
         table.appendChild(this.createTableHead());
         el.appendChild(table);
         table.appendChild(this.createTableBody());
@@ -939,7 +938,7 @@ class SvaDataTable {
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
             serialTh.textContent = '#';
-            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;';
+            serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
             tr.appendChild(serialTh);
         }
 
@@ -973,7 +972,7 @@ class SvaDataTable {
         // ========================= Workflow End ======================
         if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
-            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;';
+            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
             if (frappe.user_roles.includes("Administrator")) {
                 action_th.appendChild(this.createSettingsButton());
                 tr.appendChild(action_th);
@@ -1225,6 +1224,7 @@ class SvaDataTable {
                     actionTd.style.textAlign = 'center';
                     actionTd.style.position = 'sticky';
                     actionTd.style.right = '0px';
+                    actionTd.style.backgroundColor = '#fff';
                     actionTd.appendChild(this.createActionColumn(row, primaryKey));
                     tr.appendChild(actionTd);
                 }
