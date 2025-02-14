@@ -168,7 +168,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
                         document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;">
                             <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>
-                            Save ${frm.doctype} to add ${_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype)} items.
+                            ${__(`Save ${__(frm.doctype)} to add ${__(_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype))} items`)}
                         </div>`;
                     }
                 } else {

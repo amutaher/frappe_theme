@@ -2,6 +2,9 @@ class LinkedUser {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
+        this.user_list = [];
+        this.total_pages = 1;
+        this.currentPage = 1;
         this.render_user();
     }
     getRandomColor() {
@@ -151,6 +154,7 @@ class LinkedUser {
         let limit = 10;
         let user_permission = await frappe.db.get_list('User Permission', {
             fields: ['user'],
+            limit: 1000,
             filters: {
                 allow: this.frm.doctype,
                 for_value: this.frm.docname
