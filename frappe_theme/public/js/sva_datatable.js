@@ -982,8 +982,8 @@ class SvaDataTable {
         // ========================= Workflow Logic ======================
         if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
             const addColumn = document.createElement('th');
-            addColumn.textContent = 'Approval';
-            addColumn.style = 'cursor:pointer; text-align:center;';
+            addColumn.textContent = this.connection.action_label ? this.connection.action_label:'Approval';
+            addColumn.style = 'text-align:center;';
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
