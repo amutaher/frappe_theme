@@ -268,42 +268,37 @@ class SVANumberCard {
             let filters = Array.isArray(filters_json) ? filters_json :
                 Object.entries(filters_json).map(([key, value]) => [doc.document_type, key, '=', value]);
 
-            // Only add the name filter if we have both a document type and a docname
+            // Get the linked doctype fields
             if (doc.document_type && this.frm.docname) {
-                let res = await frappe.db.get_list('DocField', { filters: { 'parent': doc.document_type, fieldtype: 'Link', 'options': ['IN', ['DocType', this.frm.doctype]] }, fields: ['fieldname', 'options'] });
-                let cus_ref_res = await frappe.db.get_list('Custom Field', { filters: { 'dt': doc.document_type, fieldtype: 'Link', 'options': ['IN', ['DocType', this.frm.doctype]] }, fields: ['fieldname', 'options'] });
-                let filds = res.concat(cus_ref_res).filter((item) => !["amended_from", "parent_grant"].includes(item.fieldname));
-                if (filds.length > 0) {
-                    let field = filds[0];
-                    if (field.options == 'DocType') {
-                        let fieldname = await frappe.db.get_list('DocField', { filters: { 'parent': doc.document_type, fieldtype: 'Dynamic Link', options: field.fieldname }, fields: ['fieldname'] });
-                        let fieldname2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': doc.document_type, fieldtype: 'Dynamic Link', options: field.fieldname }, fields: ['fieldname'] });
-                        let fieldname3 = fieldname.concat(fieldname2);
-                        if (fieldname3.length > 0) {
-                            let final_field = fieldname3[0];
-                            filters.push([doc.document_type, final_field.fieldname, '=', this.frm.docname]);
+                try {
+                    const result = await frappe.call({
+                        method: 'frappe_theme.api.get_linked_doctype_fields',
+                        args: {
+                            doc_type: doc.document_type,
+                            frm_doctype: this.frm.doctype
                         }
-                    } else {
-                        filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
+                    });
+                    if (result?.message) {
+                        const field = result.message.field;
+                        if (field.options === 'DocType' && result.message.final_field) {
+                            filters.push([doc.document_type, result.message.final_field.fieldname, '=', this.frm.docname]);
+                        } else {
+                            filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
+                        }
                     }
+                } catch (error) {
+                    console.error('Error getting linked doctype fields:', error);
                 }
-                // console.log(filters, "res");
-                // filters.push([doc.document_type, 'grant', '=', this.frm.docname]);
             }
 
             // Get the document type from the card
             if (!doc.document_type && doc.report_name) {
                 // If it's a report type card, get the document type from the report
                 const reportDoc = await frappe.db.get_doc('Report', doc.report_name);
-
                 if (reportDoc) {
                     doc.document_type = reportDoc.ref_doctype;
-                    // let baseQuery = reportDoc.query;
-                    // let modifiedQuery = `SELECT * FROM (${baseQuery}) AS subquery`;
-                    // // console.log(modifiedQuery, "modifiedQuery");
                     const reportFilters = reportDoc.filters || [];
                     const whereConditions = [];
-
                     // Add conditions from report filters
                     reportFilters.forEach(filter => {
                         // Check if filter fieldname matches current form's docname
@@ -324,14 +319,6 @@ class SVANumberCard {
                             );
                         }
                     });
-
-                    // if (whereConditions.length > 0) {
-                    //     modifiedQuery += ` WHERE ${whereConditions.join(' AND ')}`;
-                    // }
-                    // console.log(modifiedQuery, "modifiedQuery");
-
-                    // Execute the query through Frappe's API
-                    // Convert conditions to a filter object
                     let json_filters = {};
                     whereConditions.forEach(condition => {
                         const matches = condition.match(/([^=]+)\s*=\s*(.+)/);
@@ -367,33 +354,7 @@ class SVANumberCard {
                         console.error('Error executing number card query:', error);
                         return null;
                     }
-                    // fr
-                    // try {
-                    //     const result = await frappe.call({
-                    //         method: 'frappe.desk.query_report.run',
-                    //         args: {
-                    //             report_name: doc.report_name,
-                    //             filters: json_filters
-                    //         }
-                    //     });
-                    //     console.log(result, "result");
 
-
-                    //     if (result?.message?.result && result.message.result.length > 0) {
-                    //         if (doc.report_field) {
-                    //             const fieldValue = result.message.result[0][doc.report_field];
-                    //             return {
-                    //                 ...doc,
-                    //                 result: fieldValue,
-                    //                 fieldtype: result.message.columns?.find(col => col.fieldname === doc.report_field)?.fieldtype || null
-                    //             };
-                    //         }
-                    //     }
-                    //     return null;
-                    // } catch (error) {
-                    //     console.error('Error executing report query:', error);
-                    //     return null;
-                    // }
                 }
             }
 
@@ -403,60 +364,26 @@ class SVANumberCard {
             }
 
             let resultResponse;
-            if (doc.report_name) {
-                // Handle report-based cards
-                // const reportData = await frappe.call({
-                //     method: 'frappe.desk.query_report.run',
-                //     args: {
-                //         report_name: doc.report_name,
-                //         filters: filters
-                //     }
-                // });
-                // console.log(reportData, "reportData");
-
-                // if (reportData?.message?.result && doc.report_field) {
-                //     // Extract the value from the report data using the specified field
-                //     const result = reportData.message.result;
-                //     // Find the column definition to check if it's Currency type
-                //     const columnDef = reportData.message.columns?.find(col => col.fieldname === doc.report_field);
-                //     const isCurrency = columnDef?.fieldtype === 'Currency';
-
-                //     if (result.length > 0 && doc.report_field in result[0]) {
-                //         resultResponse = {
-                //             message: result[0][doc.report_field],
-                //             fieldtype: isCurrency ? 'Currency' : null
-                //         };
-                //     } else {
-                //         resultResponse = { message: 0, fieldtype: isCurrency ? 'Currency' : null };
-                //     }
-                // } else {
-                //     resultResponse = { message: 0, fieldtype: null };
-                // }
-            } else {
-                // Handle regular document-based cards
-                resultResponse = await frappe.call({
-                    method: 'frappe.desk.doctype.number_card.number_card.get_result',
-                    args: {
-                        card: cardName,
-                        doc: {
-                            name: doc.name,
-                            document_type: doc.document_type,
-                            label: doc.label,
-                            function: doc.function,
-                            aggregate_function_based_on: doc.aggregate_function_based_on,
-                            filters_json: doc.filters_json,
-                            is_standard: doc.is_standard,
-                            parent_document_type: doc.parent_document_type,
-                            report_name: doc.report_name,
-                            report_field: doc.report_field,
-                            type: doc.type
-                        },
-                        filters: filters
-                    }
-                });
-            }
-            // console.log(resultResponse, "resultResponse");
-
+            resultResponse = await frappe.call({
+                method: 'frappe.desk.doctype.number_card.number_card.get_result',
+                args: {
+                    card: cardName,
+                    doc: {
+                        name: doc.name,
+                        document_type: doc.document_type,
+                        label: doc.label,
+                        function: doc.function,
+                        aggregate_function_based_on: doc.aggregate_function_based_on,
+                        filters_json: doc.filters_json,
+                        is_standard: doc.is_standard,
+                        parent_document_type: doc.parent_document_type,
+                        report_name: doc.report_name,
+                        report_field: doc.report_field,
+                        type: doc.type
+                    },
+                    filters: filters
+                }
+            });
             return {
                 ...doc,
                 result: resultResponse.message
@@ -489,13 +416,14 @@ class SVANumberCard {
             .number-card-container {
                 background: var(--card-bg);
                 border-radius: 6px;
-                padding: 6px 8px;
-                box-shadow: var(--card-shadow);
-                border: 1px solid var(--border-color);
-                min-height: 72px;
+                padding: 10px;
+                box-shadow: var(--card-shadow-lg);
+                border: 2px solid #EDEDED ;
+                min-height: 84px;
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+                color: var(--text-color);
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -571,13 +499,9 @@ class SVANumberCard {
             .number-card-menu-btn {
                 background: none;
                 border: none;
-                padding: 4px;
                 cursor: pointer;
                 color: var(--text-muted);
                 border-radius: 4px;
-            }
-            .number-card-menu-btn:hover {
-                background: var(--bg-light-gray);
             }
             .number-card-menu-dropdown {
                 position: absolute;
