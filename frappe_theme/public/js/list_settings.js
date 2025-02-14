@@ -58,6 +58,12 @@ class ListSettings {
                     fieldtype: "Code",
                     hidden: 1,
                 },
+				{
+					label: "",
+					fieldname: "description_cus",
+					fieldtype: "HTML",
+					options:'<p><b>Note</b>: The system converts width values using a scale where 1 unit equals 50 pixels.</p>'
+				},
                 {
                     label: __("Fields"),
                     fieldname: "fields_html",
