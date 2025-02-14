@@ -13,6 +13,28 @@ class ListSettings {
         if (typeof this.listview_settings === 'string') {
             this.listview_settings = JSON.parse(this.listview_settings)
         }
+		this.additional_fields = [
+			{
+				label: __("Created On"),
+				value: "creation",
+				checked:false
+			},
+			{
+				label: __("Created By"),
+				value: "owner",
+				checked:false
+			},
+			{
+				label: __("Modified On"),
+				value: "modified",
+				checked:false
+			},
+			{
+				label: __("Modified By"),
+				value: "modified_by",
+				checked:false
+			},
+		];
 		// this.subject_field = null;
 
 		frappe.run_serially([
@@ -183,6 +205,7 @@ class ListSettings {
 
 	column_selector() {
 		let me = this;
+	
 		let d = new frappe.ui.Dialog({
 			title: __("{0} Fields", [__(me.doctype)]),
 			fields: [
@@ -200,6 +223,7 @@ class ListSettings {
 		});
 		d.set_primary_action(__("Save"), () => {
 			let values = d.get_values().listview_settings;
+			console.log(values);
 			me.listview_settings = [];
 			// me.set_subject_field();
 			for (let idx in values) {
@@ -215,6 +239,13 @@ class ListSettings {
 						me.listview_settings.push({
 							label: __(field.label, null, me.doctype),
 							fieldname: field.fieldname,
+						});
+					}
+					if(['creation', 'owner', 'modified', 'modified_by'].includes(value)) {
+						let ad_field = this.additional_fields.find((f) => f.value == value);
+						me.listview_settings.push({
+							label: __(ad_field.label, null, me.doctype),
+							fieldname: ad_field.value,
 						});
 					}
 				}
@@ -263,11 +294,17 @@ class ListSettings {
 	// }
 
 	get_doctype_fields(meta, fields) {
+		
 		let multiselect_fields = [{
 			label: __("ID"),
 			value: "name",
 			checked: fields.includes("name"),
 		}];
+		this.additional_fields.forEach((field) => {
+			if (fields.includes(field.value)) {
+				field.checked = fields.includes(field.value);
+			}
+		});
 		meta.fields.forEach((field) => {
 			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype))) {
 				multiselect_fields.push({
@@ -277,7 +314,7 @@ class ListSettings {
 				});
 			}
 		});
-
+		multiselect_fields = multiselect_fields.concat(this.additional_fields);
 		return multiselect_fields;
 	}
 }
