@@ -2,6 +2,9 @@ class LinkedUser {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
+        this.user_list = [];
+        this.total_pages = 1;
+        this.currentPage = 1;
         this.render_user();
     }
     getRandomColor() {
@@ -151,6 +154,7 @@ class LinkedUser {
         let limit = 10;
         let user_permission = await frappe.db.get_list('User Permission', {
             fields: ['user'],
+            limit: 1000,
             filters: {
                 allow: this.frm.doctype,
                 for_value: this.frm.docname
@@ -331,6 +335,17 @@ class LinkedUser {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
+                }
+            }
+            if(field.fieldname === 'role_profile'){
+                if(['NGO','Donor','Vendor'].includes(cur_frm.doctype)){
+                    field.get_query = function () {
+                        return {
+                            filters: {
+                                'custom_belongs_to': cur_frm.doctype.toLowerCase()
+                            }
+                        }
+                    }
                 }
             }
 

@@ -98,7 +98,11 @@ class GalleryComponent {
                 opacity: 0;
                 transition: opacity 0.2s;
             }
-            .image-container:hover .checkbox-container {
+            .image-container:hover .checkbox-container,
+            .checkbox-container input[type="checkbox"]:checked {
+                opacity: 1;
+            }
+            .checkbox-container.selected {
                 opacity: 1;
             }
             .checkbox-container input[type="checkbox"] {
@@ -120,7 +124,7 @@ class GalleryComponent {
                 width: 100%;
                 background: white;
                 border-radius: 8px;
-            border:1px solid #e2e2e2;
+                border:1px solid #e2e2e2;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.12);
                 transition: transform 0.2s, box-shadow 0.2s;
             }
@@ -202,6 +206,62 @@ class GalleryComponent {
                 padding: 0 12px 6px;
                 font-size: 12px;
                 color: #6E7073;
+            }
+            /* Frappe List View Styles */
+            .frappe-list {
+                background-color: var(--fg-color);
+                border-radius: var(--border-radius-md);
+                box-shadow: var(--card-shadow);
+            }
+            .frappe-list-row {
+                display: flex;
+                align-items: center;
+                padding: 12px 15px;
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.2s;
+            }
+            .frappe-list-row:hover {
+                background-color: var(--fg-hover-color);
+            }
+            .frappe-list-col {
+                padding: 0 8px;
+                font-size: var(--text-md);
+            }
+            .frappe-list-col-checkbox {
+                width: 30px;
+            }
+            .frappe-list-col-subject {
+                flex: 2;
+                min-width: 200px;
+            }
+            .frappe-list-col-creation {
+                width: 140px;
+            }
+            .frappe-list-col-preview {
+                width: 100px;
+            }
+            .frappe-list-col-actions {
+                width: 40px;
+                text-align: right;
+            }
+            .frappe-list-header {
+                background-color: var(--fg-color);
+                border-bottom: 1px solid var(--border-color);
+                font-weight: 600;
+                color: var(--text-muted);
+            }
+            .frappe-list-header .frappe-list-row:hover {
+                background-color: var(--fg-color);
+            }
+            .list-actions {
+                opacity: 0;
+                transition: opacity 0.2s;
+            }
+            .frappe-list-row:hover .list-actions {
+                opacity: 1;
+            }
+            .list-row-checkbox {
+                margin: 0;
             }
             @media (max-width: 768px) {
                 .gallery-wrapper {
@@ -603,20 +663,28 @@ class GalleryComponent {
 
         $('.toggleCheckbox').off('change').on('change', function () { // Remove previous handlers
             const fileId = $(this).data('id');
+            const checkboxContainer = $(this).closest('.checkbox-container');
+
             if (this.checked) {
-                self.selectedFiles.push(fileId); // Use self here
+                self.selectedFiles.push(fileId);
+                checkboxContainer.addClass('selected');
             } else {
-                self.selectedFiles = self.selectedFiles.filter((fid) => fid != fileId); // Use self here
+                self.selectedFiles = self.selectedFiles.filter((fid) => fid != fileId);
+                checkboxContainer.removeClass('selected');
             }
-            self.updateSelectedFilesUI(); // Call a function to update the UI
+            self.updateSelectedFilesUI();
         });
 
-        $('#selectAllCheckBox').off('change').on('change', function () {// ... (from previous part)
+        $('#selectAllCheckBox').off('change').on('change', function () {
             const isChecked = this.checked;
-
-            self.selectedFiles = isChecked ? self.gallery_files.map(file => file.name) : []; // Use self here
+            self.selectedFiles = isChecked ? self.gallery_files.map(file => file.name) : [];
             $('.toggleCheckbox').prop('checked', isChecked);
-            self.updateSelectedFilesUI(); // Call a function to update the UI
+            if (isChecked) {
+                $('.checkbox-container').addClass('selected');
+            } else {
+                $('.checkbox-container').removeClass('selected');
+            }
+            self.updateSelectedFilesUI();
         });
     }
 
@@ -655,48 +723,61 @@ class GalleryComponent {
         }
 
         return `
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllCheckBox"></th>
-                            <th>File Name</th>
-                            <th>Upload Date</th>
-                            <th>Preview</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${this.gallery_files.map(file => {
+            <div class="frappe-list">
+                <div class="frappe-list-header">
+                    <div class="frappe-list-row">
+                        <div class="frappe-list-col frappe-list-col-checkbox">
+                            <input type="checkbox" class="list-row-checkbox" id="selectAllCheckBox">
+                        </div>
+                        <div class="frappe-list-col frappe-list-col-subject">File Name</div>
+                        <div class="frappe-list-col frappe-list-col-creation">Upload Date</div>
+                        <div class="frappe-list-col frappe-list-col-preview">Preview</div>
+                        <div class="frappe-list-col frappe-list-col-actions"></div>
+                    </div>
+                </div>
+                <div class="frappe-list-body">
+                    ${this.gallery_files.map(file => {
             let extension = file?.file_url?.split('.').pop()?.toLowerCase();
             return `
-                                <tr>
-                                    <td><input type="checkbox" class="toggleCheckbox" data-id="${file.name}"></td>
-                                    <td>${file.file_name}</td>
-                                    <td>${frappe.datetime.str_to_user(file.creation)}</td>
-                                    <td>
-                                        ${this.getFilePreview(file, extension)}
-                                    </td>
-                                    <td>
+                            <div class="frappe-list-row">
+                                <div class="frappe-list-col frappe-list-col-checkbox">
+                                    <input type="checkbox" class="list-row-checkbox toggleCheckbox" data-id="${file.name}">
+                                </div>
+                                <div class="frappe-list-col frappe-list-col-subject">
+                                    <a href="${file.file_url}" target="_blank" class="text-muted">
+                                        <i class="${this.getFileIcon(extension)} mr-2"></i>
+                                        ${file.file_name}
+                                    </a>
+                                </div>
+                                <div class="frappe-list-col frappe-list-col-creation ">
+                                    ${frappe.datetime.str_to_user(file.creation)}
+                                </div>
+                                <div class="frappe-list-col frappe-list-col-preview">
+                                    <a href="${file.file_url}" target="_blank" class="btn btn-xs btn-default">
+                                        <i class="fa fa-eye"></i>
+                                    </a>
+                                </div>
+                                <div class="frappe-list-col frappe-list-col-actions">
+                                    <div class="list-actions">
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-light" data-toggle="dropdown">
-                                                <i class="fa fa-ellipsis-v"></i>
+                                            <button class="btn btn-link btn-sm" data-toggle="dropdown">
+                                                <i class="fa fa-ellipsis-v text-muted"></i>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-right">
                                                 <a class="dropdown-item edit-btn" data-id="${file.name}">
-                                                    <i class="fa fa-edit"></i> Edit
+                                                    <i class="fa fa-edit text-muted"></i> Edit
                                                 </a>
                                                 <a class="dropdown-item delete-btn" data-id="${file.name}">
-                                                    <i class="fa fa-trash"></i> Delete
+                                                    <i class="fa fa-trash text-muted"></i> Delete
                                                 </a>
                                             </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            `;
+                                    </div>
+                                </div>
+                            </div>
+                        `;
         }).join('')}
-                    </tbody>
-                </table>
+                </div>
             </div>
         `;
     }
