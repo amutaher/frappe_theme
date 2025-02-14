@@ -333,6 +333,17 @@ class LinkedUser {
                     field.default = data[field.fieldname];
                 }
             }
+            if(field.fieldname === 'role_profile'){
+                if(['NGO','Donor','Vendor'].includes(cur_frm.doctype)){
+                    field.get_query = function () {
+                        return {
+                            filters: {
+                                'custom_belongs_to': cur_frm.doctype.toLowerCase()
+                            }
+                        }
+                    }
+                }
+            }
 
             return field;
         });
