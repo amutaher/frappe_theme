@@ -416,13 +416,14 @@ class SVANumberCard {
             .number-card-container {
                 background: var(--card-bg);
                 border-radius: 6px;
-                padding: 6px 8px;
-                box-shadow: var(--card-shadow);
-                border: 1px solid var(--border-color);
-                min-height: 72px;
+                padding: 10px;
+                box-shadow: var(--card-shadow-lg);
+                border: 2px solid #EDEDED ;
+                min-height: 84px;
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+                color: var(--text-color);
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -498,13 +499,9 @@ class SVANumberCard {
             .number-card-menu-btn {
                 background: none;
                 border: none;
-                padding: 4px;
                 cursor: pointer;
                 color: var(--text-muted);
                 border-radius: 4px;
-            }
-            .number-card-menu-btn:hover {
-                background: var(--bg-light-gray);
             }
             .number-card-menu-dropdown {
                 position: absolute;
