@@ -451,7 +451,7 @@ class SVANumberCard {
                             report_field: doc.report_field,
                             type: doc.type
                         },
-                        filters:filters
+                        filters: filters
                     }
                 });
             }
@@ -473,17 +473,18 @@ class SVANumberCard {
             styleSheet.id = 'sva-number-card-styles';
             styleSheet.textContent = `
             .sva-cards-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                display: flex;
+                flex-wrap: wrap;
                 gap: 15px;
                 padding: 0px 0px 15px 0px;
                 width: 100%;
-                position: relative; /* Added for loader positioning */
-                min-height: 100px; /* Minimum height for loader */
+                position: relative;
+                min-height: 100px;
             }
             .number-card {
-                width: 100%;
+                flex: 1 1 300px;
                 min-width: 0;
+                max-width: 100%;
             }
             .number-card-container {
                 background: var(--card-bg);
@@ -494,6 +495,7 @@ class SVANumberCard {
                 min-height: 72px;
                 display: flex;
                 flex-direction: column;
+                height: 100%;
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -508,8 +510,9 @@ class SVANumberCard {
             .number-card-header {
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
+                align-items: flex-start;
                 margin-bottom: 4px;
+                width: 100%;
             }
             .number-card-title-section {
                 display: flex;
@@ -555,7 +558,7 @@ class SVANumberCard {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                // margin-top: 4px;
+                flex: 1;
             }
             .number-card-actions {
                 display: flex;
@@ -662,7 +665,7 @@ class SVANumberCard {
                 font-size: 14px !important;
             }
             .no-data {
-                grid-column: 1 / -1;
+                width: 100%;
                 text-align: center;
                 color: var(--text-muted);
                 padding: 40px;
@@ -673,29 +676,28 @@ class SVANumberCard {
 
             /* Responsive adjustments */
             @media (max-width: 1200px) {
-                .sva-cards-container {
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                .number-card {
+                    flex-basis: calc(33.333% - 10px);
                 }
             }
-            @media (max-width: 768px) {
-                .sva-cards-container {
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 16px;
+            @media (max-width: 992px) {
+                .number-card {
+                    flex-basis: calc(50% - 7.5px);
+                }
+            }
+            @media (max-width: 576px) {
+                .number-card {
+                    flex-basis: 100%;
                 }
                 .number-card-value {
-                    font-size: 24px;
-                }
-            }
-            @media (max-width: 480px) {
-                .sva-cards-container {
-                    grid-template-columns: 1fr;
+                    font-size: 18px;
                 }
             }
 
             /* Adjust loader styles for cards */
             .table-loader {
-                min-height: 100px !important; /* Override default min-height */
-                background: var(--card-bg) !important; /* Use theme background */
+                min-height: 100px !important;
+                background: var(--card-bg) !important;
             }
         `;
             document.head.appendChild(styleSheet);
