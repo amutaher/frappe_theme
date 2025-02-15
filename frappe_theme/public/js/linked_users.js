@@ -2,6 +2,9 @@ class LinkedUser {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
+        this.user_list = [];
+        this.total_pages = 1;
+        this.currentPage = 1;
         this.render_user();
     }
     getRandomColor() {
@@ -58,6 +61,7 @@ class LinkedUser {
                                     <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
                                         <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
                                         <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
+                                        <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
                                     </div>
                                 </div>
                             </td>
@@ -151,6 +155,7 @@ class LinkedUser {
         let limit = 10;
         let user_permission = await frappe.db.get_list('User Permission', {
             fields: ['user'],
+            limit: 1000,
             filters: {
                 allow: this.frm.doctype,
                 for_value: this.frm.docname
@@ -241,23 +246,34 @@ class LinkedUser {
         }.bind(this));
 
         // New User
-        $('#createTask').on('click', function () {
+        $('#createTask').off('click').on('click', function () {
             this.form(null, 'New User', this.frm);
         }.bind(this));
         //
 
-        $('.delete-btn').on('click', function (e) {
+        $('.delete-btn').off('click').on('click', function (e) {
             const userName = $(e.currentTarget).data('user');
             frappe.confirm('Are you sure you want to delete this task?', () => {
                 this.deleteUser(userName);
             });
         }.bind(this));
 
+        $('.reset-pass-btn').off('click').on('click', function (e) {
+            const user = $(e.currentTarget).data('user');
+            frappe.confirm('Are you sure you want to reset your password?', () => {
+                frappe.call({
+                    method: "frappe.core.doctype.user.user.reset_password",
+                    args: {
+                        user: user,
+                    },
+                });
+            });
+        }.bind(this));
+
         // New User
-        $('.edit-btn').on('click', function (e) {
+        $('.edit-btn').off('click').on('click', function (e) {
             const userName = $(e.currentTarget).data('user');
             let data = this.user_list.filter(user => user.name === userName);
-            console.log(data, userName);
             if (data.length) {
                 this.form(data[0], 'Edit User'); // Pass valid object to `form()`
             } else {
@@ -331,6 +347,17 @@ class LinkedUser {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
+                }
+            }
+            if(field.fieldname === 'role_profile'){
+                if(['NGO','Donor','Vendor'].includes(cur_frm.doctype)){
+                    field.get_query = function () {
+                        return {
+                            filters: {
+                                'custom_belongs_to': cur_frm.doctype.toLowerCase()
+                            }
+                        }
+                    }
                 }
             }
 

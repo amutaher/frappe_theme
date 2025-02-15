@@ -7,7 +7,7 @@ def get_my_theme():
 
 @frappe.whitelist(allow_guest=True)
 def get_property_set(doctype):
-        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":"filter_by"},ignore_permissions=True)
+        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter"]]},ignore_permissions=True)
     
 
 @frappe.whitelist()
@@ -136,3 +136,71 @@ def execute_number_card_query(report_name, filters=None):
         frappe.log_error(f"Error executing number card query: {str(e)}")
         return None
 
+
+@frappe.whitelist()
+def get_linked_doctype_fields(doc_type, frm_doctype):
+    """Get linked fields between two doctypes"""
+    try:
+        # Get standard fields
+        res = frappe.get_list('DocField', 
+            filters={
+                'parent': doc_type,
+                'fieldtype': 'Link',
+                'options': ['IN', ['DocType', frm_doctype]]
+            },
+            fields=['fieldname', 'options'],
+            ignore_permissions=True
+        )
+
+        # Get custom fields
+        cus_ref_res = frappe.get_list('Custom Field',
+            filters={
+                'dt': doc_type,
+                'fieldtype': 'Link',
+                'options': ['IN', ['DocType', frm_doctype]]
+            },
+            fields=['fieldname', 'options'],
+            ignore_permissions=True
+        )
+
+        # Combine and filter fields
+        filds = res + cus_ref_res
+        filds = [f for f in filds if f.fieldname not in ["amended_from", "parent_grant"]]
+
+        if not filds:
+            return None
+
+        field = filds[0]
+        result = {'field': field}
+
+        if field.options == 'DocType':
+            # Get standard dynamic link fields
+            fieldname = frappe.get_list('DocField',
+                filters={
+                    'parent': doc_type,
+                    'fieldtype': 'Dynamic Link',
+                    'options': field.fieldname
+                },
+                fields=['fieldname'],
+                ignore_permissions=True
+            )
+
+            # Get custom dynamic link fields
+            fieldname2 = frappe.get_list('Custom Field',
+                filters={
+                    'dt': doc_type,
+                    'fieldtype': 'Dynamic Link',
+                    'options': field.fieldname
+                },
+                fields=['fieldname'],
+                ignore_permissions=True
+            )
+
+            fieldname3 = fieldname + fieldname2
+            if fieldname3:
+                result['final_field'] = fieldname3[0]
+        return result
+
+    except Exception as e:
+        frappe.log_error(f"Error in get_linked_doctype_fields: {str(e)}")
+        return None
