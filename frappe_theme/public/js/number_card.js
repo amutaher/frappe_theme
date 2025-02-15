@@ -42,12 +42,17 @@ class SVANumberCard {
             return;
         }
 
+        // Show loading state
+        this.showLoadingState();
+
         const container = document.createElement('div');
         container.className = 'sva-cards-container';
 
         try {
             const visibleCards = this.numberCards.filter(card => card.is_visible);
             await this.processCardsInBatches(visibleCards, container);
+            // Remove loading state and append container
+            this.wrapper.innerHTML = '';
             this.wrapper.appendChild(container);
         } catch (error) {
             console.error('Error creating number cards:', error);
@@ -481,8 +486,114 @@ class SVANumberCard {
         }
     }
 
+    showLoadingState() {
+        const loadingContainer = document.createElement('div');
+        loadingContainer.className = 'sva-cards-loading-container';
+
+        // Create skeleton cards
+        for (let i = 0; i < Math.min(this.numberCards.length, 3); i++) {
+            const skeletonCard = this.createSkeletonCard();
+            loadingContainer.appendChild(skeletonCard);
+        }
+
+        this.wrapper.appendChild(loadingContainer);
+    }
+
+    createSkeletonCard() {
+        const card = document.createElement('div');
+        card.className = 'number-card skeleton-card';
+        card.innerHTML = `
+            <div class="number-card-container">
+                <div class="number-card-content">
+                    <div class="number-card-header">
+                        <div class="skeleton-title"></div>
+                    </div>
+                    <div class="number-card-main">
+                        <div class="skeleton-value"></div>
+                        <div class="skeleton-icon"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
     getStyles() {
         return `
+            @keyframes shimmer {
+                0% {
+                    background-position: -1000px 0;
+                }
+                100% {
+                    background-position: 1000px 0;
+                }
+            }
+
+            .sva-cards-loading-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 0px 0px 15px 0px;
+                width: 100%;
+            }
+
+            .skeleton-card .number-card-container {
+                background: var(--card-bg);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .skeleton-title {
+                height: 14px;
+                width: 60%;
+                background: var(--gray-200);
+                border-radius: 4px;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
+
+            .skeleton-value {
+                height: 24px;
+                width: 40%;
+                background: var(--gray-200);
+                border-radius: 4px;
+                margin-top: 8px;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
+
+            .skeleton-icon {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: var(--gray-200);
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
             .sva-cards-container {
                 display: flex;
                 flex-wrap: wrap;
