@@ -492,7 +492,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
             // Cancel pending requests from previous tab
             if (this.currentTabField && this.pendingRequests.has(this.currentTabField)) {
-                this.pendingRequests.get(this.currentTabField).abort();
+                this.pendingRequests.get(this.currentTabField).abort('User navigated away');
                 this.pendingRequests.delete(this.currentTabField);
             }
 
