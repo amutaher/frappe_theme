@@ -57,8 +57,6 @@ class SVAHTTP {
 
     // Fetch a specific document
     async get_doc(doctype, name) {
-        console.log("Fetching document", doctype, name, this.signal);
-
         let res = await this.fetchAPI("frappe.client.get", { doctype, name });
         return res.message;
     }

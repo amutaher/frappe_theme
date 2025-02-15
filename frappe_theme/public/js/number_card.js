@@ -130,12 +130,9 @@ class SVANumberCard {
             const resultResponse = await this.batchProcessor.add(() =>
                 this.sva_db.call({
                     method: 'frappe.desk.doctype.number_card.number_card.get_result',
-                    args: {
-                        card: cardName,
-                        doc: this.prepareDocArgs(doc),
-                        filters: filters,
-                    },
-                    signal:this.signal
+                    card: cardName,
+                    doc: this.prepareDocArgs(doc),
+                    filters: filters,
                 })
             );
 
@@ -442,7 +439,8 @@ class SVANumberCard {
         try {
             const result = await this.sva_db.call({
                 method: 'frappe_theme.api.get_linked_doctype_fields',
-                args: { doc_type: docType, frm_doctype: frmDoctype }
+                doc_type: docType,
+                frm_doctype: frmDoctype
             });
 
             if (result?.message) {
