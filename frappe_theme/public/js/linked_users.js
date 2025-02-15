@@ -261,7 +261,6 @@ class LinkedUser {
         $('.edit-btn').on('click', function (e) {
             const userName = $(e.currentTarget).data('user');
             let data = this.user_list.filter(user => user.name === userName);
-            console.log(data, userName);
             if (data.length) {
                 this.form(data[0], 'Edit User'); // Pass valid object to `form()`
             } else {
