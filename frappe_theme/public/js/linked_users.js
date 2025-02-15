@@ -260,11 +260,13 @@ class LinkedUser {
 
         $('.reset-pass-btn').off('click').on('click', function (e) {
             const user = $(e.currentTarget).data('user');
-            frappe.call({
-                method: "frappe.core.doctype.user.user.reset_password",
-                args: {
-                    user: user,
-                },
+            frappe.confirm('Are you sure you want to reset your password?', () => {
+                frappe.call({
+                    method: "frappe.core.doctype.user.user.reset_password",
+                    args: {
+                        user: user,
+                    },
+                });
             });
         }.bind(this));
 
