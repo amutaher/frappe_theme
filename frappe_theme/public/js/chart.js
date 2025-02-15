@@ -15,6 +15,7 @@ class SVADashboardChart {
         this.wrapper = wrapper;
         this.frm = frm;
         this.charts = charts;
+        return this.wrapper;
     }
 
     async make() {
@@ -540,7 +541,7 @@ class SVADashboardChart {
                     height: 280px;
                     font-size: 14px;
                 }
-                
+
                 @media (max-width: 768px) {
                     .sva-charts-container {
                         grid-template-columns: 1fr;

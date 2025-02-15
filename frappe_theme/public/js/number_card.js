@@ -2,11 +2,17 @@ class SVANumberCard {
     constructor({
         wrapper,
         frm,
-        numberCards = []
+        numberCards = [],
+        filters={},
+        signal=null
     }) {
         this.wrapper = wrapper;
         this.frm = frm;
         this.numberCards = numberCards;
+        this.filters = filters;
+        this.signal = signal;
+
+        this.sva_db = new SVAHTTP(this.signal);
         this.cardDataCache = new Map(); // Cache for card data
         this.linkedFieldsCache = new Map(); // Cache for linked fields
         this.cardRefreshTimeouts = new Map(); // Track refresh timeouts
@@ -19,6 +25,7 @@ class SVANumberCard {
 
         // Initialize batch processor for network requests
         this.batchProcessor = new BatchProcessor(1000); // 1 second batch window
+        // return this.wrapper;
     }
 
     debounce(func, wait) {
@@ -96,12 +103,11 @@ class SVANumberCard {
     async fetchNumberCardData(cardName) {
         try {
             const docResponse = await this.batchProcessor.add(() =>
-                frappe.call({
+
+                this.sva_db.call({
                     method: 'frappe.desk.form.load.getdoc',
-                    args: {
-                        doctype: "Number Card",
-                        name: cardName
-                    }
+                    doctype: "Number Card",
+                    name: cardName
                 })
             );
 
@@ -122,13 +128,14 @@ class SVANumberCard {
             }
 
             const resultResponse = await this.batchProcessor.add(() =>
-                frappe.call({
+                this.sva_db.call({
                     method: 'frappe.desk.doctype.number_card.number_card.get_result',
                     args: {
                         card: cardName,
                         doc: this.prepareDocArgs(doc),
-                        filters: filters
-                    }
+                        filters: filters,
+                    },
+                    signal:this.signal
                 })
             );
 
@@ -167,7 +174,7 @@ class SVANumberCard {
     async handleReportCard(doc) {
         try {
             const reportDoc = await this.batchProcessor.add(() =>
-                frappe.db.get_doc('Report', doc.report_name)
+                this.sva_db.get_doc('Report', doc.report_name)
             );
 
             if (!reportDoc) return null;
@@ -176,12 +183,10 @@ class SVANumberCard {
             const json_filters = this.prepareReportFilters(reportDoc);
 
             const response = await this.batchProcessor.add(() =>
-                frappe.call({
+                this.sva_db.call({
                     method: "frappe_theme.api.execute_number_card_query",
-                    args: {
-                        report_name: doc.report_name,
-                        filters: json_filters
-                    }
+                    report_name: doc.report_name,
+                    filters: json_filters
                 })
             );
 
@@ -435,7 +440,7 @@ class SVANumberCard {
         }
 
         try {
-            const result = await frappe.call({
+            const result = await this.sva_db.call({
                 method: 'frappe_theme.api.get_linked_doctype_fields',
                 args: { doc_type: docType, frm_doctype: frmDoctype }
             });
