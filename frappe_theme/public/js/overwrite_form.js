@@ -4,11 +4,15 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         this.activeComponents = new Set();
         this.pendingRequests = new Map();
         this.currentTabField = null;
+        this.dts = {};
         this.mountedComponents = new Map(); // Track mounted components and their cleanup functions
     }
-    async refresh(docname) {
+    async refresh(docname, frm) {
         try {
             await super.refresh(docname);
+            if(!window.sva_datatable_configuration){
+                window.sva_datatable_configuration = {};
+            }
             this.setupHandlers();
         } catch (error) {
             console.error("Error in refresh:", error);
@@ -44,6 +48,18 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
     async custom_refresh(frm) {
         try {
+
+            const sva_db = new SVAHTTP();
+            if(!window.sva_datatable_configuration?.[frm.doc.doctype]){
+                const exists = await sva_db.exists("SVADatatable Configuration",frm.doc.doctype)
+                if (!exists) return;
+                this.dts = await sva_db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+                window.sva_datatable_configuration  = {
+                    [frm.doc.doctype]: this.dts
+                };
+            }else{
+                this.dts = window.sva_datatable_configuration?.[frm.doc.doctype];
+            }
             this.goToCommentButton(frm);
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
@@ -115,27 +131,16 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     async tabContent(frm, tab_field) {
         const controller = this.createRequestController(tab_field);
         const signal = controller.signal;
-
         try {
-            const exists = await this.makeRequest(
-                () => frappe.db.exists('SVADatatable Configuration', frm.doc.doctype),
-                signal
-            );
-
-            if (!exists) return;
 
             const tab_fields = this.getTabFields(frm, tab_field);
-            const dts = await this.makeRequest(
-                () => frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype),
-                signal
-            );
 
-            const { dtFields, vm_fields, vm_all_fields } = this.processConfigurationFields(dts, tab_fields);
+            const { dtFields, vm_fields, vm_all_fields } = this.processConfigurationFields(this.dts, tab_fields);
             const relevant_html_fields = [...dtFields.map(f => f.html_field), ...vm_fields];
 
-            this.clearOtherMappedFields(dts, relevant_html_fields, vm_all_fields, frm);
-            await this.initializeDashboards(dts, frm, tab_fields, signal);
-            await this.processDataTables(dtFields, frm, dts, signal);
+            this.clearOtherMappedFields(this.dts, relevant_html_fields, vm_all_fields, frm);
+            await this.initializeDashboards(this.dts, frm, tab_fields, signal);
+            await this.processDataTables(dtFields, frm, this.dts, signal);
 
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -487,7 +492,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
             // Cancel pending requests from previous tab
             if (this.currentTabField && this.pendingRequests.has(this.currentTabField)) {
-                this.pendingRequests.get(this.currentTabField).abort();
+                this.pendingRequests.get(this.currentTabField).abort('User navigated away');
                 this.pendingRequests.delete(this.currentTabField);
             }
 

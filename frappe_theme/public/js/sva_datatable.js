@@ -29,7 +29,10 @@ class SvaDataTable {
         childLinks = [], connection, options,
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { },
+        signal = null,
     }) {
+        this.signal = signal;
+        this.sva_db = new SVAHTTP(signal)
         // console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
@@ -78,10 +81,10 @@ class SvaDataTable {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
                 // ================================ Workflow Logic  ================================
-                this.workflow = await frappe.db.get_value("Workflow", { "document_type": this.doctype }, ['*'])
-                if (this.workflow.message.name) {
-                    this.workflow = await frappe.db.get_doc("Workflow", this.workflow.message.name)
-                    this.workflow_state_bg = await frappe.db.get_list("Workflow State", {
+                let workflow = await this.sva_db.get_value("Workflow",{ "document_type": this.doctype })
+                if (workflow) {
+                    this.workflow = await this.sva_db.get_doc("Workflow", workflow)
+                    this.workflow_state_bg = await this.sva_db.get_list("Workflow State", {
                         fields: ['name', 'style']
                     });
                     this.wf_editable_allowed = this.workflow?.states?.some(tr => frappe.user_roles.includes(tr?.allow_edit));
@@ -89,8 +92,8 @@ class SvaDataTable {
                 }
                 // ================================ Workflow End ================================
                 try {
-                    if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await frappe.db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
-                        let msgw = await frappe.db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
+                    if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await this.sva_db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
+                        let msgw = await this.sva_db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
                         if (msgw) {
                             this.mgrant_settings = msgw
                         }
@@ -594,7 +597,7 @@ class SvaDataTable {
         }
         if (mode === 'create' || mode === 'write') {
             if (name) {
-                let doc = await frappe.db.get_doc(doctype, name);
+                let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
@@ -636,7 +639,7 @@ class SvaDataTable {
                             let [parentfield, fieldname] = fetch_from;
                             let parentf = fields.find(f => f.fieldname === parentfield);
                             if (parentf?.options && parentf?.default) {
-                                let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                                let doc = await this.sva_db.get_doc(parentf?.options, parentf?.default);
                                 f.default = doc[fieldname];
                             }
                         }
@@ -745,7 +748,7 @@ class SvaDataTable {
                         let [parentfield, fieldname] = fetch_from;
                         let parentf = fields.find(f => f.fieldname === parentfield);
                         if (parentf?.options && parentf?.default) {
-                            let doc = await frappe.db.get_doc(parentf?.options, parentf?.default);
+                            let doc = await this.sva_db.get_doc(parentf?.options, parentf?.default);
                             f.default = doc[fieldname];
                         }
                         f.read_only = 1;
@@ -753,7 +756,7 @@ class SvaDataTable {
                 }
             }
         } else {
-            let doc = await frappe.db.get_doc(doctype, name);
+            let doc = await this.sva_db.get_doc(doctype, name);
             for (const f of fields) {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
@@ -869,7 +872,7 @@ class SvaDataTable {
                         }
                         start.setMonth(start.getMonth() + 1);
                     }
-                    let selected_financial_years = await frappe.db.get_list('Financial Year', {
+                    let selected_financial_years = await this.sva_db.get_list('Financial Year', {
                         filters: {
                             'financial_year_name': ['in', financial_years]
                         },
@@ -890,8 +893,8 @@ class SvaDataTable {
                 let min_field = splitted[1];
                 let max_field = splitted[2] ? splitted[2] : '';
                 if (dialog.get_value(fieldname)) {
-                    if (frappe.db.exists(doctype, dialog.get_value(fn))) {
-                        let doc = await frappe.db.get_doc(doctype, dialog.get_value(fn));
+                    if (this.sva_db.exists(doctype, dialog.get_value(fn))) {
+                        let doc = await this.sva_db.get_doc(doctype, dialog.get_value(fn));
                         let option = {};
                         if (min_field && doc[min_field]) {
                             option['minDate'] = new Date(doc[min_field]);
@@ -1312,7 +1315,7 @@ class SvaDataTable {
                 [me.workflow.workflow_state_field]: selected_state_info.next_state,
                 ...(workflowFormValue && workflowFormValue),
             };
-            const response = await frappe.db.set_value(me.doctype, docname, updateFields);
+            const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
             dialog.hide();
             if (response?.exc) throw new Error("Update failed");
             const row = me.rows.find((r) => r.name === docname);
@@ -1345,7 +1348,7 @@ class SvaDataTable {
             }],
         });
         dialog.onhide = async function () {
-            let updated_doc = await frappe.db.get_doc(this.doctype, parentRow.name);
+            let updated_doc = await this.sva_db.get_doc(this.doctype, parentRow.name);
             let idx = this.rows.findIndex(r => r.name === parentRow.name);
             this.rows[idx] = updated_doc;
             this.updateTableBody();

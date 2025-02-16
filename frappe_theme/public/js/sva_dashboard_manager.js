@@ -14,7 +14,6 @@ class SVADashboardManager {
 
         // Merge default options with provided options
         const config = { ...SVADashboardManager.DEFAULT_OPTIONS, ...options };
-
         // Core properties
         this.wrapper = wrapper;
         this.frm = frm;
@@ -24,6 +23,7 @@ class SVADashboardManager {
         this.errorHandler = config.errorHandler;
         this.debounceTime = config.debounceTime;
 
+        this.sva_db = new SVAHTTP(this.signal)
         // State management
         this.isDestroyed = false;
         this.activeRequests = new Set();
@@ -44,6 +44,7 @@ class SVADashboardManager {
         if (this.numberCards.length || this.charts.length) {
             this.initializeComponents().catch(this.handleError.bind(this));
         }
+        return this.wrapper;
     }
 
     // Utility method for debouncing
@@ -154,6 +155,8 @@ class SVADashboardManager {
     }
 
     async getFilterFields() {
+        console.log("Getting filter fields");
+
         if (this.isDestroyed) return [];
 
         try {
@@ -177,10 +180,7 @@ class SVADashboardManager {
     async processChartFields(allFields) {
         const chartPromises = this.charts
             .filter(chart => chart.dashboard_chart && !this.isDestroyed)
-            .map(chart =>
-                this.makeRequest(() =>
-                    frappe.db.get_doc('Dashboard Chart', chart.dashboard_chart)
-                )
+            .map(chart => this.sva_db.get_doc('Dashboard Chart', chart.dashboard_chart)
                 .then(chartDoc => this.processFiltersJson(chartDoc.filters_json, allFields))
                 .catch(error => this.handleError(error, 'Chart field processing error'))
             );
@@ -191,10 +191,7 @@ class SVADashboardManager {
     async processCardFields(allFields) {
         const cardPromises = this.numberCards
             .filter(card => card.number_card && !this.isDestroyed)
-            .map(card =>
-                this.makeRequest(() =>
-                    frappe.db.get_doc('Number Card', card.number_card)
-                )
+            .map(card => this.sva_db.get_doc('Number Card', card.number_card)
                 .then(cardDoc => this.processFiltersJson(cardDoc.filters_json, allFields))
                 .catch(error => this.handleError(error, 'Card field processing error'))
             );
