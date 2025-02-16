@@ -96,12 +96,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     async form_render(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.connection_type === 'Direct') {
+            let dts = await frappe.call('frappe_theme.dt_api.get_direct_connection_dts', { dt: frm.doc.parent_doctype });
             frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
                 return {
-                    filters: [
-                        ['DocField', 'options', '=', frm.doc.parent_doctype],
-                        ['DocField', 'parenttype', '=', "DocType"]
-                    ],
+                    filters: { 'name': ['IN', dts.message] },
                     limit_page_length: 100
                 }
             }
@@ -135,7 +133,6 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
-
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         if (html_fields_2.length) {
@@ -190,15 +187,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     link_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.link_doctype) {
-            let fields = await frappe.db.get_list("DocField", {
-                filters: [
-                    ['DocField', 'options', '=', frm.doc.parent_doctype],
-                    ['DocField', 'parenttype', '=', "DocType"],
-                    ['DocField', 'parent', '=', row.link_doctype]
-                ],
-                fields: ['fieldname', 'label', 'parent']
-            });
-            let field = fields[0];
+            let fields = await frappe.call('frappe_theme.dt_api.get_direct_connection_fields', { dt: frm.doc.parent_doctype, link_dt: row.link_doctype });
+            let field = fields.message[0];
             if (field) {
                 frappe.model.set_value(cdt, cdn, 'link_fieldname', field.fieldname);
             }
