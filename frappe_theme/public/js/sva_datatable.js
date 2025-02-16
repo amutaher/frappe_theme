@@ -845,46 +845,6 @@ class SvaDataTable {
                 this.handleFrequencyField();
             }, 1000);
         }
-        if (!name) {
-            if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-                let financial_years_field = dialog?.fields_dict?.financial_years;
-                if (financial_years_field) {
-                    let start_date = dialog.get_value('start_date');
-                    let end_date = dialog.get_value('end_date');
-                    let year_type = this.mgrant_settings?.year_type || 'Financial Year'; // Get year type from the dialog
-                    let start = new Date(start_date);
-                    let end = new Date(end_date);
-                    let financial_years = [];
-                    while (start <= end) {
-                        if (year_type === "Financial Year") {
-                            let year = start.getFullYear();
-                            let financial_year = start.getMonth() < 3
-                                ? `${year - 1}` // Before April
-                                : `${year + 1}`; // From April onwards
-                            if (!financial_years.includes(financial_year)) {
-                                financial_years.push(financial_year);
-                            }
-                        } else {
-                            let year = start.getFullYear();
-                            if (!financial_years.includes(year)) {
-                                financial_years.push(year);
-                            }
-                        }
-                        start.setMonth(start.getMonth() + 1);
-                    }
-                    let selected_financial_years = await this.sva_db.get_list('Financial Year', {
-                        filters: {
-                            'financial_year_name': ['in', financial_years]
-                        },
-                        pluck: 'name'
-                    });
-                    financial_years_field.value = selected_financial_years?.map(f => {
-                        return { 'financial_year': f };
-                    });
-                    financial_years_field.refresh();
-                }
-            }
-        }
         for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
             if (field?.df?.min_max_depends_on) {
                 let splitted = field.df.min_max_depends_on.split('->');
