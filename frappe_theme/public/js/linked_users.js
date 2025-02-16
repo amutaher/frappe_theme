@@ -6,6 +6,7 @@ class LinkedUser {
         this.total_pages = 1;
         this.currentPage = 1;
         this.render_user();
+        return this.wrapper;
     }
     getRandomColor() {
         const letters = '0123456789ABCDEF';
@@ -190,7 +191,7 @@ class LinkedUser {
         let task_container = document.createElement('div');
         task_container.classList.add('task-list');
         task_container.id = 'task-list';
-        task_container.innerHTML = ` 
+        task_container.innerHTML = `
             <div id="task-body"></div>
             <div id="task-footer"></div>
         `
