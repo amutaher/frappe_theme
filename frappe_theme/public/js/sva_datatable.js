@@ -1637,7 +1637,7 @@ class SvaDataTable {
                             <use href="#icon-small-file"></use>
                         </svg>
                     </div>
-                    <p>You haven't created a rocord yet</p>
+                    <p>You haven't created a record yet</p>
 
                 </div>
         `
