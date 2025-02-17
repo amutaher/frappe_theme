@@ -219,10 +219,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             });
         };
 
+        // let loader = new Loader(this.wrapper);
+        // loader.show();
         await Promise.all([
             ...(dts?.number_cards || []).map(card => initDashboard(card, 'card')),
             ...(dts?.charts || []).map(chart => initDashboard(chart, 'chart'))
         ]);
+        // loader.hide();
     }
 
     async processDataTables(dtFields, frm, dts, signal) {
@@ -442,10 +445,15 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
 
     async initializeSvaDataTable(field, frm, dts, signal) {
+
         const childLinks = dts.child_confs.filter(f => f.parent_doctype === field.link_doctype);
         const wrapper = document.createElement('div');
         const wrapperId = `sva-datatable-wrapper-${field.html_field}`;
         wrapper.id = wrapperId;
+
+        let loader = new Loader(wrapper);
+        loader.show();
+        // console.log("loader show", loader);
 
         // Register component
         this.activeComponents.add(wrapperId);
@@ -464,6 +472,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 editable: false,
             },
             signal,
+            loader,
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
