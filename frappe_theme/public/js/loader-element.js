@@ -50,6 +50,8 @@ class Loader {
     }
 
     show() {
+        console.log("showing loader");
+
         if (!this.wrapper.contains(this.loader)) {
             this.wrapper.appendChild(this.loader);
         }
