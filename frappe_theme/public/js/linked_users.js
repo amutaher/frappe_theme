@@ -40,7 +40,7 @@ class LinkedUser {
                 ? `
                         <tr>
                             <td colspan="9" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8; line-height: 92px;">
-                                No rows
+                                You haven't created a record yet
                             </td>
                         </tr>
                         `
@@ -54,19 +54,23 @@ class LinkedUser {
                             <td style="white-space: nowrap;"> ${user.role_profile}</td>
                             <td style="white-space: nowrap;">${user.email}</td>
                             <td style="white-space: nowrap;">${user.status}</td>
-                            <td>
-                                <div class="dropdown">
-                                    <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        ⋮
-                                    </span>
-                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
-                                        <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
-                                        <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
-                                        <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
-                                    </div>
+                            ${frappe.boot.user_team == "Donor" ?
+                        `
+                        <td>
+                            <div class="dropdown">
+                                <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    ⋮
+                                </span>
+                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
+                                    <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
+                                    <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
+                                    <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
                                 </div>
-                            </td>
-                            </td>
+                            </div>
+                        </td>
+                    </td>
+                        `
+                        : ""}
                         </tr>
                     `).join('')}
                 </tbody>
@@ -108,11 +112,14 @@ class LinkedUser {
         el.innerHTML = `
             <div class="d-flex align-items-center" style="gap: 8px;">
             <!-- <div id="task-header"></div> -->
-            <button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
+            ${frappe.boot.user_team == "Donor" ?
+                `<button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
                 <svg class="es-icon es-line icon-xs" aria-hidden="true">
                     <use href="#es-line-add"></use>
                 </svg> Add row
             </button>
+            `
+                : ""}
             </div>
             ${totalPages > 1 ? `
                 <nav aria-label="Page navigation">
@@ -343,15 +350,15 @@ class LinkedUser {
 
         // Create the dialog form
         let fields = fileds?.docs[0]?.fields.filter((field) =>
-            ['role_profile','first_name','last_name','email','mobile_number'].includes(field.fieldname)
+            ['role_profile', 'first_name', 'last_name', 'email', 'mobile_number'].includes(field.fieldname)
         ).map(field => {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
                 }
             }
-            if(field.fieldname === 'role_profile'){
-                if(['NGO','Donor','Vendor'].includes(cur_frm.doctype)){
+            if (field.fieldname === 'role_profile') {
+                if (['NGO', 'Donor', 'Vendor'].includes(cur_frm.doctype)) {
                     field.get_query = function () {
                         return {
                             filters: {
