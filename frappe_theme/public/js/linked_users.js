@@ -53,23 +53,34 @@ class LinkedUser {
                             <td class="col grid-static-col col-xs-3 ">${user.full_name}</td>
                             <td style="white-space: nowrap;"> ${user.role_profile}</td>
                             <td style="white-space: nowrap;">${user.email}</td>
-                            <td style="white-space: nowrap;">${user.status}</td>
+                            <td style="padding: 5px 8px !important;">
+                                <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
+                                ${frappe.boot.user_team == "Donor" ?`
+                                    <span title="Status" id="dropStatus-${user.name}" class=" small dropdown-toggle badge bg-light pointer ${user.status === 'Active' ? 'text-success' : 'text-danger'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" >
+                                        ${user?.status}
+                                    </span>
+                                    <div class="dropdown-menu" aria-labelledby="dropStatus-${user.name}">
+                                        <a class="dropdown-item user-status" data-user="${user.name}" data-status="Active">Active</a>
+                                        <a class="dropdown-item user-status" data-user="${user.name}" data-status="Inactive">Inactive</a>
+                                    </div>`
+                                    : `<span class="${user?.status=='Active'?'text-success':'text-danger'} small">${user.status}</span>`}
+                                </div>
+                            </td>
                             ${frappe.boot.user_team == "Donor" ?
                         `
-                        <td>
-                            <div class="dropdown">
-                                <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    ⋮
-                                </span>
-                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
-                                    <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
-                                    <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
-                                    <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
+                            <td>
+                                <div class="dropdown">
+                                    <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        ⋮
+                                    </span>
+                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
+                                        <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
+                                       <!-- <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a> -->
+                                        <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                    </td>
-                        `
+                            </td> 
+                            `
                         : ""}
                         </tr>
                     `).join('')}
@@ -259,12 +270,22 @@ class LinkedUser {
         }.bind(this));
         //
 
-        $('.delete-btn').off('click').on('click', function (e) {
-            const userName = $(e.currentTarget).data('user');
-            frappe.confirm('Are you sure you want to delete this task?', () => {
-                this.deleteUser(userName);
-            });
+        // User Status
+        $('.user-status').on('click', function (e) {
+            const name = $(e.currentTarget).data('user');
+            const newStatus = $(e.currentTarget).data('status');
+            frappe.db.set_value('SVA User', name, 'status', newStatus).then(() => {
+
+                this.render_user();
+                frappe.show_alert({ message: __('User status updated successfully'), indicator: 'green' });
+            })
         }.bind(this));
+        // $('.delete-btn').off('click').on('click', function (e) {
+        //     const userName = $(e.currentTarget).data('user');
+        //     frappe.confirm('Are you sure you want to delete this task?', () => {
+        //         this.deleteUser(userName);
+        //     });
+        // }.bind(this));
 
         $('.reset-pass-btn').off('click').on('click', function (e) {
             const user = $(e.currentTarget).data('user');
