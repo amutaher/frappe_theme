@@ -6,6 +6,7 @@ class LinkedUser {
         this.total_pages = 1;
         this.currentPage = 1;
         this.render_user();
+        return this.wrapper;
     }
     getRandomColor() {
         const letters = '0123456789ABCDEF';
@@ -39,7 +40,7 @@ class LinkedUser {
                 ? `
                         <tr>
                             <td colspan="9" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8; line-height: 92px;">
-                                No rows
+                                You haven't created a record yet
                             </td>
                         </tr>
                         `
@@ -53,18 +54,23 @@ class LinkedUser {
                             <td style="white-space: nowrap;"> ${user.role_profile}</td>
                             <td style="white-space: nowrap;">${user.email}</td>
                             <td style="white-space: nowrap;">${user.status}</td>
-                            <td>
-                                <div class="dropdown">
-                                    <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        ⋮
-                                    </span>
-                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
-                                        <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
-                                        <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
-                                    </div>
+                            ${frappe.boot.user_team == "Donor" ?
+                        `
+                        <td>
+                            <div class="dropdown">
+                                <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${user.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    ⋮
+                                </span>
+                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${user.name}">
+                                    <a class="dropdown-item edit-btn" data-user="${user.name}">Edit</a>
+                                    <a class="dropdown-item delete-btn" data-user="${user.name}">Delete</a>
+                                    <a class="dropdown-item reset-pass-btn" data-user="${user.email}">Reset Password</a>
                                 </div>
-                            </td>
-                            </td>
+                            </div>
+                        </td>
+                    </td>
+                        `
+                        : ""}
                         </tr>
                     `).join('')}
                 </tbody>
@@ -106,11 +112,14 @@ class LinkedUser {
         el.innerHTML = `
             <div class="d-flex align-items-center" style="gap: 8px;">
             <!-- <div id="task-header"></div> -->
-            <button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
+            ${frappe.boot.user_team == "Donor" ?
+                `<button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
                 <svg class="es-icon es-line icon-xs" aria-hidden="true">
                     <use href="#es-line-add"></use>
                 </svg> Add row
             </button>
+            `
+                : ""}
             </div>
             ${totalPages > 1 ? `
                 <nav aria-label="Page navigation">
@@ -189,7 +198,7 @@ class LinkedUser {
         let task_container = document.createElement('div');
         task_container.classList.add('task-list');
         task_container.id = 'task-list';
-        task_container.innerHTML = ` 
+        task_container.innerHTML = `
             <div id="task-body"></div>
             <div id="task-footer"></div>
         `
@@ -245,23 +254,34 @@ class LinkedUser {
         }.bind(this));
 
         // New User
-        $('#createTask').on('click', function () {
+        $('#createTask').off('click').on('click', function () {
             this.form(null, 'New User', this.frm);
         }.bind(this));
         //
 
-        $('.delete-btn').on('click', function (e) {
+        $('.delete-btn').off('click').on('click', function (e) {
             const userName = $(e.currentTarget).data('user');
             frappe.confirm('Are you sure you want to delete this task?', () => {
                 this.deleteUser(userName);
             });
         }.bind(this));
 
+        $('.reset-pass-btn').off('click').on('click', function (e) {
+            const user = $(e.currentTarget).data('user');
+            frappe.confirm('Are you sure you want to reset your password?', () => {
+                frappe.call({
+                    method: "frappe.core.doctype.user.user.reset_password",
+                    args: {
+                        user: user,
+                    },
+                });
+            });
+        }.bind(this));
+
         // New User
-        $('.edit-btn').on('click', function (e) {
+        $('.edit-btn').off('click').on('click', function (e) {
             const userName = $(e.currentTarget).data('user');
             let data = this.user_list.filter(user => user.name === userName);
-            console.log(data, userName);
             if (data.length) {
                 this.form(data[0], 'Edit User'); // Pass valid object to `form()`
             } else {
@@ -330,15 +350,15 @@ class LinkedUser {
 
         // Create the dialog form
         let fields = fileds?.docs[0]?.fields.filter((field) =>
-            ['role_profile','first_name','last_name','email','mobile_number'].includes(field.fieldname)
+            ['role_profile', 'first_name', 'last_name', 'email', 'mobile_number'].includes(field.fieldname)
         ).map(field => {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
                 }
             }
-            if(field.fieldname === 'role_profile'){
-                if(['NGO','Donor','Vendor'].includes(cur_frm.doctype)){
+            if (field.fieldname === 'role_profile') {
+                if (['NGO', 'Donor', 'Vendor'].includes(cur_frm.doctype)) {
                     field.get_query = function () {
                         return {
                             filters: {

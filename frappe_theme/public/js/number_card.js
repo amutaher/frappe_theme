@@ -1,120 +1,288 @@
 class SVANumberCard {
-    /**
-     * Constructor for initializing the number card with provided options.
-     *
-     * @param {Object} params - Configuration parameters for the number card
-     * @param {HTMLElement} params.wrapper - The wrapper element to contain the card
-     * @param {Array} params.numberCards - Array of card configurations
-     * @param {Object} params.frm - Frappe form object
-     */
     constructor({
         wrapper,
         frm,
-        numberCards = []
+        numberCards = [],
+        filters={},
+        signal=null
     }) {
         this.wrapper = wrapper;
         this.frm = frm;
         this.numberCards = numberCards;
+        this.filters = filters;
+        this.signal = signal;
+
+        this.sva_db = new SVAHTTP(this.signal);
+        this.cardDataCache = new Map(); // Cache for card data
+        this.linkedFieldsCache = new Map(); // Cache for linked fields
+        this.cardRefreshTimeouts = new Map(); // Track refresh timeouts
+        this.docTypeCache = new Map(); // Cache for document types
+        this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache duration
+        this.DEBOUNCE_DELAY = 300; // 300ms debounce delay
+
+        // Bind methods to preserve context
+        this.debouncedRefresh = this.debounce(this.refresh.bind(this), this.DEBOUNCE_DELAY);
+
+        // Initialize batch processor for network requests
+        this.batchProcessor = new BatchProcessor(1000); // 1 second batch window
+        // return this.wrapper;
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     async make() {
-        // Clear existing content
-        if (this.wrapper) {
-            this.wrapper.innerHTML = '';
+        if (!this.wrapper) return;
+
+        this.wrapper.innerHTML = '';
+        if (!this.numberCards.length) {
+            this.showNoDataState();
+            return;
         }
 
         // Show loading state
-        if (this.numberCards.length > 0) {
-            const container = document.createElement('div');
-            container.className = 'sva-cards-container';
+        this.showLoadingState();
 
-            try {
-                // Filter out invisible cards
-                const visibleCards = this.numberCards.filter(card => card.is_visible);
+        const container = document.createElement('div');
+        container.className = 'sva-cards-container';
 
-                for (let cardConfig of visibleCards) {
-                    try {
-                        const cardData = await this.fetchNumberCardData(cardConfig.number_card);
-                        if (cardData) {
-                            const card = this.createCard({
-                                cardName: cardConfig.number_card,
-                                title: cardConfig.card_label || cardData.label || cardData.name,
-                                value: cardData.result !== undefined ? cardData.result : '--',
-                                reportName: cardData.report_name,
-                                doctype: cardData.document_type,
-                                filters: cardData.filters_json ? JSON.parse(cardData.filters_json) : {},
-                                info: cardConfig.info || '',
-                                fieldtype: cardData.fieldtype,
-                                options: {
-                                    icon: cardConfig.icon_value,
-                                    subtitle: cardData.document_type,
-                                    backgroundColor: cardConfig.background_color,
-                                    textColor: cardConfig.text_color,
-                                    valueColor: cardConfig.value_color,
-                                    iconColor: cardConfig.icon_color
-                                }
-                            });
-                            container.appendChild(card);
-                        } else {
-                            container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
-                        }
-                    } catch (cardError) {
-                        console.error(`Error creating card ${cardConfig.number_card}:`, cardError);
-                        container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
-                    }
-                }
-                this.wrapper.appendChild(container);
-            } catch (error) {
-                console.error('Error creating number cards:', error);
-                this.showErrorState();
-            }
-        } else {
-            this.showNoDataState();
+        try {
+            const visibleCards = this.numberCards.filter(card => card.is_visible);
+            await this.processCardsInBatches(visibleCards, container);
+            // Remove loading state and append container
+            this.wrapper.innerHTML = '';
+            this.wrapper.appendChild(container);
+        } catch (error) {
+            console.error('Error creating number cards:', error);
+            this.showErrorState();
         }
 
-        this.addStyles();
+        this.lazyLoadStyles();
+    }
+
+    async processCardsInBatches(cards, container) {
+        const batchSize = 3;
+        for (let i = 0; i < cards.length; i += batchSize) {
+            const batch = cards.slice(i, i + batchSize);
+            await Promise.all(batch.map(async cardConfig => {
+                try {
+                    const cardData = await this.getCardDataWithCache(cardConfig.number_card);
+                    if (cardData) {
+                        const card = this.createCard({
+                            cardName: cardConfig.number_card,
+                            title: cardConfig.card_label || cardData.label || cardData.name,
+                            value: cardData.result !== undefined ? cardData.result : '--',
+                            reportName: cardData.report_name,
+                            doctype: cardData.document_type,
+                            filters: cardData.filters_json ? JSON.parse(cardData.filters_json) : {},
+                            info: cardConfig.info || '',
+                            fieldtype: cardData.fieldtype,
+                            options: this.getCardOptions(cardConfig)
+                        });
+                        container.appendChild(card);
+                    } else {
+                        container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
+                    }
+                } catch (error) {
+                    console.error(`Error creating card ${cardConfig.number_card}:`, error);
+                    container.appendChild(this.createErrorCard(cardConfig.card_label || cardConfig.number_card));
+                }
+            }));
+        }
+    }
+
+    async fetchNumberCardData(cardName) {
+        try {
+            const docResponse = await this.batchProcessor.add(() =>
+
+                this.sva_db.call({
+                    method: 'frappe.desk.form.load.getdoc',
+                    doctype: "Number Card",
+                    name: cardName
+                })
+            );
+
+            if (!docResponse.docs?.[0]) {
+                throw new Error('No document found');
+            }
+
+            const doc = docResponse.docs[0];
+            const filters = await this.prepareFilters(doc);
+
+            if (doc.report_name) {
+                return await this.handleReportCard(doc);
+            }
+
+            if (!doc.document_type) {
+                console.error('No document type found for card:', cardName);
+                return null;
+            }
+
+            const resultResponse = await this.batchProcessor.add(() =>
+                this.sva_db.call({
+                    method: 'frappe.desk.doctype.number_card.number_card.get_result',
+                    card: cardName,
+                    doc: this.prepareDocArgs(doc),
+                    filters: filters,
+                })
+            );
+
+            return {
+                ...doc,
+                result: resultResponse.message
+            };
+        } catch (error) {
+            console.error('Error fetching number card data:', error, cardName);
+            return null;
+        }
+    }
+
+    async prepareFilters(doc) {
+        let filters_json = typeof doc.filters_json === 'string'
+            ? JSON.parse(doc.filters_json)
+            : doc.filters_json || [];
+
+        let filters = Array.isArray(filters_json) ? filters_json :
+            Object.entries(filters_json).map(([key, value]) => [doc.document_type, key, '=', value]);
+
+        if (doc.document_type && this.frm.docname) {
+            const linkedFields = await this.getLinkedFieldsWithCache(doc.document_type, this.frm.doctype);
+            if (linkedFields?.field) {
+                const field = linkedFields.field;
+                const fieldname = field.options === 'DocType' && linkedFields.final_field
+                    ? linkedFields.final_field.fieldname
+                    : field.fieldname;
+                filters.push([doc.document_type, fieldname, '=', this.frm.docname]);
+            }
+        }
+
+        return filters;
+    }
+
+    async handleReportCard(doc) {
+        try {
+            const reportDoc = await this.batchProcessor.add(() =>
+                this.sva_db.get_doc('Report', doc.report_name)
+            );
+
+            if (!reportDoc) return null;
+
+            doc.document_type = reportDoc.ref_doctype;
+            const json_filters = this.prepareReportFilters(reportDoc);
+
+            const response = await this.batchProcessor.add(() =>
+                this.sva_db.call({
+                    method: "frappe_theme.api.execute_number_card_query",
+                    report_name: doc.report_name,
+                    filters: json_filters
+                })
+            );
+
+            if (response?.message?.result?.[0] && doc.report_field) {
+                const fieldValue = response.message.result[0][doc.report_field];
+                const fieldType = response.message.column_types?.[doc.report_field];
+
+                return {
+                    ...doc,
+                    result: fieldValue,
+                    fieldtype: fieldType?.toLowerCase().includes('decimal') ? 'Currency' : null
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Error handling report card:', error);
+            return null;
+        }
+    }
+
+    prepareReportFilters(reportDoc) {
+        const reportFilters = reportDoc.filters || [];
+        const whereConditions = [];
+
+        reportFilters.forEach(filter => {
+            if (filter.fieldname === this.frm.doctype.toLowerCase()) {
+                whereConditions.push(`${filter.fieldname} = '${this.frm.docname}'`);
+            } else if (filter.default) {
+                whereConditions.push(
+                    `${filter.fieldname} = ${typeof filter.default === 'string' ? `'${filter.default}'` : filter.default}`
+                );
+            } else if (this.frm.doc?.[filter.fieldname] !== undefined) {
+                const value = this.frm.doc[filter.fieldname];
+                whereConditions.push(
+                    `${filter.fieldname} = ${typeof value === 'string' ? `'${value}'` : value}`
+                );
+            }
+        });
+
+        return whereConditions.reduce((acc, condition) => {
+            const matches = condition.match(/([^=]+)\s*=\s*(.+)/);
+            if (matches) {
+                const [_, field, value] = matches;
+                acc[field.trim()] = value.trim().replace(/^['"]+|['"]+$/g, '');
+            }
+            return acc;
+        }, {});
+    }
+
+    prepareDocArgs(doc) {
+        return {
+            name: doc.name,
+            document_type: doc.document_type,
+            label: doc.label,
+            function: doc.function,
+            aggregate_function_based_on: doc.aggregate_function_based_on,
+            filters_json: doc.filters_json,
+            is_standard: doc.is_standard,
+            parent_document_type: doc.parent_document_type,
+            report_name: doc.report_name,
+            report_field: doc.report_field,
+            type: doc.type
+        };
+    }
+
+    getCardOptions(cardConfig) {
+        return {
+            icon: cardConfig.icon_value,
+            subtitle: cardConfig.document_type,
+            backgroundColor: cardConfig.background_color,
+            textColor: cardConfig.text_color,
+            valueColor: cardConfig.value_color,
+            iconColor: cardConfig.icon_color
+        };
     }
 
     createCard(config) {
         const card = document.createElement('div');
         card.className = 'number-card';
+        card.innerHTML = this.getCardTemplate(config);
+        this.attachCardEventHandlers(card, config);
+        return card;
+    }
 
-        const options = Object.assign({
-            icon: '',
-            subtitle: '',
-            backgroundColor: null,
-            textColor: null,
-            valueColor: null,
-            iconColor: null
-        }, config.options);
-
-        const iconHtml = options.icon ? `
-            <div class="number-card-icon" ${options.iconColor ? `style="background-color: ${options.iconColor}"` : ''}>
-                <i class="${options.icon}"></i>
-            </div>
-        ` : '';
-
-        const containerStyle = [
-            options.backgroundColor ? `background-color: ${options.backgroundColor}` : ''
-        ].filter(Boolean).join(';');
-
+    getCardTemplate(config) {
+        const options = this.getCardOptions(config);
+        const containerStyle = options.backgroundColor ? `background-color: ${options.backgroundColor}` : '';
         const titleStyle = options.textColor ? `color: ${options.textColor}` : '';
         const valueStyle = options.valueColor ? `color: ${options.valueColor}` : '';
+        const iconHtml = options.icon ? this.getIconHTML(options) : '';
+        const infoHtml = config.info ? this.getInfoHTML(config.info) : '';
 
-        const infoIconHtml = config.info ? `
-            <div class="number-card-info">
-                <i class="fa fa-info-circle"></i>
-                <div class="number-card-tooltip">${frappe.utils.escape_html(config.info)}</div>
-            </div>
-        ` : '';
-
-        card.innerHTML = `
+        return `
             <div class="number-card-container" ${containerStyle ? `style="${containerStyle}"` : ''}>
                 <div class="number-card-content">
                     <div class="number-card-header">
                         <div class="number-card-title-section">
                             <h3 class="number-card-title" ${titleStyle ? `style="${titleStyle}"` : ''}>${config.title || ''}</h3>
-                            ${infoIconHtml}
+                            ${infoHtml}
                         </div>
                         <div class="number-card-actions">
                             <div class="number-card-menu">
@@ -130,275 +298,305 @@ class SVANumberCard {
                         </div>
                     </div>
                     <div class="number-card-main">
-                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>${this.formatValue(config.value, config.fieldtype)}</div>
+                        <div class="number-card-value" ${valueStyle ? `style="${valueStyle}"` : ''}>
+                            ${this.formatValue(config.value, config.fieldtype)}
+                        </div>
                         ${iconHtml}
                     </div>
                 </div>
             </div>
         `;
-
-        // Add menu toggle functionality
-        const menuBtn = card.querySelector('.number-card-menu-btn');
-        const menuDropdown = card.querySelector('.number-card-menu-dropdown');
-        const refreshBtn = card.querySelector('.refresh-card');
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!menuBtn.contains(e.target)) {
-                menuDropdown.classList.remove('show');
-            }
-        });
-
-        // Toggle dropdown
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menuDropdown.classList.toggle('show');
-        });
-
-        // Refresh card
-        refreshBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            menuDropdown.classList.remove('show');
-
-            // Show loading state for this card
-            const cardContainer = card.querySelector('.number-card-container');
-            cardContainer.style.opacity = '0.5';
-            cardContainer.style.pointerEvents = 'none';
-
-            try {
-                // Fetch updated data for this specific card
-                const cardData = await this.fetchNumberCardData(config.cardName);
-                if (cardData) {
-                    // Update card value
-                    const valueElement = card.querySelector('.number-card-value');
-                    valueElement.textContent = this.formatValue(cardData.result, cardData.fieldtype);
-                }
-            } catch (error) {
-                console.error('Error refreshing card:', error);
-                frappe.show_alert({
-                    message: __('Error refreshing card'),
-                    indicator: 'red'
-                });
-            } finally {
-                // Reset card state
-                cardContainer.style.opacity = '';
-                cardContainer.style.pointerEvents = '';
-            }
-        });
-
-        return card;
     }
 
-    shouldShowCurrency(value, fieldtype) {
-        // Check if the value should show currency symbol based on fieldtype
-        return fieldtype === 'Currency' && typeof value === 'number' && !isNaN(value);
+    getIconHTML(options) {
+        return `
+            <div class="number-card-icon" ${options.iconColor ? `style="background-color: ${options.iconColor}"` : ''}>
+                <i class="${options.icon}"></i>
+            </div>
+        `;
+    }
+
+    getInfoHTML(info) {
+        return `
+            <div class="number-card-info">
+                <i class="fa fa-info-circle"></i>
+                <div class="number-card-tooltip">${frappe.utils.escape_html(info)}</div>
+            </div>
+        `;
+    }
+
+    createErrorCard(cardName) {
+        return `
+            <div class="number-card">
+                <div class="number-card-container error">
+                    <div class="number-card-content">
+                        <div class="number-card-header">
+                            <h3 class="number-card-title">${cardName}</h3>
+                            <div class="number-card-icon">
+                                <i class="fa fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <div class="number-card-value text-danger">Error loading data</div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     formatValue(value, fieldtype) {
-        if (value === undefined || value === null) return '--';
-        if (value === '--') return value;
+        if (value === undefined || value === null || value === '--') return '--';
 
         if (typeof value === 'number') {
-            // Get absolute value for comparison
             const absValue = Math.abs(value);
 
-            // For Currency fields, use format_currency
             if (fieldtype === 'Currency') {
                 return format_currency(value, frappe.defaults.get_default("currency"));
             }
 
-            // For non-currency numbers, use simple formatting with suffixes
-            if (absValue >= 10000000) { // ≥ 1 Cr
-                const crValue = (value / 10000000).toFixed(2);
-                return crValue + ' Cr';
-            } else if (absValue >= 100000) { // ≥ 1 L
-                const lValue = (value / 100000).toFixed(2);
-                return lValue + ' L';
-            } else if (absValue >= 1000) { // ≥ 1 K
-                const kValue = (value / 1000).toFixed(2);
-                return kValue + ' K';
+            if (absValue >= 10000000) {
+                return `${(value / 10000000).toFixed(2)} Cr`;
+            } else if (absValue >= 100000) {
+                return `${(value / 100000).toFixed(2)} L`;
+            } else if (absValue >= 1000) {
+                return `${(value / 1000).toFixed(2)} K`;
             }
 
-            // For regular numbers, return as is with 2 decimal places if needed
             return value % 1 !== 0 ? value.toFixed(2) : value.toString();
         }
         return value;
     }
 
-    createErrorCard(cardName) {
+    attachCardEventHandlers(card, config) {
+        const menuBtn = card.querySelector('.number-card-menu-btn');
+        const menuDropdown = card.querySelector('.number-card-menu-dropdown');
+        const refreshBtn = card.querySelector('.refresh-card');
+
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target)) {
+                menuDropdown.classList.remove('show');
+            }
+        }, { passive: true });
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('show');
+        }, { passive: true });
+
+        refreshBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.remove('show');
+            await this.handleCardRefresh(card, config);
+        });
+    }
+
+    async handleCardRefresh(card, config) {
+        const cardContainer = card.querySelector('.number-card-container');
+        cardContainer.style.opacity = '0.5';
+        cardContainer.style.pointerEvents = 'none';
+
+        try {
+            this.cardDataCache.delete(config.cardName);
+            const cardData = await this.fetchNumberCardData(config.cardName);
+            if (cardData) {
+                const valueElement = card.querySelector('.number-card-value');
+                valueElement.textContent = this.formatValue(cardData.result, cardData.fieldtype);
+            }
+        } catch (error) {
+            console.error('Error refreshing card:', error);
+            frappe.show_alert({
+                message: __('Error refreshing card'),
+                indicator: 'red'
+            });
+        } finally {
+            cardContainer.style.opacity = '';
+            cardContainer.style.pointerEvents = '';
+        }
+    }
+
+    async getCardDataWithCache(cardName) {
+        const cachedData = this.cardDataCache.get(cardName);
+        if (cachedData && Date.now() - cachedData.timestamp < this.CACHE_DURATION) {
+            return cachedData.data;
+        }
+
+        const data = await this.batchProcessor.add(() => this.fetchNumberCardData(cardName));
+        if (data) {
+            this.cardDataCache.set(cardName, {
+                data,
+                timestamp: Date.now()
+            });
+        }
+        return data;
+    }
+
+    async getLinkedFieldsWithCache(docType, frmDoctype) {
+        const cacheKey = `${docType}-${frmDoctype}`;
+        const cachedFields = this.linkedFieldsCache.get(cacheKey);
+        if (cachedFields && Date.now() - cachedFields.timestamp < this.CACHE_DURATION) {
+            return cachedFields.data;
+        }
+
+        try {
+            const result = await this.sva_db.call({
+                method: 'frappe_theme.api.get_linked_doctype_fields',
+                doc_type: docType,
+                frm_doctype: frmDoctype
+            });
+
+            if (result?.message) {
+                this.linkedFieldsCache.set(cacheKey, {
+                    data: result.message,
+                    timestamp: Date.now()
+                });
+                return result.message;
+            }
+        } catch (error) {
+            console.error('Error getting linked fields:', error);
+        }
+        return null;
+    }
+
+    showNoDataState() {
+        this.wrapper.innerHTML = `
+            <div class="no-data">
+                <i class="fa fa-info-circle fa-2x mb-2"></i>
+                <div>No cards available</div>
+            </div>
+        `;
+    }
+
+    showErrorState() {
+        this.wrapper.innerHTML = `
+            <div class="no-data">
+                <i class="fa fa-exclamation-circle fa-2x mb-2 text-danger"></i>
+                <div class="text-danger">Error loading cards</div>
+            </div>
+        `;
+    }
+
+    refresh(newCards) {
+        this.numberCards = newCards || this.numberCards;
+        this.cardDataCache.clear(); // Clear cache on refresh
+        this.make();
+    }
+
+    lazyLoadStyles() {
+        if (!document.getElementById('sva-number-card-styles')) {
+            const styleSheet = document.createElement('style');
+            styleSheet.id = 'sva-number-card-styles';
+            styleSheet.textContent = this.getStyles();
+            document.head.appendChild(styleSheet);
+        }
+    }
+
+    showLoadingState() {
+        const loadingContainer = document.createElement('div');
+        loadingContainer.className = 'sva-cards-loading-container';
+
+        // Create skeleton cards
+        for (let i = 0; i < Math.min(this.numberCards.length, 3); i++) {
+            const skeletonCard = this.createSkeletonCard();
+            loadingContainer.appendChild(skeletonCard);
+        }
+
+        this.wrapper.appendChild(loadingContainer);
+    }
+
+    createSkeletonCard() {
         const card = document.createElement('div');
-        card.className = 'number-card';
+        card.className = 'number-card skeleton-card';
         card.innerHTML = `
-            <div class="number-card-container error">
+            <div class="number-card-container">
                 <div class="number-card-content">
                     <div class="number-card-header">
-                        <h3 class="number-card-title">${cardName}</h3>
-                        <div class="number-card-icon">
-                            <i class="fa fa-exclamation-triangle"></i>
-                        </div>
+                        <div class="skeleton-title"></div>
                     </div>
-                    <div class="number-card-value text-danger">Error loading data</div>
+                    <div class="number-card-main">
+                        <div class="skeleton-value"></div>
+                        <div class="skeleton-icon"></div>
+                    </div>
                 </div>
             </div>
         `;
         return card;
     }
 
-    async fetchNumberCardData(cardName) {
-        try {
-            const docResponse = await frappe.call({
-                method: 'frappe.desk.form.load.getdoc',
-                args: {
-                    doctype: "Number Card",
-                    name: cardName
+    getStyles() {
+        return `
+            @keyframes shimmer {
+                0% {
+                    background-position: -1000px 0;
                 }
-            });
-            // console.log(docResponse, "docResponse");
-            if (!docResponse.docs || !docResponse.docs[0]) {
-                throw new Error('No document found');
-            }
-
-            const doc = docResponse.docs[0];
-            // console.log(doc, "doc");
-            // / Parse filters_json from the doc
-            let filters_json = typeof doc.filters_json === 'string'
-                ? JSON.parse(doc.filters_json)
-                : doc.filters_json || [];
-
-            let filters = Array.isArray(filters_json) ? filters_json :
-                Object.entries(filters_json).map(([key, value]) => [doc.document_type, key, '=', value]);
-
-            // Get the linked doctype fields
-            if (doc.document_type && this.frm.docname) {
-                try {
-                    const result = await frappe.call({
-                        method: 'frappe_theme.api.get_linked_doctype_fields',
-                        args: {
-                            doc_type: doc.document_type,
-                            frm_doctype: this.frm.doctype
-                        }
-                    });
-                    if (result?.message) {
-                        const field = result.message.field;
-                        if (field.options === 'DocType' && result.message.final_field) {
-                            filters.push([doc.document_type, result.message.final_field.fieldname, '=', this.frm.docname]);
-                        } else {
-                            filters.push([doc.document_type, field.fieldname, '=', this.frm.docname]);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error getting linked doctype fields:', error);
+                100% {
+                    background-position: 1000px 0;
                 }
             }
 
-            // Get the document type from the card
-            if (!doc.document_type && doc.report_name) {
-                // If it's a report type card, get the document type from the report
-                const reportDoc = await frappe.db.get_doc('Report', doc.report_name);
-                if (reportDoc) {
-                    doc.document_type = reportDoc.ref_doctype;
-                    const reportFilters = reportDoc.filters || [];
-                    const whereConditions = [];
-                    // Add conditions from report filters
-                    reportFilters.forEach(filter => {
-                        // Check if filter fieldname matches current form's docname
-                        if (filter.fieldname === this.frm.doctype.toLowerCase()) {
-                            whereConditions.push(`${filter.fieldname} = '${this.frm.docname}'`);
-                        }
-                        // Add default filter values if present
-                        else if (filter.default) {
-                            whereConditions.push(
-                                `${filter.fieldname} = ${typeof filter.default === 'string' ? `'${filter.default}'` : filter.default}`
-                            );
-                        }
-                        // Check if filter exists in current form's doc
-                        else if (this.frm.doc && this.frm.doc[filter.fieldname] !== undefined) {
-                            const value = this.frm.doc[filter.fieldname];
-                            whereConditions.push(
-                                `${filter.fieldname} = ${typeof value === 'string' ? `'${value}'` : value}`
-                            );
-                        }
-                    });
-                    let json_filters = {};
-                    whereConditions.forEach(condition => {
-                        const matches = condition.match(/([^=]+)\s*=\s*(.+)/);
-                        if (matches) {
-                            const [_, field, value] = matches;
-                            json_filters[field.trim()] = value.trim().replace(/^['"]+|['"]+$/g, '');
-                        }
-                    });
-
-                    try {
-                        const response = await frappe.call({
-                            method: "frappe_theme.api.execute_number_card_query",
-                            args: {
-                                report_name: doc.report_name,
-                                filters: json_filters
-                            }
-                        });
-                        // console.log(response, "response");
-                        if (response?.message?.result && response.message.result.length > 0) {
-                            if (doc.report_field) {
-                                const fieldValue = response.message.result[0][doc.report_field];
-                                const fieldType = response.message.column_types?.[doc.report_field];
-
-                                return {
-                                    ...doc,
-                                    result: fieldValue,
-                                    fieldtype: fieldType?.toLowerCase().includes('decimal') ? 'Currency' : null
-                                };
-                            }
-                        }
-                        return null;
-                    } catch (error) {
-                        console.error('Error executing number card query:', error);
-                        return null;
-                    }
-
-                }
+            .sva-cards-loading-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 0px 0px 15px 0px;
+                width: 100%;
             }
 
-            if (!doc.document_type) {
-                console.error('No document type found for card:', cardName);
-                return null;
+            .skeleton-card .number-card-container {
+                background: var(--card-bg);
+                position: relative;
+                overflow: hidden;
             }
 
-            let resultResponse;
-            resultResponse = await frappe.call({
-                method: 'frappe.desk.doctype.number_card.number_card.get_result',
-                args: {
-                    card: cardName,
-                    doc: {
-                        name: doc.name,
-                        document_type: doc.document_type,
-                        label: doc.label,
-                        function: doc.function,
-                        aggregate_function_based_on: doc.aggregate_function_based_on,
-                        filters_json: doc.filters_json,
-                        is_standard: doc.is_standard,
-                        parent_document_type: doc.parent_document_type,
-                        report_name: doc.report_name,
-                        report_field: doc.report_field,
-                        type: doc.type
-                    },
-                    filters: filters
-                }
-            });
-            return {
-                ...doc,
-                result: resultResponse.message
-            };
-        } catch (error) {
-            console.error('Error fetching number card data:', error, cardName);
-            return null;
-        }
-    }
+            .skeleton-title {
+                height: 14px;
+                width: 60%;
+                background: var(--gray-200);
+                border-radius: 4px;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
 
-    addStyles() {
-        if (!document.getElementById('sva-number-card-styles')) {
-            const styleSheet = document.createElement('style');
-            styleSheet.id = 'sva-number-card-styles';
-            styleSheet.textContent = `
+            .skeleton-value {
+                height: 24px;
+                width: 40%;
+                background: var(--gray-200);
+                border-radius: 4px;
+                margin-top: 8px;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
+
+            .skeleton-icon {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: var(--gray-200);
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    to right,
+                    var(--gray-200) 0%,
+                    var(--gray-100) 20%,
+                    var(--gray-200) 40%,
+                    var(--gray-200) 100%
+                );
+                background-repeat: no-repeat;
+                background-size: 1000px 100%;
+            }
             .sva-cards-container {
                 display: flex;
                 flex-wrap: wrap;
@@ -418,12 +616,13 @@ class SVANumberCard {
                 border-radius: 6px;
                 padding: 10px;
                 box-shadow: var(--card-shadow-lg);
-                border: 2px solid #EDEDED ;
+                border: 2px solid #EDEDED;
                 min-height: 84px;
                 display: flex;
                 flex-direction: column;
                 height: 100%;
                 color: var(--text-color);
+                transition: opacity 0.2s ease-in-out;
             }
             .number-card-container.error {
                 border-color: var(--red-200);
@@ -502,6 +701,10 @@ class SVANumberCard {
                 cursor: pointer;
                 color: var(--text-muted);
                 border-radius: 4px;
+                padding: 4px;
+            }
+            .number-card-menu-btn:hover {
+                background: var(--bg-light-gray);
             }
             .number-card-menu-dropdown {
                 position: absolute;
@@ -513,7 +716,7 @@ class SVANumberCard {
                 box-shadow: var(--shadow-sm);
                 display: none;
                 z-index: 100;
-                min-width: 70px;
+                min-width: 100px;
             }
             .number-card-menu-dropdown.show {
                 display: block;
@@ -578,12 +781,6 @@ class SVANumberCard {
                 text-overflow: ellipsis;
                 line-height: 1;
             }
-            .number-card-subtitle {
-                font-size: 10px;
-                color: var(--text-muted);
-                margin-top: auto;
-                padding-top: 6px;
-            }
             .text-danger {
                 color: var(--red-500) !important;
                 font-size: 14px !important;
@@ -598,7 +795,6 @@ class SVANumberCard {
                 border: 1px solid var(--border-color);
             }
 
-            /* Responsive adjustments */
             @media (max-width: 1200px) {
                 .number-card {
                     flex-basis: calc(33.333% - 10px);
@@ -617,36 +813,42 @@ class SVANumberCard {
                     font-size: 18px;
                 }
             }
-
-            /* Adjust loader styles for cards */
-            .table-loader {
-                min-height: 100px !important;
-                background: var(--card-bg) !important;
-            }
         `;
-            document.head.appendChild(styleSheet);
+    }
+}
+
+// Batch processor for network requests
+class BatchProcessor {
+    constructor(batchWindow) {
+        this.batchWindow = batchWindow;
+        this.currentBatch = [];
+        this.batchPromise = null;
+        this.batchTimeout = null;
+    }
+
+    add(request) {
+        if (!this.batchPromise) {
+            this.batchPromise = new Promise((resolve) => {
+                this.batchTimeout = setTimeout(() => {
+                    this.processBatch().then(resolve);
+                }, this.batchWindow);
+            });
         }
-    }
-    showNoDataState() {
-        this.wrapper.innerHTML = `
-            <div class="no-data">
-                <i class="fa fa-info-circle fa-2x mb-2"></i>
-                <div>No cards available</div>
-            </div>
-        `;
+
+        const requestPromise = new Promise((resolve) => {
+            this.currentBatch.push({ request, resolve });
+        });
+
+        return requestPromise;
     }
 
-    showErrorState() {
-        this.wrapper.innerHTML = `
-            <div class="no-data">
-                <i class="fa fa-exclamation-circle fa-2x mb-2 text-danger"></i>
-                <div class="text-danger">Error loading cards</div>
-            </div>
-        `;
-    }
+    async processBatch() {
+        clearTimeout(this.batchTimeout);
+        const batch = this.currentBatch;
+        this.currentBatch = [];
+        this.batchPromise = null;
 
-    refresh(newCards) {
-        this.numberCards = newCards;
-        this.make();
+        const results = await Promise.all(batch.map(({ request }) => request()));
+        batch.forEach(({ resolve }, index) => resolve(results[index]));
     }
 }

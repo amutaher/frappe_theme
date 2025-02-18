@@ -6,6 +6,7 @@ class GalleryComponent {
         this.selectedFiles = [];
         this.view = 'Card'; // Default view
         this.initialize();
+        return this.wrapper;
     }
 
     async initialize() {
@@ -342,7 +343,7 @@ class GalleryComponent {
                     </button>
                     <div class="btn-group">
                         <button class="btn btn-default btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                            <i class="fa ${this.view === 'Card' ? 'fa-th-large' : 'fa-list'}"></i> 
+                            <i class="fa ${this.view === 'Card' ? 'fa-th-large' : 'fa-list'}"></i>
                             <span id="viewNameButton">${this.view} View</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-right">
