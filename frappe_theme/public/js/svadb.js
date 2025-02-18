@@ -20,20 +20,37 @@ class SVAHTTP {
 
     // Fetch Wrapper
     async fetchAPI(method, data) {
-        const signal = this.signal || this.newRequest()
+        const signal = this.signal || this.newRequest();
         const response = await fetch(`/api/method/${method}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-Frappe-CSRF-Token": this.getCsrfToken()
             },
-            body: JSON.stringify({...data, _:(new Date()).getTime()}),
+            body: JSON.stringify({ ...data, _: (new Date()).getTime() }),
             signal
         });
 
-        if (!response.ok) throw new Error("Request failed");
-        return response.json();
+        let responseData;
+        try {
+            responseData = await response.json();
+        } catch (error) {
+            // If parsing fails, fallback to text (or a default message)
+            responseData = { message: await response.text() };
+        }
+        if (!response.ok) {
+            let messages = JSON.parse(responseData._server_messages || '[]');
+            let msg = ''
+            if (messages.length) {
+                msg = messages.map(message_obj => JSON.parse(message_obj || '{}')?.message).join('\n');
+            }
+            const errorMsg = msg || "Request failed";
+            throw new Error(errorMsg);
+        }
+
+        return responseData;
     }
+
     async call(args = {}) {
         const signal = this.newRequest();
         let method = args.method;
@@ -51,7 +68,7 @@ class SVAHTTP {
     }
     // Check if a record exists
     async exists(doctype, filters) {
-        const exists = await this.fetchAPI("frappe.client.get_value", { doctype, fieldname:'name', filters })
+        const exists = await this.fetchAPI("frappe.client.get_value", { doctype, fieldname: 'name', filters })
         return exists?.message?.name || false;
     }
 
@@ -66,7 +83,7 @@ class SVAHTTP {
         return res.message;
     }
     // Fetch a single value from a document
-    async get_value(doctype, filters, fieldname='name') {
+    async get_value(doctype, filters, fieldname = 'name') {
         let res = await this.fetchAPI("frappe.client.get_value", { doctype, fieldname, filters });
         return res.message[fieldname];
     }

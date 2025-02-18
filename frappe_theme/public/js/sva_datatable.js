@@ -81,7 +81,7 @@ class SvaDataTable {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
                 // ================================ Workflow Logic  ================================
-                let workflow = await this.sva_db.get_value("Workflow",{ "document_type": this.doctype })
+                let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype })
                 if (workflow) {
                     this.workflow = await this.sva_db.get_doc("Workflow", workflow)
                     this.workflow_state_bg = await this.sva_db.get_list("Workflow State", {
@@ -945,7 +945,7 @@ class SvaDataTable {
         // ========================= Workflow Logic ======================
         if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
             const addColumn = document.createElement('th');
-            addColumn.textContent = this.connection.action_label ? this.connection.action_label:'Approval';
+            addColumn.textContent = this.connection.action_label ? this.connection.action_label : 'Approval';
             addColumn.style = 'text-align:center;';
             tr.appendChild(addColumn);
         }
@@ -1291,7 +1291,12 @@ class SvaDataTable {
             me.updateTableBody();
             frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
         } catch (error) {
-            frappe.show_alert({ message: "An error occurred.", indicator: "red" });
+            if (error.message) {
+                frappe.throw({
+                    title : 'Error',
+                    message : error.message
+                })
+            }
             console.error(error);
         }
     }
