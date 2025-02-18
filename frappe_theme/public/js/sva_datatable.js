@@ -869,7 +869,7 @@ class SvaDataTable {
         }
     }
     async deleteRecord(doctype, name) {
-        frappe.confirm(`Are you sure you want to delete this ${doctype}?`, async () => {
+        frappe.confirm(`Are you sure you want to delete this ${__(this.connection?.title || doctype)}?`, async () => {
             await frappe.xcall('frappe.client.delete', { doctype, name });
             let rowIndex = this.rows.findIndex(r => r.name === name);
             this.rows.splice(rowIndex, 1);
