@@ -459,129 +459,7 @@ class SvaDataTable {
             });
         });
     }
-    handleFrequencyField() {
-        let frequency = cur_dialog?.fields_dict?.frequency?.value;
-        const year_type = this.mgrant_settings?.year_type || "Financial Year";
-        if (!frequency) {
-            return;
-        }
-        let start_date = cur_dialog?.fields_dict?.start_date?.value;
-        let end_date = cur_dialog?.fields_dict?.end_date?.value;
-        const monthNames = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ];
-        if (cur_dialog) {
-            cur_dialog.fields_dict.planning_table.df.data = [];
-            cur_dialog.fields_dict.planning_table.grid.refresh();
-        }
-        if (frequency === "Annually") {
-            let start = new Date(start_date);
-            let end = new Date(end_date);
-            let year = start.getFullYear();
-            let index = 0;
-            while (start <= end) {
-                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${year}`;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
-                start = new Date(year + 1, 0, 1);
-                year++;
-                index++;
-            }
-        } else if (frequency === "Monthly") {
-            let start = new Date(start_date);
-            let end = new Date(end_date);
-            let month = start.getMonth();
-            let year = start.getFullYear();
-            let index = 0;
-            while (start <= end) {
-                let month_name = monthNames[month];
-                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = `${month_name} (${year})`;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.month = month;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('month');
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
-                month++;
-                if (month > 11) {
-                    month = 0;
-                    year++;
-                }
-                start = new Date(year, month, 1);
-                index++;
-            }
-        } else if (frequency === "Quarterly") {
-            let start = new Date(start_date);
-            const end = new Date(end_date);
-            let index = 0;
-            const getQuarterLabel = (quarter) => {
-                if (year_type === "Financial Year") {
-                    switch (quarter) {
-                        case 1: return "Q1 (Apr-Jun)";
-                        case 2: return "Q2 (Jul-Sep)";
-                        case 3: return "Q3 (Oct-Dec)";
-                        case 4: return "Q4 (Jan-Mar)";
-                    }
-                } else if (year_type === "Calendar Year") {
-                    switch (quarter) {
-                        case 1: return "Q1 (Jan-Mar)";
-                        case 2: return "Q2 (Apr-Jun)";
-                        case 3: return "Q3 (Jul-Sep)";
-                        case 4: return "Q4 (Oct-Dec)";
-                    }
-                }
-                return "";
-            };
-            const getFiscalQuarter = (date) => {
-                const month = date.getMonth(); // getMonth() returns 0-11
-                if (month >= 3 && month <= 5) return 1;
-                if (month >= 6 && month <= 8) return 2;
-                if (month >= 9 && month <= 11) return 3;
-                return 4; // January to March
-            };
-            const getFiscalYear = (date) => {
-                const month = date.getMonth();
-                const year = date.getFullYear();
-                return month >= 3 ? year : year - 1;
-            };
-            while (start <= end) {
-                let quarter, year;
-                // actual_year = start.getFullYear();
-                if (year_type === "Financial Year") {
-                    quarter = getFiscalQuarter(start);
-                    year = getFiscalYear(start);
-                } else {
-                    quarter = Math.floor((start.getMonth() + 3) / 3);
-                    year = start.getFullYear();
-                }
-                const timespan = `${getQuarterLabel(quarter)} (${year})`;
-                cur_dialog.fields_dict['planning_table'].grid.add_new_row(index);
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.timespan = timespan;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.quarter = quarter;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].doc.year = year;
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('timespan');
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('quarter');
-                cur_dialog.fields_dict.planning_table.grid.grid_rows[index].refresh_field('year');
-                if (year_type === "Financial Year") {
-                    if (quarter === 4) {
-                        start = new Date(year + 1, 3, 1);
-                    } else {
-                        start = new Date(year, (quarter * 3) + 3, 1);
-                    }
-                } else {
-                    if (quarter === 4) {
-                        start = new Date(year + 1, 0, 1);
-                    } else {
-                        start = new Date(year, quarter * 3, 1);
-                    }
-                }
-                index++;
-            }
-        }
-    }
+    
     async createFormDialog(doctype, name = undefined, mode = 'create') {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
@@ -600,27 +478,29 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-                        if (f.fieldname === 'frequency') {
-                            f.onchange = function () {
-                                this.handleFrequencyField();
-                            }.bind(this);
-                            if (doc[f.fieldname]) {
-                                f.default = doc[f.fieldname];
-                                f.read_only = 1;
-                            }
-                            continue;
+                    if(this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]){
+                        let change = this.frm['dt_events'][this.doctype][f.fieldname]
+                        f.onchange = change.bind(this,this,mode,f);
+                    }
+                    if(f.set_only_once){
+                        if(doc[f.fieldname]){
+                            f.default = doc[f.fieldname];
+                            f.read_only = 1;
+                        }else{
+                            f.reqd = 0;
+                            f.hidden = 1;
                         }
                     }
-
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        f.fields = tableFields;
-                        if (f.fieldname === 'planning_table') {
-                            f.cannot_add_rows = 1;
-                            f.cannot_delete_rows = 1;
+                        for(let tf of tableFields){
+                            if(this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]){
+                                let change = this.frm['dt_events'][f.options][tf.fieldname]
+                                tf.onchange = change.bind(this,this,mode,tf);
+                            }
                         }
+                        f.fields = tableFields;
                         if (doc[f.fieldname].length) {
                             f.data = doc[f.fieldname].map((row) => {
                                 let old_name = row.name;
@@ -628,7 +508,6 @@ class SvaDataTable {
                                 return { ...row, old_name };
                             });
                         }
-                        // continue;
                     }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
@@ -670,12 +549,9 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if (['Input', 'Output', 'Outcome', 'Impact', 'Budget Plan and Utilisation'].includes(doctype)) {
-                        if (f.fieldname === 'frequency') {
-                            f.onchange = function () {
-                                this.handleFrequencyField();
-                            }.bind(this);
-                        }
+                    if(this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]){
+                        let change = this.frm['dt_events'][this.doctype][f.fieldname]
+                        f.onchange = change.bind(this,this,mode,f);
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
@@ -731,16 +607,13 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        f.fields = tableFields.map(e => {
-                            if (["achievement"].includes(e.fieldname)) {
-                                e.in_list_view = 0
+                        for(let tf of tableFields){
+                            if(this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]){
+                                let change = this.frm['dt_events'][f.options][tf.fieldname]
+                                tf.onchange = change.bind(this,this,mode,tf);
                             }
-                            return e
-                        });
-                        if (f.fieldname === 'planning_table') {
-                            f.cannot_add_rows = 1;
-                            f.cannot_delete_rows = 1;
                         }
+                        f.fields = tableFields;
                         continue;
                     }
                     if (f?.fetch_from) {
@@ -839,12 +712,8 @@ class SvaDataTable {
         } else {
             dialog.get_secondary_btn().hide();
         }
+        this.form_dialog = dialog;
         dialog.show();
-        if (dialog.get_value('frequency') && mode === 'create') {
-            setTimeout(() => {
-                this.handleFrequencyField();
-            }, 1000);
-        }
         for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
             if (field?.df?.min_max_depends_on) {
                 let splitted = field.df.min_max_depends_on.split('->');
@@ -866,6 +735,10 @@ class SvaDataTable {
                     }
                 }
             }
+        }
+        if(this.frm?.['dt_events']?.[this.doctype]?.['after_render']){
+            let change = this.frm['dt_events'][this.doctype]['after_render']
+            change(this,mode);
         }
     }
     async deleteRecord(doctype, name) {
