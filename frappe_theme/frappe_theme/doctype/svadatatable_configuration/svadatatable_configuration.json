@@ -1,0 +1,86 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:parent_doctype",
+ "creation": "2024-11-22 12:18:58.864292",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "parent_doctype",
+  "child_doctypes",
+  "child_confs",
+  "number_cards",
+  "charts"
+ ],
+ "fields": [
+  {
+   "fieldname": "parent_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Parent DocType",
+   "options": "DocType",
+   "reqd": 1,
+   "set_only_once": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "child_doctypes",
+   "fieldtype": "Table",
+   "label": "Child Doctypes",
+   "options": "SVADatatable Configuration Child"
+  },
+  {
+   "fieldname": "child_confs",
+   "fieldtype": "Table",
+   "label": "Child Confs",
+   "options": "SVADatatable Child Conf"
+  },
+  {
+   "fieldname": "number_cards",
+   "fieldtype": "Table",
+   "label": "Number Cards",
+   "options": "Number Card Child"
+  },
+  {
+   "fieldname": "charts",
+   "fieldtype": "Table",
+   "label": "Charts",
+   "options": "Dashboard Chart Child"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-02-13 09:33:42.875808",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVADatatable Configuration",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "select": 1,
+   "share": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
