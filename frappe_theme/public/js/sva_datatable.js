@@ -782,7 +782,7 @@ class SvaDataTable {
             }
         }
         const dialog = new frappe.ui.Dialog({
-            title: __(`Create ${__(doctype)}`),
+            title: __(`Create ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
@@ -869,7 +869,7 @@ class SvaDataTable {
         }
     }
     async deleteRecord(doctype, name) {
-        frappe.confirm(`Are you sure you want to delete this ${doctype}?`, async () => {
+        frappe.confirm(`Are you sure you want to delete this ${__(this.connection?.title || doctype)}?`, async () => {
             await frappe.xcall('frappe.client.delete', { doctype, name });
             let rowIndex = this.rows.findIndex(r => r.name === name);
             this.rows.splice(rowIndex, 1);
@@ -1048,7 +1048,7 @@ class SvaDataTable {
         // Child Links
         if (this.childLinks?.length) {
             this.childLinks.forEach(async (link) => {
-                appendDropdownOption(link.link_doctype, async () => {
+                appendDropdownOption(link?.title || link.link_doctype, async () => {
                     await this.childTableDialog(link.link_doctype, primaryKey, row, link);
                 });
             });
@@ -1304,7 +1304,7 @@ class SvaDataTable {
     // ================================ Workflow Action End ================================
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
-            title: __(doctype),
+            title: __(link?.title || doctype),
             size: 'extra-large', // small, large, extra-large
             fields: [{
                 fieldname: 'table',
