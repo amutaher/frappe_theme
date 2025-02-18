@@ -1304,7 +1304,7 @@ class SvaDataTable {
     // ================================ Workflow Action End ================================
     async childTableDialog(doctype, primaryKeyValue, parentRow, link) {
         const dialog = new frappe.ui.Dialog({
-            title: doctype,
+            title: __(doctype),
             size: 'extra-large', // small, large, extra-large
             fields: [{
                 fieldname: 'table',
