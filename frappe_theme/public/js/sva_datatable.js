@@ -798,7 +798,7 @@ class SvaDataTable {
                         if (response) {
                             this.rows.push(response);
                             this.updateTableBody();
-                            frappe.show_alert({ message: `Successfully created ${doctype}`, indicator: 'green' });
+                            frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                         }
                     } else {
                         let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
@@ -821,7 +821,7 @@ class SvaDataTable {
                             let rowIndex = this.rows.findIndex(r => r.name === name);
                             this.rows[rowIndex] = response;
                             this.updateTableBody();
-                            frappe.show_alert({ message: `Successfully updated ${doctype}`, indicator: 'green' });
+                            frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                         }
                     }
                 }
@@ -874,7 +874,7 @@ class SvaDataTable {
             let rowIndex = this.rows.findIndex(r => r.name === name);
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
-            frappe.show_alert({ message: `Successfully deleted ${doctype}`, indicator: 'green' });
+            frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'green' });
         });
     }
     createTable() {
