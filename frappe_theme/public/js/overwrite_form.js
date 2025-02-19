@@ -48,7 +48,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
     async custom_refresh(frm) {
         try {
-
+            // console.log(frm,'frm')
             const sva_db = new SVAHTTP();
             if(!window.sva_datatable_configuration?.[frm.doc.doctype]){
                 const exists = await sva_db.exists("SVADatatable Configuration",frm.doc.doctype)
@@ -229,6 +229,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
 
     async processDataTables(dtFields, frm, dts, signal) {
+        this.sva_tables = {};
         for (const field of dtFields) {
             try {
                 if (signal.aborted) break;
@@ -476,7 +477,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-
+        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {

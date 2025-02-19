@@ -287,6 +287,30 @@ frappe.ui.form.on("SVADatatable Child Conf", {
         set_crud_permissiions(frm, cdt, cdn);
     }
 });
+frappe.ui.form.on("SVADatatable Action Conf", {
+    async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.table_type == 'Data Table') {
+            let dts = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design").map((i) => { return i.link_doctype || i.referenced_link_doctype }), ...frm.doc.child_confs.map((i) => { return i.link_doctype })];
+            frm.cur_grid.get_field('ref_doctype').get_query = () => {
+                return {
+                    filters: { 'name': ['in', dts] }
+                }
+            }
+        }
+    },
+    async table_type(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.table_type == 'Data Table') {
+            let dts = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design").map((i) => { return i.link_doctype || i.referenced_link_doctype }), ...frm.doc.child_confs.map((i) => { return i.link_doctype })];
+            frm.cur_grid.get_field('ref_doctype').get_query = () => {
+                return {
+                    filters: { 'name': ['in', dts] }
+                }
+            }
+        }
+    }
+});
 
 
 frappe.ui.form.on('Number Card Child', {
