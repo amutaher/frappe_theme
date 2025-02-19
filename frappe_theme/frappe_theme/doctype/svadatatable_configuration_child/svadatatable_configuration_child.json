@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "connection_type",
+  "title",
   "link_doctype",
   "link_fieldname",
   "referenced_link_doctype",
@@ -129,13 +130,19 @@
    "fieldname": "action_label",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Action Label"
+   "label": "Workflow Action Label"
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-14 11:12:56.376481",
+ "modified": "2025-02-18 13:53:52.273482",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
