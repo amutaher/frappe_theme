@@ -645,6 +645,33 @@ class SvaDataTable {
                     }
                     continue;
                 }
+                if(['Attach','Attach Image'].includes(f.fieldtype)){
+                    if (doc[f.fieldname]) {
+                        f.fieldtype = 'HTML';
+                        f.options = `
+                            <div class="form-group horizontal">
+                                <div class="clearfix">
+                                    <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                    <span class="help"></span>
+                                </div>
+                                <div class="control-input-wrapper">
+                                <div class="control-input" style="display: none;"></div>
+                                <div class="control-value like-disabled-input ellipsis">
+                                    <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                        <use class="" href="#es-line-link"></use>
+                                    </svg>
+                                        <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                    </div>
+                                    <div class="help-box small text-extra-muted hide"></div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        f.default = '';
+                        f.read_only = 1;
+                    }
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
