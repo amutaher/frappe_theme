@@ -124,8 +124,11 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         }
         if (action == "Workflow Action") {
             if (!frm.dt_events[dt]['after_workflow_action']) {
-                frm.dt_events[dt]['after_workflow_action'] = () => {
-                    this.triggerTargets(targets);
+                frm.dt_events[dt]['after_workflow_action'] = (dt,action) => {
+                    let states_for_action = JSON.parse(trigger?.workflow_states || '[]');
+                    if(states_for_action.length && states_for_action.includes(action?.next_state)){
+                        this.triggerTargets(targets);
+                    };
                 };
             }
         }
