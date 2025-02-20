@@ -45,7 +45,8 @@
    "depends_on": "eval:doc.action == 'Workflow Action'",
    "fieldname": "workflow_states",
    "fieldtype": "Code",
-   "label": "Workflow States"
+   "label": "Workflow States",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.action == 'Workflow Action'",
@@ -56,7 +57,8 @@
   {
    "fieldname": "targets",
    "fieldtype": "Code",
-   "label": "Targets"
+   "label": "Targets",
+   "read_only": 1
   },
   {
    "fieldname": "setup_targets",
@@ -70,13 +72,13 @@
    "in_list_view": 1,
    "label": "Select Custom Design",
    "mandatory_depends_on": "eval:doc.table_type == 'Custom Design'",
-   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes\nLinked Users"
+   "options": "Tasks\nGallery\nNotes\nLinked Users"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-19 19:09:54.770865",
+ "modified": "2025-02-20 17:12:54.457949",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Action Conf",

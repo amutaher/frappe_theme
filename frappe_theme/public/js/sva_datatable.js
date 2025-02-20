@@ -699,6 +699,10 @@ class SvaDataTable {
                             this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_insert']){
+                                let change = this.frm['dt_events'][this.doctype]['after_insert']
+                                change(this,response);
+                            }
                         }
                     } else {
                         let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
@@ -722,6 +726,10 @@ class SvaDataTable {
                             this.rows[rowIndex] = response;
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_update']){
+                                let change = this.frm['dt_events'][this.doctype]['after_update']
+                                change(this,response);
+                            }
                         }
                     }
                 }

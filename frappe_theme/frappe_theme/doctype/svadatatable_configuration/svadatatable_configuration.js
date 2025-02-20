@@ -309,6 +309,126 @@ frappe.ui.form.on("SVADatatable Action Conf", {
                 }
             }
         }
+    },
+    async setup_workflow_stages(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        let res = await frappe.call('frappe_theme.dt_api.get_workflow_with_dt', { dt: row.ref_doctype });
+        if (res.message) {
+            let workflow_states = res.message.states.map((i) => { return i.state });
+            let prev_stages = JSON.parse(row.workflow_states ?? '[]');
+            let fields = workflow_states.map(p => {
+                return {
+                    label: p,
+                    fieldname: p,
+                    fieldtype: 'Check',
+                    default: prev_stages.includes(p),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_stages.includes(fieldname)) {
+                                prev_stages.push(fieldname);
+                            }
+                        } else {
+                            prev_stages = prev_stages.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            });
+            let workflow_dialog = new frappe.ui.Dialog({
+                title: __('Workflow States'),
+                fields: fields,
+                primary_action_label: __('Save'),
+                primary_action: async (values) => {
+                    frappe.model.set_value(cdt, cdn, "workflow_states", JSON.stringify(prev_stages));
+                    workflow_dialog.hide();
+                }
+            });
+            workflow_dialog.show();
+        }
+    },
+    async setup_targets(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        let targets = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design"), ...frm.doc.number_cards, ...frm.doc.charts];
+        let prev_targets = JSON.parse(row.targets ?? '[]').map((i) => i.name);
+        let target_option_fields = [
+            { label: 'Data Table', fieldname: 'data_table_saction', fieldtype: 'Section Break' },
+            ...frm.doc.child_doctypes?.filter((_row) => _row.connection_type != "Is Custom Design" && ![row.ref_doctype]?.includes(_row.link_doctype || _row.referenced_link_doctype))?.map((i) => {
+                return {
+                    fieldname: i.link_doctype || i.referenced_link_doctype,
+                    label: i.link_doctype || i.referenced_link_doctype,
+                    fieldtype: 'Check',
+                    default: prev_targets?.includes(i.link_doctype || i.referenced_link_doctype),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            }),
+            { label: 'Number Cards', fieldname: 'number_card_saction', fieldtype: 'Section Break' },
+            ...frm.doc.number_cards?.map((i) => {
+                return {
+                    fieldname: i.number_card,
+                    label: i.number_card,
+                    fieldtype: 'Check',
+                    default: prev_targets.includes(i.number_card),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            }),
+            { label: 'Charts', fieldname: 'chart_saction', fieldtype: 'Section Break' },
+            ...frm.doc.charts?.map((i) => {
+                return {
+                    fieldname: i.dashboard_chart,
+                    label: i.dashboard_chart,
+                    fieldtype: 'Check',
+                    default: prev_targets?.includes(i.dashboard_chart),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            })
+        ]
+        let target_dialog = new frappe.ui.Dialog({
+            title: __('Targets'),
+            fields: target_option_fields,
+            primary_action_label: __('Save'),
+            primary_action: async () => {
+                let type_mapper = {
+                    "child_doctypes": "Data Table",
+                    "number_cards": "Number Card",
+                    "charts": "Chart"
+                }
+                let selected_targets = targets?.filter((row) => prev_targets?.includes(row.link_doctype || row.referenced_link_doctype || row.number_card || row.dashboard_chart))?.map((i) => { return {type : type_mapper[i.parentfield],name: i.link_doctype || i.referenced_link_doctype || i.number_card || i.dashboard_chart} });
+                frappe.model.set_value(cdt, cdn, "targets", JSON.stringify(selected_targets));
+                target_dialog.hide();
+            }
+        });
+        target_dialog.show();
     }
 });
 
