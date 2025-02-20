@@ -160,7 +160,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         if(action == "Update"){
             if(!frm.dt_events[dt]['after_update']){
                 frm.dt_events[dt]['after_update'] = () => {
-                    console.log('after_update');
                     this.triggerTargets(targets);
                 };
             }
@@ -611,6 +610,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
     async _activeTab(frm) {
         try {
+            frm['sva_cards'] = {};
+            frm['sva_charts'] = {};
             const newTabField = frm?.get_active_tab()?.df?.fieldname;
             if (!newTabField || newTabField === this.currentTabField) return;
 
