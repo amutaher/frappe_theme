@@ -612,6 +612,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         try {
             frm['sva_cards'] = {};
             frm['sva_charts'] = {};
+            frm['sva_tables'] = {};
             const newTabField = frm?.get_active_tab()?.df?.fieldname;
             if (!newTabField || newTabField === this.currentTabField) return;
 
