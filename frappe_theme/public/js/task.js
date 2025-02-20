@@ -275,7 +275,7 @@ class mGrantTask {
                 </nav>
             ` : ''}
         `;
-
+        
         return el;
     }
 

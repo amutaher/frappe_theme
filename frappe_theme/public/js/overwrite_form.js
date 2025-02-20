@@ -86,7 +86,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             for (const trigger of this.dts.triggers) {
                 let targets = JSON.parse(trigger.targets || '[]');
                 if (!targets.length) continue;
-                console.log(trigger, 'trigger')
+                // console.log(trigger, 'trigger')
                 if (trigger.table_type == "Custom Design") {
                     this.bindCustomDesignActionEvents(frm,trigger, targets);
                 } else {
@@ -138,12 +138,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         switch (trigger.custom_design) {
             case "Tasks":
                 dt = "ToDo";
-                break;
-            case "Gallery":
-                dt = "File";
-                break;
-            case "Notes":
-                dt = "mGrant Note";
                 break;
             case "Linked Users":
                 dt = "SVA User";
