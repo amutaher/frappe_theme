@@ -112,7 +112,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
-                pluck: 'name'
+                pluck: 'name',
+                limit:1000
             });
             let dts_2 = await frappe.db.get_list('Custom Field', {
                 filters: [
@@ -133,8 +134,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
