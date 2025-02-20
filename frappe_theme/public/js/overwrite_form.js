@@ -10,7 +10,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     async refresh(docname, frm) {
         try {
             await super.refresh(docname);
-            if(!window.sva_datatable_configuration){
+            if (!window.sva_datatable_configuration) {
                 window.sva_datatable_configuration = {};
             }
             this.setupHandlers();
@@ -48,18 +48,19 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
     async custom_refresh(frm) {
         try {
-
+            // console.log(frm,'frm')
             const sva_db = new SVAHTTP();
-            if(!window.sva_datatable_configuration?.[frm.doc.doctype]){
-                const exists = await sva_db.exists("SVADatatable Configuration",frm.doc.doctype)
+            if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
+                const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
                 if (!exists) return;
                 this.dts = await sva_db.get_doc('SVADatatable Configuration', frm.doc.doctype);
-                window.sva_datatable_configuration  = {
+                window.sva_datatable_configuration = {
                     [frm.doc.doctype]: this.dts
                 };
-            }else{
+            } else {
                 this.dts = window.sva_datatable_configuration?.[frm.doc.doctype];
             }
+            this.setupDTTriggers(frm);
             this.goToCommentButton(frm);
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
@@ -77,7 +78,120 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             console.error("Error in custom_refresh:", error);
         }
     }
-
+    setupDTTriggers(frm) {
+        if (!frm.dt_events) {
+            frm['dt_events'] = {};
+        }
+        if (this.dts?.triggers?.length) {
+            for (const trigger of this.dts.triggers) {
+                let targets = JSON.parse(trigger.targets || '[]');
+                if (!targets.length) continue;
+                // console.log(trigger, 'trigger')
+                if (trigger.table_type == "Custom Design") {
+                    this.bindCustomDesignActionEvents(frm,trigger, targets);
+                } else {
+                    this.bindDTActionEvents(frm,trigger, targets);
+                }
+            }
+        }
+    }
+    bindDTActionEvents(frm,trigger, targets) {
+        let dt = trigger.ref_doctype;
+        let action = trigger.action;
+        if (!frm.dt_events?.[dt]) {
+            frm.dt_events[dt] = {};
+        }
+        if (action == 'Create') {
+            if (!frm.dt_events[dt]['after_insert']) {
+                frm.dt_events[dt]['after_insert'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == 'Update') {
+            if (!frm.dt_events[dt]['after_update']) {
+                frm.dt_events[dt]['after_update'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == 'Delete') {
+            if (!frm.dt_events[dt]['after_delete']) {
+                frm.dt_events[dt]['after_delete'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == "Workflow Action") {
+            if (!frm.dt_events[dt]['after_workflow_action']) {
+                frm.dt_events[dt]['after_workflow_action'] = (dt,action) => {
+                    let states_for_action = JSON.parse(trigger?.workflow_states || '[]');
+                    if(states_for_action.length && states_for_action.includes(action?.next_state)){
+                        this.triggerTargets(targets);
+                    };
+                };
+            }
+        }
+    }
+    bindCustomDesignActionEvents(frm,trigger, targets) {
+        let dt;
+        switch (trigger.custom_design) {
+            case "Tasks":
+                dt = "ToDo";
+                break;
+            case "Linked Users":
+                dt = "SVA User";
+                break;
+            default:
+                dt = null;
+        }
+        if (!dt) return;
+        let action = trigger.action;
+        if (!frm.dt_events?.[dt]) {
+            frm.dt_events[dt] = {};
+        }
+        if(action == "Create"){
+            if(!frm.dt_events[dt]['after_insert']){
+                frm.dt_events[dt]['after_insert'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if(action == "Update"){
+            if(!frm.dt_events[dt]['after_update']){
+                frm.dt_events[dt]['after_update'] = () => {
+                    console.log('after_update');
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if(action == "Delete"){
+            if(!frm.dt_events[dt]['after_delete']){
+                frm.dt_events[dt]['after_delete'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+    }
+    triggerTargets(targets) {
+        for (const target of targets) {
+            if (target.type == "Data Table") {
+                if (this.frm?.['sva_tables']?.[target.name]) {
+                    this.frm['sva_tables'][target.name].reloadTable();
+                }
+            }
+            if (target.type == "Number Card") {
+                if (this.frm?.['sva_cards']?.[target.name]) {
+                    this.frm['sva_cards'][target.name].refresh();
+                }
+            }
+            if (target.type == "Chart") {
+                if (this.frm?.['sva_charts']?.[target.name]) {
+                    this.frm['sva_charts'][target.name].refresh();
+                }
+            }
+        }
+    }
     createRequestController(tabField) {
         if (this.pendingRequests.has(tabField)) {
             this.pendingRequests.get(tabField).abort();
@@ -209,14 +323,14 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             this.activeComponents.add(wrapperId);
 
             frm.set_df_property(item.html_field, 'options', wrapper);
-
-            wrapper._dashboard = new SVADashboardManager({
+            let { _wrapper, ref } = new SVADashboardManager({
                 wrapper,
                 frm,
                 numberCards: type === 'card' ? [item] : [],
                 charts: type === 'chart' ? [item] : [],
                 signal
             });
+            wrapper._dashboard = _wrapper;
         };
 
         // let loader = new Loader(this.wrapper);
@@ -229,6 +343,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
 
     async processDataTables(dtFields, frm, dts, signal) {
+        this.sva_tables = {};
         for (const field of dtFields) {
             try {
                 if (signal.aborted) break;
@@ -476,7 +591,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-
+        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {
