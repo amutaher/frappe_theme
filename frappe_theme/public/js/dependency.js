@@ -25,24 +25,6 @@ function apply_filter(field_name, filter_on, frm, filter_value) {
         };
     }
 }
-
-const mapEvents = (props) => {
-    let obj = {};
-    if (props.length) {
-        for (let prop of props) {
-            if (prop) {
-                let abc = prop.value.split("->")
-                obj[abc[0]] = function (frm) {
-                    apply_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
-                    frm.set_value(prop.field_name, "");
-                }
-            }
-        }
-    }
-    return {
-        ...obj
-    }
-}
 async function setDynamicProperties() {
     if (cur_frm) {
         try {
@@ -51,8 +33,6 @@ async function setDynamicProperties() {
                     set_properties(cur_frm.doc.name);
                 });
             }
-            let props = await getData(cur_frm.doc.doctype);
-            frappe.ui.form.on(cur_frm.doc.doctype, mapEvents(props ?? []));
         } catch (error) {
             console.error("Error setting dynamic properties:", error);
         }
@@ -66,22 +46,19 @@ frappe.router.on('change', async () => {
     window.onFieldValueChange = undefined
     window.onWorkflowStateChange = undefined
     window.SVADialog = {}
-    if (getPageType() == "Form") {
-        let interval;
-        let elapsedTime = 0;
-        const checkInterval = 1000; // Check every 500 ms
-        const maxTime = 10000; // 10 seconds in milliseconds
-        interval = setInterval(async function () {
-            elapsedTime += checkInterval;
-            if ((cur_frm) || elapsedTime >= maxTime) {
-                clearInterval(interval);
-                await setDynamicProperties();
-                return;
-            }
-        }, checkInterval);
-    } else {
-        cur_frm = undefined
-    }
+    let interval;
+    let elapsedTime = 0;
+    const checkInterval = 1000; // Check every 500 ms
+    const maxTime = 10000; // 10 seconds in milliseconds
+    interval = setInterval(async function () {
+        elapsedTime += checkInterval;
+        if ((cur_frm) || elapsedTime >= maxTime) {
+            clearInterval(interval);
+            await setDynamicProperties();
+            return;
+        }
+    }, checkInterval);
+
 });
 
 const set_properties = async (doctype) => {
