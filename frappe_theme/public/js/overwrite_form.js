@@ -66,13 +66,19 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             await this.tabContent(frm, tab_field);
 
             const props = await this.getPropertySetterData(frm.doc.doctype);
+            let field_events = {};
             if (props?.length) {
                 for (const prop of props) {
                     if (prop?.value) {
                         const [filterField, valueField] = prop.value.split("->");
+                        field_events[valueField] = function (frm) {
+                            this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                            frm.set_value(prop.field_name, "");
+                        }.bind(this);
                         this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
                     }
                 }
+                frappe.ui.form.on(frm.doctype,field_events)
             }
         } catch (error) {
             console.error("Error in custom_refresh:", error);
