@@ -15,7 +15,6 @@ class SVADashboardChart {
         this.wrapper = wrapper;
         this.frm = frm;
         this.charts = charts;
-        return this.wrapper;
     }
 
     async make() {

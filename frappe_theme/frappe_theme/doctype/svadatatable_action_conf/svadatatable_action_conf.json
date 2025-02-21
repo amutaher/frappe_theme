@@ -1,0 +1,90 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-02-19 18:40:31.726420",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "table_type",
+  "custom_design",
+  "ref_doctype",
+  "action",
+  "workflow_states",
+  "setup_workflow_stages",
+  "targets",
+  "setup_targets"
+ ],
+ "fields": [
+  {
+   "default": "Data Table",
+   "fieldname": "table_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Table Type",
+   "options": "Data Table\nCustom Design",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.table_type == 'Data Table'",
+   "fieldname": "ref_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ref DocType",
+   "mandatory_depends_on": "eval:doc.table_type == 'Data Table'",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Action",
+   "options": "Create\nUpdate\nDelete\nWorkflow Action",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.action == 'Workflow Action'",
+   "fieldname": "workflow_states",
+   "fieldtype": "Code",
+   "label": "Workflow States",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.action == 'Workflow Action'",
+   "fieldname": "setup_workflow_stages",
+   "fieldtype": "Button",
+   "label": "Setup Workflow Stages"
+  },
+  {
+   "fieldname": "targets",
+   "fieldtype": "Code",
+   "label": "Targets",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_targets",
+   "fieldtype": "Button",
+   "label": "Setup Targets"
+  },
+  {
+   "depends_on": "eval:doc.table_type == 'Custom Design'",
+   "fieldname": "custom_design",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Select Custom Design",
+   "mandatory_depends_on": "eval:doc.table_type == 'Custom Design'",
+   "options": "\nTasks\nGallery\nNotes\nLinked Users"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-02-20 18:37:33.707657",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVADatatable Action Conf",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
