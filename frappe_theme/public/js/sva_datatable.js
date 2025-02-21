@@ -71,7 +71,7 @@ class SvaDataTable {
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
         this.reloadTable();
-        return this.wrapper;
+        // return this.wrapper;
     }
     async reloadTable(reset = false) {
         let loader = new Loader(this.wrapper);
@@ -128,7 +128,7 @@ class SvaDataTable {
                     } else {
                         this.columns = [...columns.message.filter(f => f.in_list_view)];
                     }
-                    this.rows = await this.getDocList()
+                    this.rows = await this.getDocList();
                     this.table_element = this.createTable();
                     if (!this.table_wrapper.querySelector('table') && !reset) {
                         this.table_wrapper.appendChild(this.table_element);
@@ -645,6 +645,33 @@ class SvaDataTable {
                     }
                     continue;
                 }
+                if(['Attach','Attach Image'].includes(f.fieldtype)){
+                    if (doc[f.fieldname]) {
+                        f.fieldtype = 'HTML';
+                        f.options = `
+                            <div class="form-group horizontal">
+                                <div class="clearfix">
+                                    <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                    <span class="help"></span>
+                                </div>
+                                <div class="control-input-wrapper">
+                                <div class="control-input" style="display: none;"></div>
+                                <div class="control-value like-disabled-input ellipsis">
+                                    <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                        <use class="" href="#es-line-link"></use>
+                                    </svg>
+                                        <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                    </div>
+                                    <div class="help-box small text-extra-muted hide"></div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        f.default = '';
+                        f.read_only = 1;
+                    }
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
@@ -672,6 +699,10 @@ class SvaDataTable {
                             this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_insert']){
+                                let change = this.frm['dt_events'][this.doctype]['after_insert']
+                                change(this,response);
+                            }
                         }
                     } else {
                         let value_fields = fields.filter((f) => !['Section Break', 'Column Break', 'HTML', 'Button', 'Tab Break'].includes(f.fieldtype))
@@ -695,11 +726,19 @@ class SvaDataTable {
                             this.rows[rowIndex] = response;
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_update']){
+                                let change = this.frm['dt_events'][this.doctype]['after_update']
+                                change(this,response);
+                            }
                         }
                     }
                 }
                 dialog.clear();
                 dialog.hide();
+                if(this.frm?.['dt_events']?.[this.doctype]?.['after_save']){
+                    let change = this.frm['dt_events'][this.doctype]['after_save']
+                    change(this,mode,values);
+                }
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -748,6 +787,10 @@ class SvaDataTable {
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
             frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+            if(this.frm?.['dt_events']?.[this.doctype]?.['after_delete']){
+                let change = this.frm['dt_events'][this.doctype]['after_delete']
+                change(this,name);
+            }
         });
     }
     createTable() {
@@ -1171,6 +1214,10 @@ class SvaDataTable {
                 })
             }
             console.error(error);
+        }
+        if(this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']){
+            let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
+            change(this,selected_state_info,docname,prevState);
         }
     }
 
