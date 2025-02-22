@@ -116,6 +116,14 @@ class SVADashboardManager {
             filters: this.filters,
             signal: this.signal
         });
+        if(cardInstance.numberCards.length){
+            if(!this.frm?.['sva_cards']){
+                this.frm['sva_cards'] = {};
+            }
+            if(!this.frm?.['sva_cards']?.[cardInstance.numberCards[0].number_card]){
+                this.frm['sva_cards'][cardInstance.numberCards[0].number_card] = cardInstance;
+            }
+        }
         this.componentInstances.set('cards', cardInstance);
     }
 
@@ -127,6 +135,14 @@ class SVADashboardManager {
             filters: this.filters,
             signal: this.signal
         });
+        if(!this.frm?.['sva_charts']){
+            this.frm['sva_charts'] = {};
+        }
+        if(chartInstance.charts.length){
+            if(!this.frm?.['sva_charts']?.[chartInstance.charts[0].dashboard_chart]){
+                this.frm['sva_charts'][chartInstance.charts[0].dashboard_chart] = chartInstance;
+            }
+        }
         this.componentInstances.set('charts', chartInstance);
     }
 
