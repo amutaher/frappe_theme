@@ -1,8 +1,6 @@
-var my_date_format = 'dd-mm-yyyy';
-frappe.db.get_single_value('System Settings', 'date_format').then(value => {
-    my_date_format = value;
-});
+
 const formaDate = (date) => {
+    let my_date_format = frappe.sys_defaults?.date_format;
     let d = new Date(date);
     let formatted_date = '';
 
