@@ -544,8 +544,26 @@ class TimelineGenerator {
 
                     entry.querySelector('.timeline-link').addEventListener('click', (e) => {
                         e.preventDefault();
-                        frappe.set_route('Form', item.custom_actual_doctype || item.ref_doctype,
-                            item.custom_actual_document_name || item.docname);
+                        const doctype = item.custom_actual_doctype || item.ref_doctype;
+                        const docname = item.custom_actual_document_name || item.docname;
+
+                        frappe.model.with_doctype(doctype, () => {
+                            frappe.model.with_doc(doctype, docname, function () {
+                                const doc = frappe.get_doc(doctype, docname);
+                                const meta = frappe.get_meta(doctype);
+
+                                const d = new frappe.ui.Dialog({
+                                    title: __(`${doctype}: ${docname}`),
+                                    fields: meta.fields.filter(df => !df.hidden).map(df => ({
+                                        ...df,
+                                        read_only: 1
+                                    }))
+                                });
+
+                                d.set_values(doc);
+                                d.show();
+                            });
+                        });
                     });
 
                     timelineContainer.appendChild(entry);
