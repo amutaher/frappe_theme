@@ -37,7 +37,6 @@ app_include_js = [
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
     f"/assets/frappe_theme/js/loader-element.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/dependency.js?ver={time.time()}",
     f"/assets/frappe_theme/js/mobile_view.js?ver={time.time()}",
     f"/assets/frappe_theme/js/workspace.js?ver={time.time()}",
     f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}",
