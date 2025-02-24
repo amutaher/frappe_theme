@@ -65,7 +65,13 @@ class NotesManager {
             method: 'frappe.client.get_list',
             args: {
                 doctype: 'Notes',
-                fields: ['*'],
+                fields: [
+                    'name',
+                    'title',
+                    'description',
+                    'creation',
+                    'owner'
+                ],
                 filters: {
                     'reference_doctype': this.frm.doc.doctype,
                     'related_to': this.frm.doc.name
@@ -73,7 +79,31 @@ class NotesManager {
                 limit_page_length: 10000,
             },
         });
-        this.noteList = response.message;
+
+        // Fetch full names for all owners
+        const notes = response.message;
+        const uniqueOwners = [...new Set(notes.map(note => note.owner))];
+
+        const { message: ownerNames } = await frappe.call({
+            method: 'frappe.client.get_list',
+            args: {
+                doctype: 'User',
+                filters: { name: ['in', uniqueOwners] },
+                fields: ['name', 'full_name']
+            }
+        });
+
+        // Create a map of user names to full names
+        const ownerFullNames = {};
+        ownerNames.forEach(user => {
+            ownerFullNames[user.name] = user.full_name;
+        });
+
+        // Add full names to notes
+        this.noteList = notes.map(note => ({
+            ...note,
+            owner_full_name: ownerFullNames[note.owner]
+        }));
     }
 
     renderLayout() {
@@ -91,7 +121,7 @@ class NotesManager {
         }
         .title_links {
             width: 100%;
-            height: 700px;
+            height: 700px; 
             min-height: 700px;
             overflow-y: auto;
         }
@@ -334,7 +364,7 @@ class NotesManager {
         noteMeta.classList.add('note-meta');
 
         const ownerSpan = document.createElement('span');
-        ownerSpan.textContent = note.owner;
+        ownerSpan.textContent = note.owner_full_name || note.owner;
         noteMeta.appendChild(ownerSpan);
 
         const separatorSpan = document.createElement('span');
