@@ -7,7 +7,7 @@ def get_my_theme():
 
 @frappe.whitelist(allow_guest=True)
 def get_property_set(doctype):
-        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":"filter_by"},ignore_permissions=True)
+        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter"]]},ignore_permissions=True)
     
 
 @frappe.whitelist()
@@ -75,3 +75,132 @@ def get_html_fields(doctype):
     except Exception as e:
         frappe.log_error(f"Error getting HTML fields for {doctype}: {str(e)}")
         return []
+
+@frappe.whitelist()
+def execute_number_card_query(report_name, filters=None):
+    try:
+        # Get the report document
+        report_doc = frappe.get_doc('Report', report_name)
+        if not report_doc or not report_doc.query:
+            frappe.throw('Report not found or invalid')
+
+        # Get the base query from the report
+        base_query = report_doc.query
+        
+        # Create subquery
+        query = f"SELECT * FROM ({base_query}) AS subquery"
+        
+        # Add WHERE clause if filters are provided
+        if filters:
+            # Convert string filters to dict if needed
+            if isinstance(filters, str):
+                filters = frappe.parse_json(filters)
+                
+            where_conditions = []
+            for field, value in filters.items():
+                # Clean the field name (remove quotes if present)
+                field = field.strip('\'"')
+                
+                # Safely format the value based on type
+                if isinstance(value, (int, float)):
+                    where_conditions.append(f"{field} = {value}")
+                else:
+                    # Remove any existing quotes and escape single quotes in the value
+                    value = str(value).strip('\'"').replace("'", "\\'") 
+                    where_conditions.append(f"{field} = '{value}'")
+
+            if where_conditions:
+                query += " WHERE " + " AND ".join(where_conditions)
+        
+        # Execute the query
+        result = frappe.db.sql(query, as_dict=True)
+        
+        # Get column information by creating a temporary table
+        temp_table_name = f'temp_report_{frappe.generate_hash()[:10]}'
+        try:
+            # Create temporary table
+            frappe.db.sql(f'CREATE TEMPORARY TABLE `{temp_table_name}` AS {base_query}')
+            
+            # Get column information
+            columns = frappe.db.sql(f'DESCRIBE `{temp_table_name}`', as_dict=True)
+            column_types = {col.Field: col.Type for col in columns}
+            
+            return {
+                'result': result,
+                'column_types': column_types
+            }
+        finally:
+            # Clean up temporary table
+            frappe.db.sql(f'DROP TEMPORARY TABLE IF EXISTS `{temp_table_name}`')
+    except Exception as e:
+        frappe.log_error(f"Error executing number card query: {str(e)}")
+        return None
+
+
+@frappe.whitelist()
+def get_linked_doctype_fields(doc_type, frm_doctype):
+    """Get linked fields between two doctypes"""
+    try:
+        # Get standard fields
+        res = frappe.get_list('DocField', 
+            filters={
+                'parent': doc_type,
+                'fieldtype': 'Link',
+                'options': ['IN', ['DocType', frm_doctype]]
+            },
+            fields=['fieldname', 'options'],
+            ignore_permissions=True
+        )
+
+        # Get custom fields
+        cus_ref_res = frappe.get_list('Custom Field',
+            filters={
+                'dt': doc_type,
+                'fieldtype': 'Link',
+                'options': ['IN', ['DocType', frm_doctype]]
+            },
+            fields=['fieldname', 'options'],
+            ignore_permissions=True
+        )
+
+        # Combine and filter fields
+        filds = res + cus_ref_res
+        filds = [f for f in filds if f.fieldname not in ["amended_from", "parent_grant"]]
+
+        if not filds:
+            return None
+
+        field = filds[0]
+        result = {'field': field}
+
+        if field.options == 'DocType':
+            # Get standard dynamic link fields
+            fieldname = frappe.get_list('DocField',
+                filters={
+                    'parent': doc_type,
+                    'fieldtype': 'Dynamic Link',
+                    'options': field.fieldname
+                },
+                fields=['fieldname'],
+                ignore_permissions=True
+            )
+
+            # Get custom dynamic link fields
+            fieldname2 = frappe.get_list('Custom Field',
+                filters={
+                    'dt': doc_type,
+                    'fieldtype': 'Dynamic Link',
+                    'options': field.fieldname
+                },
+                fields=['fieldname'],
+                ignore_permissions=True
+            )
+
+            fieldname3 = fieldname + fieldname2
+            if fieldname3:
+                result['final_field'] = fieldname3[0]
+        return result
+
+    except Exception as e:
+        frappe.log_error(f"Error in get_linked_doctype_fields: {str(e)}")
+        return None

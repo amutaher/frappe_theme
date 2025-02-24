@@ -6,9 +6,17 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "tables_tab",
   "parent_doctype",
+  "section_break_aaok",
   "child_doctypes",
-  "child_confs"
+  "child_confs",
+  "number_cards_tab",
+  "number_cards",
+  "charts_tab",
+  "charts",
+  "table_action_triggers_tab",
+  "triggers"
  ],
  "fields": [
   {
@@ -32,11 +40,57 @@
    "fieldtype": "Table",
    "label": "Child Confs",
    "options": "SVADatatable Child Conf"
+  },
+  {
+   "fieldname": "number_cards",
+   "fieldtype": "Table",
+   "label": "Number Cards",
+   "options": "Number Card Child"
+  },
+  {
+   "fieldname": "charts",
+   "fieldtype": "Table",
+   "label": "Charts",
+   "options": "Dashboard Chart Child"
+  },
+  {
+   "fieldname": "tables_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tables"
+  },
+  {
+   "depends_on": "eval:doc.parent_doctype",
+   "fieldname": "number_cards_tab",
+   "fieldtype": "Tab Break",
+   "label": "Number Cards"
+  },
+  {
+   "depends_on": "eval:doc.parent_doctype",
+   "fieldname": "charts_tab",
+   "fieldtype": "Tab Break",
+   "label": "Charts"
+  },
+  {
+   "depends_on": "eval:doc.parent_doctype",
+   "fieldname": "section_break_aaok",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.parent_doctype",
+   "fieldname": "table_action_triggers_tab",
+   "fieldtype": "Tab Break",
+   "label": "Table Action Triggers"
+  },
+  {
+   "fieldname": "triggers",
+   "fieldtype": "Table",
+   "label": "Triggers",
+   "options": "SVADatatable Action Conf"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-23 19:37:53.233127",
+ "modified": "2025-02-19 19:00:40.795067",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration",

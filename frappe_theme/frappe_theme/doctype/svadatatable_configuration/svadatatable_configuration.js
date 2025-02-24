@@ -1,10 +1,46 @@
 // Copyright (c) 2024, Suvaidyam and contributors
 // For license information, please see license.txt
 
-// frappe.ui.form.on("SVADatatable Configuration", {
-//     refresh: function(frm) {
-//     },
-// });
+frappe.ui.form.on("SVADatatable Configuration", {
+    // refresh: function(frm) {
+    // },
+    update_sequences: function (frm) {
+        if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
+            frm.trigger('update_card_sequence');
+        }
+        if (frm.doc.mapper_type === 'Dashboard Chart' || frm.doc.mapper_type === 'Both') {
+            frm.trigger('update_chart_sequence');
+        }
+    },
+
+    update_card_sequence: function (frm) {
+        if (frm.doc.cards && frm.doc.cards.length) {
+            frm.doc.cards.forEach((card, idx) => {
+                frappe.model.set_value(card.doctype, card.name, 'sequence', idx + 1);
+                if (card.number_card && !card.card_label) {
+                    update_card_label(frm, card);
+                }
+            });
+            frm.refresh_field('cards');
+        }
+    },
+
+    update_chart_sequence: function (frm) {
+        if (frm.doc.charts && frm.doc.charts.length) {
+            frm.doc.charts.forEach((chart, idx) => {
+                frappe.model.set_value(chart.doctype, chart.name, 'sequence', idx + 1);
+                if (chart.dashboard_chart && !chart.chart_label) {
+                    update_chart_label(frm, chart);
+                }
+            });
+            frm.refresh_field('charts');
+        }
+    },
+
+    validate: function (frm) {
+        frm.trigger('update_sequences');
+    }
+});
 const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
     let dtmeta = await frappe.call({
@@ -60,12 +96,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     async form_render(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.connection_type === 'Direct') {
+            let dts = await frappe.call('frappe_theme.dt_api.get_direct_connection_dts', { dt: frm.doc.parent_doctype });
             frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
                 return {
-                    filters: [
-                        ['DocField', 'options', '=', frm.doc.parent_doctype],
-                        ['DocField', 'parenttype', '=', "DocType"]
-                    ],
+                    filters: { 'name': ['IN', dts.message] },
                     limit_page_length: 100
                 }
             }
@@ -78,7 +112,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
-                pluck: 'name'
+                pluck: 'name',
+                limit:1000
             });
             let dts_2 = await frappe.db.get_list('Custom Field', {
                 filters: [
@@ -99,9 +134,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
-
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
@@ -154,15 +188,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     link_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.link_doctype) {
-            let fields = await frappe.db.get_list("DocField", {
-                filters: [
-                    ['DocField', 'options', '=', frm.doc.parent_doctype],
-                    ['DocField', 'parenttype', '=', "DocType"],
-                    ['DocField', 'parent', '=', row.link_doctype]
-                ],
-                fields: ['fieldname', 'label', 'parent']
-            });
-            let field = fields[0];
+            let fields = await frappe.call('frappe_theme.dt_api.get_direct_connection_fields', { dt: frm.doc.parent_doctype, link_dt: row.link_doctype });
+            let field = fields.message[0];
             if (field) {
                 frappe.model.set_value(cdt, cdn, 'link_fieldname', field.fieldname);
             }
@@ -220,7 +247,6 @@ frappe.ui.form.on("SVADatatable Child Conf", {
                 }
             }
         }
-
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
         let options = html_fields.map(function (d) { return d.fieldname });
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
@@ -260,6 +286,240 @@ frappe.ui.form.on("SVADatatable Child Conf", {
     },
     async setup_crud_permissions(frm, cdt, cdn) {
         set_crud_permissiions(frm, cdt, cdn);
+    }
+});
+frappe.ui.form.on("SVADatatable Action Conf", {
+    async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.table_type == 'Data Table') {
+            let dts = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design").map((i) => { return i.link_doctype || i.referenced_link_doctype }), ...frm.doc.child_confs.map((i) => { return i.link_doctype })];
+            frm.cur_grid.get_field('ref_doctype').get_query = () => {
+                return {
+                    filters: { 'name': ['in', dts] }
+                }
+            }
+        }
+    },
+    async table_type(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (row.table_type == 'Data Table') {
+            let dts = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design").map((i) => { return i.link_doctype || i.referenced_link_doctype }), ...frm.doc.child_confs.map((i) => { return i.link_doctype })];
+            frm.cur_grid.get_field('ref_doctype').get_query = () => {
+                return {
+                    filters: { 'name': ['in', dts] }
+                }
+            }
+        }
+    },
+    async setup_workflow_stages(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        let res = await frappe.call('frappe_theme.dt_api.get_workflow_with_dt', { dt: row.ref_doctype });
+        if (res.message) {
+            let workflow_states = res.message.states.map((i) => { return i.state });
+            let prev_stages = JSON.parse(row.workflow_states ?? '[]');
+            let fields = workflow_states.map(p => {
+                return {
+                    label: p,
+                    fieldname: p,
+                    fieldtype: 'Check',
+                    default: prev_stages.includes(p),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_stages.includes(fieldname)) {
+                                prev_stages.push(fieldname);
+                            }
+                        } else {
+                            prev_stages = prev_stages.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            });
+            let workflow_dialog = new frappe.ui.Dialog({
+                title: __('Workflow States'),
+                fields: fields,
+                primary_action_label: __('Save'),
+                primary_action: async (values) => {
+                    frappe.model.set_value(cdt, cdn, "workflow_states", JSON.stringify(prev_stages));
+                    workflow_dialog.hide();
+                }
+            });
+            workflow_dialog.show();
+        }
+    },
+    async setup_targets(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        let targets = [...frm.doc.child_doctypes.filter((row) => row.connection_type != "Is Custom Design"), ...frm.doc.number_cards, ...frm.doc.charts];
+        let prev_targets = JSON.parse(row.targets ?? '[]').map((i) => i.name);
+        let target_option_fields = [
+            { label: 'Data Table', fieldname: 'data_table_saction', fieldtype: 'Section Break' },
+            ...frm.doc.child_doctypes?.filter((_row) => _row.connection_type != "Is Custom Design" && ![row.ref_doctype]?.includes(_row.link_doctype || _row.referenced_link_doctype))?.map((i) => {
+                return {
+                    fieldname: i.link_doctype || i.referenced_link_doctype,
+                    label: i.link_doctype || i.referenced_link_doctype,
+                    fieldtype: 'Check',
+                    default: prev_targets?.includes(i.link_doctype || i.referenced_link_doctype),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            }),
+            { label: 'Number Cards', fieldname: 'number_card_saction', fieldtype: 'Section Break' },
+            ...frm.doc.number_cards?.map((i) => {
+                return {
+                    fieldname: i.number_card,
+                    label: i.number_card,
+                    fieldtype: 'Check',
+                    default: prev_targets.includes(i.number_card),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            }),
+            { label: 'Charts', fieldname: 'chart_saction', fieldtype: 'Section Break' },
+            ...frm.doc.charts?.map((i) => {
+                return {
+                    fieldname: i.dashboard_chart,
+                    label: i.dashboard_chart,
+                    fieldtype: 'Check',
+                    default: prev_targets?.includes(i.dashboard_chart),
+                    onchange: function () {
+                        const fieldname = this.df.fieldname;
+                        const value = this.get_value();
+                        if (value) {
+                            if (!prev_targets?.includes(fieldname)) {
+                                prev_targets?.push(fieldname);
+                            }
+                        } else {
+                            prev_targets = prev_targets?.filter(f => f !== fieldname);
+                        }
+                    }
+                }
+            })
+        ]
+        let target_dialog = new frappe.ui.Dialog({
+            title: __('Targets'),
+            fields: target_option_fields,
+            primary_action_label: __('Save'),
+            primary_action: async () => {
+                let type_mapper = {
+                    "child_doctypes": "Data Table",
+                    "number_cards": "Number Card",
+                    "charts": "Chart"
+                }
+                let selected_targets = targets?.filter((row) => prev_targets?.includes(row.link_doctype || row.referenced_link_doctype || row.number_card || row.dashboard_chart))?.map((i) => { return {type : type_mapper[i.parentfield],name: i.link_doctype || i.referenced_link_doctype || i.number_card || i.dashboard_chart} });
+                frappe.model.set_value(cdt, cdn, "targets", JSON.stringify(selected_targets));
+                target_dialog.hide();
+            }
+        });
+        target_dialog.show();
+    }
+});
+
+
+frappe.ui.form.on('Number Card Child', {
+    async form_render(frm, cdt, cdn) {
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        if (html_fields_2.length) {
+            html_fields = html_fields.concat(html_fields_2);
+        }
+        let options = html_fields.map(function (d) { return d.fieldname });
+        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+    },
+    cards_add: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        row.sequence = (frm.doc.cards || []).length;
+        row.is_visible = 1;
+        frm.refresh_field('cards');
     },
 
+    cards_move: function (frm) {
+        frm.trigger('update_card_sequence');
+    },
+
+    cards_remove: function (frm) {
+        frm.trigger('update_card_sequence');
+    },
+
+    number_card: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.number_card) return;
+        update_card_label(frm, row);
+    }
 });
+
+// Dashboard Chart Child table handling
+frappe.ui.form.on('Dashboard Chart Child', {
+    async form_render(frm, cdt, cdn) {
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        if (html_fields_2.length) {
+            html_fields = html_fields.concat(html_fields_2);
+        }
+        let options = html_fields.map(function (d) { return d.fieldname });
+        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+    },
+    charts_add: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        row.sequence = (frm.doc.charts || []).length;
+        row.is_visible = 1;
+        row.chart_height = 300;
+        row.show_legend = 1;
+        frm.refresh_field('charts');
+    },
+
+    charts_move: function (frm) {
+        frm.trigger('update_chart_sequence');
+    },
+
+    charts_remove: function (frm) {
+        frm.trigger('update_chart_sequence');
+    },
+
+    dashboard_chart: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.dashboard_chart) return;
+        update_chart_label(frm, row);
+    }
+});
+
+// Helper functions
+function update_card_label(frm, row) {
+    frappe.db.get_value('Number Card', row.number_card, ['label'])
+        .then(r => {
+            if (r.message) {
+                frappe.model.set_value(row.doctype, row.name, {
+                    'card_label': r.message.label
+                });
+            }
+        });
+}
+
+function update_chart_label(frm, row) {
+    frappe.db.get_value('Dashboard Chart', row.dashboard_chart, ['chart_name'])
+        .then(r => {
+            if (r.message) {
+                frappe.model.set_value(row.doctype, row.name, {
+                    'chart_label': r.message.chart_name
+                });
+            }
+        });
+}

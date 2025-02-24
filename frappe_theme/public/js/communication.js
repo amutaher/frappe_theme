@@ -72,23 +72,6 @@ class EmailComponent {
                 background-color: #f5f5f5;
             }
 
-            .compose-btn {
-                width: 24px;
-                height: 24px; 
-                background: #d73925;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-            }
-
-            .compose-btn:hover {
-                background: #c72b1b;
-            }
-
             .email-tabs {
                 display: flex;
                 border-bottom: 1px solid #e5e5e5;
@@ -525,12 +508,14 @@ class EmailComponent {
         sentEmailButton.textContent = 'Sent';
 
         const refreshButton = document.createElement('button');
-        refreshButton.classList.add('header-icon');
+        refreshButton.classList.add('text-muted', 'btn', 'btn-default', 'icon-btn');
         refreshButton.id = 'refresh_email_list';
-        refreshButton.innerHTML = '<i class="fa fa-refresh" style="font-size: 18px; cursor: pointer; color: #666;"></i>';
+        refreshButton.innerHTML = ` <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                <use class="" href="#es-line-reload"></use>
+            </svg>`;
 
         const composeButton = document.createElement('button');
-        composeButton.classList.add('btn-primary', 'compose-btn');
+        composeButton.classList.add('btn-primary', 'text-muted', 'btn', 'icon-btn', 'add-email-btn');
         composeButton.innerHTML = `<svg  class="es-icon es-line icon-xs" aria-hidden="true"><use href="#es-line-add"></use></svg>`;
 
 
@@ -589,7 +574,7 @@ class EmailComponent {
         const messageContent = document.createElement('div');
         messageContent.style.textAlign = "center";
 
-        const messageTitle = document.createElement('h3');
+        const messageTitle = document.createElement('p');
         messageTitle.style.fontSize = "19px";
         messageTitle.style.color = "#333";
         messageTitle.textContent = "Select an item to read";
@@ -662,7 +647,7 @@ class EmailComponent {
             }
         });
 
-        const composeButton = document.querySelector('.compose-btn');
+        const composeButton = document.querySelector('.add-email-btn');
         if (composeButton) {
             composeButton.addEventListener('click', async () => {
                 cur_frm.email_doc("");
