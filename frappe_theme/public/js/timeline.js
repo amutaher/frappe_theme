@@ -504,7 +504,9 @@ class TimelineGenerator {
                                     </div>
                                     <div class="timeline-meta">${item.owner}</div>
                                 </div>
-                                <a href="#" class="timeline-link">
+                                <a href="#" class="timeline-link"
+                                 style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
+                                >
                                     ${item.custom_actual_doctype || item.ref_doctype} - 
                                     ${item.custom_actual_document_name || item.docname}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -521,7 +523,7 @@ class TimelineGenerator {
                                     <span class="timeline-date">${frappe.datetime.global_date_format(item.creation)}</span>
                                 </div>
                                 <span class="timeline-relative-time">${this.formatRelativeTime(item.creation)}</span>
-                            </div>
+                            </div>   
                         </div>
                         <table class="changes-table">
                             <thead>
@@ -544,8 +546,26 @@ class TimelineGenerator {
 
                     entry.querySelector('.timeline-link').addEventListener('click', (e) => {
                         e.preventDefault();
-                        frappe.set_route('Form', item.custom_actual_doctype || item.ref_doctype,
-                            item.custom_actual_document_name || item.docname);
+                        const doctype = item.custom_actual_doctype || item.ref_doctype;
+                        const docname = item.custom_actual_document_name || item.docname;
+
+                        frappe.model.with_doctype(doctype, () => {
+                            frappe.model.with_doc(doctype, docname, function () {
+                                const doc = frappe.get_doc(doctype, docname);
+                                const meta = frappe.get_meta(doctype);
+
+                                const d = new frappe.ui.Dialog({
+                                    title: __(`${doctype}: ${docname}`),
+                                    fields: meta.fields.filter(df => !df.hidden).map(df => ({
+                                        ...df,
+                                        read_only: 1
+                                    }))
+                                });
+
+                                d.set_values(doc);
+                                d.show();
+                            });
+                        });
                     });
 
                     timelineContainer.appendChild(entry);
