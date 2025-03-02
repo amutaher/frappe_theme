@@ -68,7 +68,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             this.goToCommentButton(frm);
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
-            
+
             const props = await this.getPropertySetterData(frm.doc.doctype);
             let field_events = {};
             if (props?.length) {
@@ -88,7 +88,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             console.error("Error in custom_refresh:", error);
         }
     }
-    async set_properties(doctype){
+    async set_properties(doctype) {
         let res = await frappe.db.get_list('Property Setter', {
             filters: {
                 doc_type: doctype
@@ -122,7 +122,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         })
         list.show();
     }
-    async add_properties(doctype, new_property){
+    async add_properties(doctype, new_property) {
         let fields = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: 'Property Setter' });
         let add = new frappe.ui.Dialog({
             title: 'Add Property',
@@ -560,9 +560,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             this.clearGlobalEventListeners();
 
             // Clear remaining fields only if frm is available
-            if (this.frm && this.frm.meta) {
-                this.clearRemainingFields();
-            }
+            // if (this.frm && this.frm.meta) {
+            //     this.clearRemainingFields();
+            // }
 
         } catch (error) {
             console.error("Error in clearPreviousComponents:", error);
