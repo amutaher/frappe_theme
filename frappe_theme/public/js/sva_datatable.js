@@ -81,7 +81,7 @@ class SvaDataTable {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
                 // ================================ Workflow Logic  ================================
-                let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype })
+                let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype, 'is_active': 1 })
                 if (workflow) {
                     this.workflow = await this.sva_db.get_doc("Workflow", workflow)
                     this.workflow_state_bg = await this.sva_db.get_list("Workflow State", {
