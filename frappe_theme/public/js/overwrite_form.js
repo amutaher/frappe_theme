@@ -74,7 +74,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             if (props?.length) {
                 for (const prop of props) {
                     if (prop?.value) {
-                        const [filterField, valueField] = prop.value.split("->");
+                        const [valueField,filterField] = prop.value.split("->");
                         field_events[valueField] = function (frm) {
                             this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
                             frm.set_value(prop.field_name, "");
