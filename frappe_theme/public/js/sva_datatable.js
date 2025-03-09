@@ -481,7 +481,11 @@ class SvaDataTable {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        f.onchange = change.bind(this, this, mode, f);
+                        if (f.fieldtype === 'Button'){
+                            f.click = change.bind(this, this, mode, f);
+                        }else{
+                            f.onchange = change.bind(this, this, mode, f);
+                        }
                     }
                     if (f.set_only_once) {
                         if (doc[f.fieldname]) {
@@ -552,7 +556,11 @@ class SvaDataTable {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        f.onchange = change.bind(this, this, mode, f);
+                        if (f.fieldtype === 'Button'){
+                            f.click = change.bind(this, this, mode, f);
+                        }else{
+                            f.onchange = change.bind(this, this, mode, f);
+                        }
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
