@@ -481,9 +481,9 @@ class SvaDataTable {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        if (f.fieldtype === 'Button'){
+                        if (f.fieldtype === 'Button') {
                             f.click = change.bind(this, this, mode, f);
-                        }else{
+                        } else {
                             f.onchange = change.bind(this, this, mode, f);
                         }
                     }
@@ -513,6 +513,60 @@ class SvaDataTable {
                                 return { ...row, old_name };
                             });
                         }
+                    }
+                    if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
+                        if (f.read_only) {
+                            if (doc[f.fieldname]) {
+                                f.fieldtype = 'HTML';
+                                f.options = `
+                                    <div class="form-group horizontal">
+                                        <div class="clearfix">
+                                            <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                            <span class="help"></span>
+                                        </div>
+                                        <div class="control-input-wrapper">
+                                        <div class="control-input" style="display: none;"></div>
+                                        <div class="control-value like-disabled-input ellipsis">
+                                            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                                <use class="" href="#es-line-link"></use>
+                                            </svg>
+                                                <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                            </div>
+                                            <div class="help-box small text-extra-muted hide"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                f.default = '';
+                                f.hidden = 1;
+                            }
+                        } else if (f.hidden) {
+                            if (doc[f.fieldname]) {
+                                f.fieldtype = 'HTML';
+                                f.options = `
+                                    <div class="form-group horizontal">
+                                        <div class="clearfix">
+                                            <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                            <span class="help"></span>
+                                        </div>
+                                        <div class="control-input-wrapper">
+                                        <div class="control-input" style="display: none;"></div>
+                                        <div class="control-value like-disabled-input ellipsis">
+                                            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                                <use class="" href="#es-line-link"></use>
+                                            </svg>
+                                                <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                            </div>
+                                            <div class="help-box small text-extra-muted hide"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                f.default = '';
+                                f.hidden = 1;
+                            }
+                        }
+                        continue;
                     }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
@@ -556,9 +610,9 @@ class SvaDataTable {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        if (f.fieldtype === 'Button'){
+                        if (f.fieldtype === 'Button') {
                             f.click = change.bind(this, this, mode, f);
-                        }else{
+                        } else {
                             f.onchange = change.bind(this, this, mode, f);
                         }
                     }
@@ -699,9 +753,9 @@ class SvaDataTable {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
                         let change = this.frm['dt_events'][this.doctype]['validate']
-                        if (this.isAsync(change)){
+                        if (this.isAsync(change)) {
                             await change(this, mode, values);
-                        }else{
+                        } else {
                             change(this, mode, values);
                         }
                     }
@@ -718,9 +772,9 @@ class SvaDataTable {
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_insert']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_insert']
-                                if (this.isAsync(change)){
+                                if (this.isAsync(change)) {
                                     await change(this, response);
-                                }else{
+                                } else {
                                     change(this, response);
                                 }
                             }
@@ -749,9 +803,9 @@ class SvaDataTable {
                             frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_update']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_update']
-                                if (this.isAsync(change)){
+                                if (this.isAsync(change)) {
                                     await change(this, response);
-                                }else{
+                                } else {
                                     change(this, response);
                                 }
                             }
@@ -759,9 +813,9 @@ class SvaDataTable {
                     }
                     if (this.frm?.['dt_events']?.[this.doctype]?.['after_save']) {
                         let change = this.frm['dt_events'][this.doctype]['after_save']
-                        if (this.isAsync(change)){
+                        if (this.isAsync(change)) {
                             await change(this, mode, values);
-                        }else{
+                        } else {
                             change(this, mode, values);
                         }
                     }
@@ -806,9 +860,9 @@ class SvaDataTable {
         }
         if (this.frm?.['dt_events']?.[this.doctype]?.['after_render']) {
             let change = this.frm['dt_events'][this.doctype]['after_render']
-            if (this.isAsync(change)){
+            if (this.isAsync(change)) {
                 await change(this, mode);
-            }else{
+            } else {
                 change(this, mode);
             }
         }
@@ -822,9 +876,9 @@ class SvaDataTable {
             frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'green' });
             if (this.frm?.['dt_events']?.[this.doctype]?.['after_delete']) {
                 let change = this.frm['dt_events'][this.doctype]['after_delete']
-                if (this.isAsync(change)){
+                if (this.isAsync(change)) {
                     await change(this, name);
-                }else{
+                } else {
                     change(this, name);
                 }
             }
