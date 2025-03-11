@@ -500,6 +500,24 @@ class SvaDataTable {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
+                            if (tf.fieldtype === 'Link'){
+                                tf.get_query = () => {
+                                    const filters = [];
+                                    if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                        filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                                    }
+                                    if (tf.link_filter) {
+                                        const [parentfield, filter_key] = tf.link_filter.split("->");
+                                        filters.push([
+                                            tf.options,
+                                            filter_key,
+                                            '=',
+                                            dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                        ]);
+                                    }
+                                    return { filters };
+                                };
+                            }
                             if (this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]) {
                                 let change = this.frm['dt_events'][f.options][tf.fieldname]
                                 tf.onchange = change.bind(this, this, mode, tf);
@@ -586,6 +604,9 @@ class SvaDataTable {
                     if (f.fieldtype === 'Link') {
                         f.get_query = () => {
                             const filters = [];
+                            if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                            }
                             if (this.uniqueness.column.length) {
                                 if (this.uniqueness.column.includes(f.fieldname)) {
                                     let existing_options = this.rows?.map((item) => item[f.fieldname]);
@@ -649,6 +670,9 @@ class SvaDataTable {
                     if (f.fieldtype === 'Link') {
                         f.get_query = () => {
                             const filters = [];
+                            if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                            }
                             if (this.uniqueness.column.length) {
                                 if (this.uniqueness.column.includes(f.fieldname)) {
                                     let existing_options = this.rows?.map((item) => item[f.fieldname]);
@@ -671,6 +695,24 @@ class SvaDataTable {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
+                            if (tf.fieldtype === 'Link'){
+                                tf.get_query = () => {
+                                    const filters = [];
+                                    if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                        filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                                    }
+                                    if (tf.link_filter) {
+                                        const [parentfield, filter_key] = tf.link_filter.split("->");
+                                        filters.push([
+                                            tf.options,
+                                            filter_key,
+                                            '=',
+                                            dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                        ]);
+                                    }
+                                    return { filters };
+                                };
+                            }
                             if (this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]) {
                                 let change = this.frm['dt_events'][f.options][tf.fieldname]
                                 tf.onchange = change.bind(this, this, mode, tf);
