@@ -65,6 +65,7 @@ class SvaDataTable {
         this.workflow = []
         this.wf_editable_allowed = false;
         this.wf_transitions_allowed = false;
+        this.skip_workflow_confirmation = false;
         this.workflow_state_bg = []
         this.render_only = render_only;
         this.additional_list_filters = [];
@@ -459,8 +460,8 @@ class SvaDataTable {
             });
         });
     }
-    
-    async createFormDialog(doctype, name = undefined, mode = 'create') {
+    isAsync = (fn) => fn?.constructor?.name === "AsyncFunction";
+    async createFormDialog(doctype, name = undefined, mode = 'create',additional_action=null) {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
         if (window?.SVADialog?.[this.doctype]) {
@@ -478,15 +479,19 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if(this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]){
+                    if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        f.onchange = change.bind(this,this,mode,f);
+                        if (f.fieldtype === 'Button') {
+                            f.click = change.bind(this, this, mode, f);
+                        } else {
+                            f.onchange = change.bind(this, this, mode, f);
+                        }
                     }
-                    if(f.set_only_once){
-                        if(doc[f.fieldname]){
+                    if (f.set_only_once) {
+                        if (doc[f.fieldname]) {
                             f.default = doc[f.fieldname];
                             f.read_only = 1;
-                        }else{
+                        } else {
                             f.reqd = 0;
                             f.hidden = 1;
                         }
@@ -494,10 +499,28 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        for(let tf of tableFields){
-                            if(this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]){
+                        for (let tf of tableFields) {
+                            if (tf.fieldtype === 'Link'){
+                                tf.get_query = () => {
+                                    const filters = [];
+                                    if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                        filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                                    }
+                                    if (tf.link_filter) {
+                                        const [parentfield, filter_key] = tf.link_filter.split("->");
+                                        filters.push([
+                                            tf.options,
+                                            filter_key,
+                                            '=',
+                                            dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                        ]);
+                                    }
+                                    return { filters };
+                                };
+                            }
+                            if (this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]) {
                                 let change = this.frm['dt_events'][f.options][tf.fieldname]
-                                tf.onchange = change.bind(this,this,mode,tf);
+                                tf.onchange = change.bind(this, this, mode, tf);
                             }
                         }
                         f.fields = tableFields;
@@ -508,6 +531,60 @@ class SvaDataTable {
                                 return { ...row, old_name };
                             });
                         }
+                    }
+                    if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
+                        if (f.read_only) {
+                            if (doc[f.fieldname]) {
+                                f.fieldtype = 'HTML';
+                                f.options = `
+                                    <div class="form-group horizontal">
+                                        <div class="clearfix">
+                                            <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                            <span class="help"></span>
+                                        </div>
+                                        <div class="control-input-wrapper">
+                                        <div class="control-input" style="display: none;"></div>
+                                        <div class="control-value like-disabled-input ellipsis">
+                                            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                                <use class="" href="#es-line-link"></use>
+                                            </svg>
+                                                <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                            </div>
+                                            <div class="help-box small text-extra-muted hide"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                f.default = '';
+                                f.hidden = 1;
+                            }
+                        } else if (f.hidden) {
+                            if (doc[f.fieldname]) {
+                                f.fieldtype = 'HTML';
+                                f.options = `
+                                    <div class="form-group horizontal">
+                                        <div class="clearfix">
+                                            <label class="control-label" style="padding-right: 0px;">${f.label}</label>
+                                            <span class="help"></span>
+                                        </div>
+                                        <div class="control-input-wrapper">
+                                        <div class="control-input" style="display: none;"></div>
+                                        <div class="control-value like-disabled-input ellipsis">
+                                            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                                                <use class="" href="#es-line-link"></use>
+                                            </svg>
+                                                <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
+                                            </div>
+                                            <div class="help-box small text-extra-muted hide"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                f.default = '';
+                                f.hidden = 1;
+                            }
+                        }
+                        continue;
                     }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
@@ -527,6 +604,9 @@ class SvaDataTable {
                     if (f.fieldtype === 'Link') {
                         f.get_query = () => {
                             const filters = [];
+                            if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                            }
                             if (this.uniqueness.column.length) {
                                 if (this.uniqueness.column.includes(f.fieldname)) {
                                     let existing_options = this.rows?.map((item) => item[f.fieldname]);
@@ -549,9 +629,13 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if(this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]){
+                    if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
-                        f.onchange = change.bind(this,this,mode,f);
+                        if (f.fieldtype === 'Button') {
+                            f.click = change.bind(this, this, mode, f);
+                        } else {
+                            f.onchange = change.bind(this, this, mode, f);
+                        }
                     }
                     if (this.frm.parentRow) {
                         if (this.frm.parentRow[f.fieldname]) {
@@ -586,6 +670,9 @@ class SvaDataTable {
                     if (f.fieldtype === 'Link') {
                         f.get_query = () => {
                             const filters = [];
+                            if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                            }
                             if (this.uniqueness.column.length) {
                                 if (this.uniqueness.column.includes(f.fieldname)) {
                                     let existing_options = this.rows?.map((item) => item[f.fieldname]);
@@ -607,10 +694,28 @@ class SvaDataTable {
                     if (f.fieldtype === "Table") {
                         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
                         let tableFields = res?.message;
-                        for(let tf of tableFields){
-                            if(this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]){
+                        for (let tf of tableFields) {
+                            if (tf.fieldtype === 'Link'){
+                                tf.get_query = () => {
+                                    const filters = [];
+                                    if(this.frm?.['dt_filters']?.[f.options]?.[tf.fieldname]){
+                                        filters.push(...this.frm['dt_filters'][f.options][tf.fieldname]);
+                                    }
+                                    if (tf.link_filter) {
+                                        const [parentfield, filter_key] = tf.link_filter.split("->");
+                                        filters.push([
+                                            tf.options,
+                                            filter_key,
+                                            '=',
+                                            dialog.fields_dict[parentfield]?.value || `Please select ${parentfield}`,
+                                        ]);
+                                    }
+                                    return { filters };
+                                };
+                            }
+                            if (this.frm?.['dt_events']?.[f.options]?.[tf.fieldname]) {
                                 let change = this.frm['dt_events'][f.options][tf.fieldname]
-                                tf.onchange = change.bind(this,this,mode,tf);
+                                tf.onchange = change.bind(this, this, mode, tf);
                             }
                         }
                         f.fields = tableFields;
@@ -645,7 +750,7 @@ class SvaDataTable {
                     }
                     continue;
                 }
-                if(['Attach','Attach Image'].includes(f.fieldtype)){
+                if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                     if (doc[f.fieldname]) {
                         f.fieldtype = 'HTML';
                         f.options = `
@@ -688,6 +793,14 @@ class SvaDataTable {
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
             primary_action: async (values) => {
                 if (['create', 'write'].includes(mode)) {
+                    if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
+                        let change = this.frm['dt_events'][this.doctype]['validate']
+                        if (this.isAsync(change)) {
+                            await change(this, mode, values);
+                        } else {
+                            change(this, mode, values);
+                        }
+                    }
                     if (!name) {
                         let response = await frappe.xcall('frappe.client.insert', {
                             doc: {
@@ -699,9 +812,13 @@ class SvaDataTable {
                             this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
-                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_insert']){
+                            if (this.frm?.['dt_events']?.[this.doctype]?.['after_insert']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_insert']
-                                change(this,response);
+                                if (this.isAsync(change)) {
+                                    await change(this, response);
+                                } else {
+                                    change(this, response);
+                                }
                             }
                         }
                     } else {
@@ -726,19 +843,30 @@ class SvaDataTable {
                             this.rows[rowIndex] = response;
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
-                            if(this.frm?.['dt_events']?.[this.doctype]?.['after_update']){
+                            if (this.frm?.['dt_events']?.[this.doctype]?.['after_update']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_update']
-                                change(this,response);
+                                if (this.isAsync(change)) {
+                                    await change(this, response);
+                                } else {
+                                    change(this, response);
+                                }
                             }
                         }
                     }
+                    if (this.frm?.['dt_events']?.[this.doctype]?.['after_save']) {
+                        let change = this.frm['dt_events'][this.doctype]['after_save']
+                        if (this.isAsync(change)) {
+                            await change(this, mode, values);
+                        } else {
+                            change(this, mode, values);
+                        }
+                    }
+                }
+                if(additional_action){
+                    additional_action();
                 }
                 dialog.clear();
                 dialog.hide();
-                if(this.frm?.['dt_events']?.[this.doctype]?.['after_save']){
-                    let change = this.frm['dt_events'][this.doctype]['after_save']
-                    change(this,mode,values);
-                }
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
@@ -775,9 +903,13 @@ class SvaDataTable {
                 }
             }
         }
-        if(this.frm?.['dt_events']?.[this.doctype]?.['after_render']){
+        if (this.frm?.['dt_events']?.[this.doctype]?.['after_render']) {
             let change = this.frm['dt_events'][this.doctype]['after_render']
-            change(this,mode);
+            if (this.isAsync(change)) {
+                await change(this, mode);
+            } else {
+                change(this, mode);
+            }
         }
     }
     async deleteRecord(doctype, name) {
@@ -787,9 +919,13 @@ class SvaDataTable {
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
             frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'green' });
-            if(this.frm?.['dt_events']?.[this.doctype]?.['after_delete']){
+            if (this.frm?.['dt_events']?.[this.doctype]?.['after_delete']) {
                 let change = this.frm['dt_events'][this.doctype]['after_delete']
-                change(this,name);
+                if (this.isAsync(change)) {
+                    await change(this, name);
+                } else {
+                    change(this, name);
+                }
             }
         });
     }
@@ -1148,6 +1284,12 @@ class SvaDataTable {
     // ================================ Workflow Action  Logic ================================
     async wf_action(selected_state_info, docname, wf_select_el, prevState) {
         let me = this;
+        let workflowFormValue;
+        let dialog;
+        if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
+            let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
+            await change(me, selected_state_info, docname, prevState);
+        }
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
         let meta = await frappe.call({
             method: 'frappe_theme.api.get_meta',
@@ -1166,33 +1308,36 @@ class SvaDataTable {
             },
             ...(fields ? fields : []),
         ];
-        let dialog;
-        const workflowFormValue = await new Promise((resolve) => {
-            dialog = new frappe.ui.Dialog({
-                title: "Confirm",
-                size: this.getDialogSize(popupFields),
-                fields: popupFields,
-                primary_action_label: "Proceed",
-                primary_action: (values) => {
-                    resolve(values);
-                },
-                secondary_action_label: "Cancel",
-                secondary_action: () => {
-                    dialog.hide();
-                    wf_select_el.value = ""; // Reset dropdown value
-                    wf_select_el.title = prevState;
-                    frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
-                },
+        if (!this.skip_workflow_confirmation) {
+            workflowFormValue = await new Promise((resolve) => {
+                dialog = new frappe.ui.Dialog({
+                    title: "Confirm",
+                    size: this.getDialogSize(popupFields),
+                    fields: popupFields,
+                    primary_action_label: "Proceed",
+                    primary_action: (values) => {
+                        resolve(values);
+                    },
+                    secondary_action_label: "Cancel",
+                    secondary_action: () => {
+                        dialog.hide();
+                        wf_select_el.value = ""; // Reset dropdown value
+                        wf_select_el.title = prevState;
+                        frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
+                    },
+                });
+                dialog.show();
             });
-            dialog.show();
-        });
+        }
         try {
             const updateFields = {
                 [me.workflow.workflow_state_field]: selected_state_info.next_state,
                 ...(workflowFormValue && workflowFormValue),
             };
+            if (dialog) {
+                dialog?.hide();
+            }
             const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
-            dialog.hide();
             if (response?.exc) throw new Error("Update failed");
             const row = me.rows.find((r) => r.name === docname);
             row[me.workflow.workflow_state_field] = selected_state_info.next_state;
@@ -1205,19 +1350,21 @@ class SvaDataTable {
             Object.assign(row, workflowFormValue);
             me.rows[row.rowIndex] = row;
             me.updateTableBody();
-            frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+            if (!this.skip_workflow_confirmation) {
+                frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+            }
         } catch (error) {
             if (error.message) {
                 frappe.throw({
-                    title : 'Error',
-                    message : error.message
+                    title: 'Error',
+                    message: error.message
                 })
             }
             console.error(error);
         }
-        if(this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']){
+        if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
-            change(this,selected_state_info,docname,prevState);
+            change(this, selected_state_info, docname, prevState);
         }
     }
 
