@@ -461,7 +461,7 @@ class SvaDataTable {
         });
     }
     isAsync = (fn) => fn?.constructor?.name === "AsyncFunction";
-    async createFormDialog(doctype, name = undefined, mode = 'create') {
+    async createFormDialog(doctype, name = undefined, mode = 'create',additional_action=null) {
         let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
         let fields = res?.message;
         if (window?.SVADialog?.[this.doctype]) {
@@ -861,6 +861,9 @@ class SvaDataTable {
                             change(this, mode, values);
                         }
                     }
+                }
+                if(additional_action){
+                    additional_action();
                 }
                 dialog.clear();
                 dialog.hide();
@@ -1285,7 +1288,7 @@ class SvaDataTable {
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
-            change(me, selected_state_info, docname, prevState);
+            await change(me, selected_state_info, docname, prevState);
         }
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
         let meta = await frappe.call({
@@ -1334,8 +1337,8 @@ class SvaDataTable {
             if (dialog) {
                 dialog?.hide();
             }
-            // const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
-            // if (response?.exc) throw new Error("Update failed");
+            const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
+            if (response?.exc) throw new Error("Update failed");
             const row = me.rows.find((r) => r.name === docname);
             row[me.workflow.workflow_state_field] = selected_state_info.next_state;
             if (workflowFormValue?.wf_comment) {
@@ -1347,7 +1350,9 @@ class SvaDataTable {
             Object.assign(row, workflowFormValue);
             me.rows[row.rowIndex] = row;
             me.updateTableBody();
-            frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+            if (!this.skip_workflow_confirmation) {
+                frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+            }
         } catch (error) {
             if (error.message) {
                 frappe.throw({
