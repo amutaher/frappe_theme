@@ -1288,7 +1288,11 @@ class SvaDataTable {
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
-            await change(me, selected_state_info, docname, prevState);
+            if(this.isAsync(change)){
+                await change(me, selected_state_info, docname, prevState);
+            }else{
+                change(me, selected_state_info, docname, prevState);
+            }
         }
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
         let meta = await frappe.call({
