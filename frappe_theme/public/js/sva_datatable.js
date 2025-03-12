@@ -1342,20 +1342,21 @@ class SvaDataTable {
                 dialog?.hide();
             }
             const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
-            if (response?.exc) throw new Error("Update failed");
-            const row = me.rows.find((r) => r.name === docname);
-            row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-            if (workflowFormValue?.wf_comment) {
-                row.wf_comment = workflowFormValue.wf_comment;
-            } else {
-                const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
-                row.wf_comment = comment;
-            }
-            Object.assign(row, workflowFormValue);
-            me.rows[row.rowIndex] = row;
-            me.updateTableBody();
-            if (!this.skip_workflow_confirmation) {
-                frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+            if (!response?.exc){
+                const row = me.rows.find((r) => r.name === docname);
+                row[me.workflow.workflow_state_field] = selected_state_info.next_state;
+                if (workflowFormValue?.wf_comment) {
+                    row.wf_comment = workflowFormValue.wf_comment;
+                } else {
+                    const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                    row.wf_comment = comment;
+                }
+                Object.assign(row, workflowFormValue);
+                me.rows[row.rowIndex] = row;
+                me.updateTableBody();
+                if (!this.skip_workflow_confirmation) {
+                    frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                }
             }
         } catch (error) {
             if (error.message) {
