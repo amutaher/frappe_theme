@@ -5,14 +5,16 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "html_field",
   "connection_type",
+  "title",
   "link_doctype",
   "link_fieldname",
   "referenced_link_doctype",
   "dt_reference_field",
   "dn_reference_field",
   "template",
-  "html_field",
+  "action_label",
   "extend_condition",
   "extended_condition",
   "listview_settings",
@@ -67,6 +69,7 @@
   {
    "fieldname": "connection_type",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Connection Type",
    "options": "Direct\nReferenced\nIs Custom Design",
    "reqd": 1
@@ -101,7 +104,7 @@
    "fieldtype": "Select",
    "label": "Template",
    "mandatory_depends_on": "eval:doc.connection_type == \"Is Custom Design\"",
-   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes"
+   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes\nLinked Users"
   },
   {
    "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
@@ -122,12 +125,25 @@
    "fieldname": "extend_condition",
    "fieldtype": "Check",
    "label": "Extend Condition"
+  },
+  {
+   "default": "Approval",
+   "fieldname": "action_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Workflow Action Label"
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-01-26 15:33:54.856625",
+ "modified": "2025-02-19 18:59:51.075227",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",

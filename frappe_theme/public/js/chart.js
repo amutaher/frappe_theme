@@ -37,11 +37,13 @@ class SVADashboardChart {
             container.className = 'sva-charts-container';
 
             try {
+                // Filter out invisible charts
+                const visibleCharts = this.charts.filter(chart => chart.is_visible);
+
                 let index = 0;
-                for (let chartConfig of this.charts) {
+                for (let chartConfig of visibleCharts) {
                     try {
                         const chartData = await this.fetchChartData(chartConfig.dashboard_chart);
-                        console.log('Chart data:', chartData);
                         if (chartData) {
                             const chart = this.createChart({
                                 ...chartData,
@@ -538,7 +540,7 @@ class SVADashboardChart {
                     height: 280px;
                     font-size: 14px;
                 }
-                
+
                 @media (max-width: 768px) {
                     .sva-charts-container {
                         grid-template-columns: 1fr;

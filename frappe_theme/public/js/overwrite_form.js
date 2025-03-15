@@ -1,245 +1,741 @@
 frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
-    async refresh(docname) {
-        await super.refresh(docname);
-        // console.log(this, 'super.refresh');
+    constructor(...args) {
+        super(...args);
+        this.activeComponents = new Set();
+        this.pendingRequests = new Map();
+        this.currentTabField = null;
+        this.dts = {};
+        this.mountedComponents = new Map(); // Track mounted components and their cleanup functions
+    }
+    async refresh(docname, frm) {
+        try {
+            await super.refresh(docname);
+            if (!window.sva_datatable_configuration) {
+                window.sva_datatable_configuration = {};
+            }
+            this.setupHandlers();
+        } catch (error) {
+            console.error("Error in refresh:", error);
+            frappe.show_alert({
+                message: __('Error in form refresh'),
+                indicator: 'red'
+            });
+        }
+    }
 
-        if (frappe.ui.form.handlers[this.doctype]) {
-            if (frappe.ui.form.handlers[this.doctype].refresh) {
-                frappe.ui.form.handlers[this.doctype].refresh = [
-                    ...frappe.ui.form.handlers[this.doctype]?.refresh, this.custom_refresh.bind(this)]
-            } else {
-                frappe.ui.form.handlers[this.doctype].refresh = [this.custom_refresh.bind(this)]
-            }
-            if (frappe.ui.form.handlers[this.doctype].on_tab_change) {
-                frappe.ui.form.handlers[this.doctype].on_tab_change = [
-                    ...frappe.ui.form.handlers[this.doctype].on_tab_change,
-                    this._activeTab.bind(this)
-                ]
-            }else{
-                frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)]
-            }
-        } else {
+    setupHandlers() {
+        if (!frappe.ui.form.handlers[this.doctype]) {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change:[this._activeTab.bind(this)]
-            }
+                on_tab_change: [this._activeTab.bind(this)]
+            };
+            return;
         }
 
+        // Setup refresh handlers
+        if (!frappe.ui.form.handlers[this.doctype].refresh) {
+            frappe.ui.form.handlers[this.doctype].refresh = [this.custom_refresh.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].refresh.includes(this.custom_refresh.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].refresh.push(this.custom_refresh.bind(this));
+        }
 
-    }
-    async _activeTab(frm){
-        let tab_field = frm.get_active_tab()?.df?.fieldname;
-        await this.tabContent(frm, tab_field);
+        // Setup tab change handlers
+        if (!frappe.ui.form.handlers[this.doctype].on_tab_change) {
+            frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].on_tab_change.includes(this._activeTab.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].on_tab_change.push(this._activeTab.bind(this));
+        }
     }
     async custom_refresh(frm) {
-        let me = this;
-        me.goToCommentButton(frm);
-        let tab_field = frm.get_active_tab()?.df?.fieldname;
-        me.tabContent(frm, tab_field)
-        let props = await me.getPropertySetterData(cur_frm.doc.doctype);
-        if (props.length) {
-            for (let prop of props) {
-                if (prop) {
-                    let abc = prop.value.split("->")
-                    me.apply_custom_filter(prop.field_name, abc[0], frm, frm.doc[abc[1]]);
+        try {
+            if (frm.doctype == "DocType") {
+                frm.add_custom_button('Set Property', () => {
+                    this.set_properties(frm.doc.name);
+                });
+            }
+            const sva_db = new SVAHTTP();
+            if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
+                const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
+                if (!exists) return;
+                this.dts = await sva_db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+                window.sva_datatable_configuration = {
+                    [frm.doc.doctype]: this.dts
+                };
+            } else {
+                this.dts = window.sva_datatable_configuration?.[frm.doc.doctype];
+            }
+            this.setupDTTriggers(frm);
+            this.goToCommentButton(frm);
+            const tab_field = frm.get_active_tab()?.df?.fieldname;
+            await this.tabContent(frm, tab_field);
+
+            const props = await this.getPropertySetterData(frm.doc.doctype);
+            let field_events = {};
+            if (props?.length) {
+                for (const prop of props) {
+                    if (prop?.value) {
+                        const [valueField,filterField] = prop.value.split("->");
+                        field_events[valueField] = function (frm) {
+                            this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                            frm.set_value(prop.field_name, "");
+                        }.bind(this);
+                        this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                    }
+                }
+                frappe.ui.form.on(frm.doctype, field_events)
+            }
+        } catch (error) {
+            console.error("Error in custom_refresh:", error);
+        }
+    }
+    async set_properties(doctype) {
+        let res = await frappe.db.get_list('Property Setter', {
+            filters: {
+                doc_type: doctype
+            }
+        })
+
+        let list = new frappe.ui.Dialog({
+            title: 'Set Property',
+            fields: [
+                {
+                    label: 'List of Properties',
+                    fieldname: 'property_name',
+                    fieldtype: 'Autocomplete',
+                    options: res.map(d => d.name),
+                    depends_on: `eval: ${JSON.stringify(res.length)} > 0`,
+                },
+                {
+                    label: 'New Property Value',
+                    fieldname: 'property_value',
+                    fieldtype: 'Data',
+                    mandatory_depends_on: 'eval: !doc.property_name ',
+                    depends_on: 'eval: !doc.property_name'
+                }
+            ],
+            primary_action_label: 'Set',
+            primary_action: async function () {
+                let property_value = list.fields_dict.property_value.get_value()
+                list.hide();
+                this.add_properties(doctype, property_value);
+            }.bind(this)
+        })
+        list.show();
+    }
+    async add_properties(doctype, new_property) {
+        let fields = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: 'Property Setter' });
+        let add = new frappe.ui.Dialog({
+            title: 'Add Property',
+            fields: fields.message.map(d => {
+                return {
+                    label: d.label,
+                    fieldname: d.fieldname,
+                    fieldtype: d.fieldtype,
+                    options: d.options,
+                    default: d.fieldname == 'property' ? new_property : '',
+                    reqd: d.reqd,
+                    read_only: d.fieldname == 'property' ? 1 : 0,
+                }
+            }),
+            primary_action_label: 'Add',
+            primary_action: async function () {
+                let res = await frappe.call({
+                    method: 'frappe.desk.form.save.savedocs',
+                    args: {
+                        doc: {
+                            doctype: 'Property Setter',
+                            doc_type: doctype,
+                            doctype_or_field: add.fields_dict.doctype_or_field.get_value(),
+                            property: new_property,
+                            row_name: add.fields_dict.row_name.get_value(),
+                            module: add.fields_dict.module.get_value(),
+                            value: add.fields_dict.value.get_value(),
+                            property_type: add.fields_dict.property_type.get_value(),
+                            default_value: add.fields_dict.default_value.get_value(),
+                        },
+                        action: 'Save',
+                    }
+                });
+                if (res.docs.length > 0) {
+                    frappe.msgprint('Property set successfully');
+                    add.hide();
+                }
+            }
+        })
+        add.show();
+    }
+
+    setupDTTriggers(frm) {
+        if (!frm.dt_events) {
+            frm['dt_events'] = {};
+        }
+        if (this.dts?.triggers?.length) {
+            for (const trigger of this.dts.triggers) {
+                let targets = JSON.parse(trigger.targets || '[]');
+                if (!targets.length) continue;
+                // console.log(trigger, 'trigger')
+                if (trigger.table_type == "Custom Design") {
+                    this.bindCustomDesignActionEvents(frm, trigger, targets);
+                } else {
+                    this.bindDTActionEvents(frm, trigger, targets);
                 }
             }
         }
     }
-    getDataElement = (fieldname) => {
-        return new Promise((resolve, reject) => {
-            let wrapper = document.querySelector(`[data-fieldname="${fieldname}"]`);
-            if (!wrapper) {
-                let maxTime = 5000; // 5 seconds
-                let intervalTime = 500; // 1 second
-                let interval = setInterval(() => {
-                    wrapper = document.querySelector(`[data-fieldname="${fieldname}"]`);
-                    if (wrapper) {
-                        clearInterval(interval);
-                        resolve(wrapper);
-                    }else if (maxTime <= 0) {
-                        resolve(null)
-                    }
-                    maxTime -= intervalTime;
-                }, intervalTime);
-            } else {
-                resolve(wrapper)
+    bindDTActionEvents(frm, trigger, targets) {
+        let dt = trigger.ref_doctype;
+        let action = trigger.action;
+        if (!frm.dt_events?.[dt]) {
+            frm.dt_events[dt] = {};
+        }
+        if (action == 'Create') {
+            if (!frm.dt_events[dt]['after_insert']) {
+                frm.dt_events[dt]['after_insert'] = () => {
+                    this.triggerTargets(targets);
+                };
             }
-        });
+        }
+        if (action == 'Update') {
+            if (!frm.dt_events[dt]['after_update']) {
+                frm.dt_events[dt]['after_update'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == 'Delete') {
+            if (!frm.dt_events[dt]['after_delete']) {
+                frm.dt_events[dt]['after_delete'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == "Workflow Action") {
+            if (!frm.dt_events[dt]['after_workflow_action']) {
+                frm.dt_events[dt]['after_workflow_action'] = (dt, action) => {
+                    let states_for_action = JSON.parse(trigger?.workflow_states || '[]');
+                    if (states_for_action.length && states_for_action.includes(action?.next_state)) {
+                        this.triggerTargets(targets);
+                    };
+                };
+            }
+        }
     }
-    renderCustomComponent = async (frm, fieldname, template) => {
-        let el = document.createElement('div');
-        frm.set_df_property(fieldname, 'options', el);
-        isLoading(true, el);
-        switch (template) {
-            case "Gallery":
-                new GalleryComponent(frm, el);
-                break;
-            case "Email":
-                new EmailComponent(frm, el);
-                break;
+    bindCustomDesignActionEvents(frm, trigger, targets) {
+        let dt;
+        switch (trigger.custom_design) {
             case "Tasks":
-                await getTaskList(frm, fieldname);
+                dt = "ToDo";
                 break;
-            case "Timeline":
-                new TimelineGenerator(frm, el);
-                break;
-            case "Notes":
-                new NotesManager(frm, el);
+            case "Linked Users":
+                dt = "SVA User";
                 break;
             default:
-                break;
+                dt = null;
         }
-        isLoading(false, el);
+        if (!dt) return;
+        let action = trigger.action;
+        if (!frm.dt_events?.[dt]) {
+            frm.dt_events[dt] = {};
+        }
+        if (action == "Create") {
+            if (!frm.dt_events[dt]['after_insert']) {
+                frm.dt_events[dt]['after_insert'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == "Update") {
+            if (!frm.dt_events[dt]['after_update']) {
+                frm.dt_events[dt]['after_update'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
+        if (action == "Delete") {
+            if (!frm.dt_events[dt]['after_delete']) {
+                frm.dt_events[dt]['after_delete'] = () => {
+                    this.triggerTargets(targets);
+                };
+            }
+        }
     }
-    tabContent = async (frm, tab_field) => {
-        if (await frappe.db.exists('SVADatatable Configuration', frm.doc.doctype) || (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype }))) {
-            let dts = await frappe.db.get_doc('SVADatatable Configuration', frm.doc.doctype);
-            let tab_fields = []
-            let tab_field_index = frm.meta?.fields?.findIndex(f => f.fieldname == tab_field)
-            if ((tab_field_index + 1) > frm.meta?.fields.length) {
+    triggerTargets(targets) {
+        for (const target of targets) {
+            if (target.type == "Data Table") {
+                if (this.frm?.['sva_tables']?.[target.name]) {
+                    this.frm['sva_tables'][target.name].reloadTable();
+                }
+            }
+            if (target.type == "Number Card") {
+                if (this.frm?.['sva_cards']?.[target.name]) {
+                    this.frm['sva_cards'][target.name].refresh();
+                }
+            }
+            if (target.type == "Chart") {
+                if (this.frm?.['sva_charts']?.[target.name]) {
+                    this.frm['sva_charts'][target.name].refresh();
+                }
+            }
+        }
+    }
+    createRequestController(tabField) {
+        if (this.pendingRequests.has(tabField)) {
+            this.pendingRequests.get(tabField).abort();
+            this.pendingRequests.delete(tabField);
+        }
+
+        const controller = new AbortController();
+        this.pendingRequests.set(tabField, controller);
+        return controller;
+    }
+
+    async makeRequest(requestFn, signal) {
+        return new Promise((resolve, reject) => {
+            if (signal.aborted) {
+                reject(new DOMException('Aborted', 'AbortError'));
                 return;
             }
-            for (let i = (tab_field_index + 1); i < frm.meta?.fields.length; i++) {
-                let f = frm.meta?.fields[i]
-                if (f.fieldtype == 'Tab Break') {
-                    break;
-                }
-                if (f.fieldtype == 'HTML') {
-                    tab_fields.push(f.fieldname)
-                }
-            }
-            let dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field))
-            let visualizationFields = tab_fields.filter(f => !dts?.child_doctypes?.map(d => d.html_field).includes(f))
-            for (let fld of visualizationFields) {
-                if (await frappe.db.exists('Visualization Mapper', { doctype_field: frm.doc.doctype, wrapper_field: fld })) {
-                    let vm = await frappe.db.get_list('Visualization Mapper', {
-                        filters: {
-                            doctype_field: frm.doc.doctype,
-                            wrapper_field: fld
-                        },
-                        pluck: 'name',
-                        limit: 1
-                    });
 
-                    if (vm.length > 0) {
-                        // console.log("vm", vm);
+            signal.addEventListener('abort', () => {
+                reject(new DOMException('Aborted', 'AbortError'));
+            });
 
-                        let visualizationMapper = await frappe.db.get_doc('Visualization Mapper', vm[0]);
-                        const wrapper = document.createElement('div');
-                        frm.set_df_property(fld, 'options', wrapper);
-                        isLoading(true, wrapper);
-                        // Initialize SVADashboardManager and store reference
-                        if (visualizationMapper?.cards?.length > 0 || visualizationMapper?.charts?.length > 0) {
-                            wrapper._dashboard = new SVADashboardManager({
-                                wrapper: wrapper,
-                                frm: frm,
-                                numberCards: visualizationMapper?.cards || [],
-                                charts: visualizationMapper?.charts || []
-                            });
-                        }
-                        isLoading(false, wrapper);
-                    }
-                } else {
-                    console.log('Visualization Mapper does not exist');
-                }
+            Promise.resolve(requestFn()).then(resolve).catch(reject);
+        });
+    }
+
+    getDataElement = (fieldname) => {
+        return new Promise((resolve) => {
+            const element = document.querySelector(`[data-fieldname="${fieldname}"]`);
+            if (element) {
+                resolve(element);
+                return;
             }
-            for (let _f of dtFields) {
+
+            const TIMEOUT = 5000;
+            const INTERVAL = 500;
+            let elapsed = 0;
+
+            const interval = setInterval(() => {
+                const element = document.querySelector(`[data-fieldname="${fieldname}"]`);
+                elapsed += INTERVAL;
+
+                if (element || elapsed >= TIMEOUT) {
+                    clearInterval(interval);
+                    resolve(element || null);
+                }
+            }, INTERVAL);
+        });
+    }
+
+    async tabContent(frm, tab_field) {
+        const controller = this.createRequestController(tab_field);
+        const signal = controller.signal;
+        try {
+
+            const tab_fields = this.getTabFields(frm, tab_field);
+
+            const { dtFields, vm_fields, vm_all_fields } = this.processConfigurationFields(this.dts, tab_fields);
+            const relevant_html_fields = [...dtFields.map(f => f.html_field), ...vm_fields];
+
+            this.clearOtherMappedFields(this.dts, relevant_html_fields, vm_all_fields, frm);
+            await this.initializeDashboards(this.dts, frm, tab_fields, signal);
+            await this.processDataTables(dtFields, frm, this.dts, signal);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('Request aborted due to tab switch');
+            } else {
+                console.error("Error in tabContent:", error);
+                frappe.show_alert({
+                    message: __('Error loading tab content'),
+                    indicator: 'red'
+                });
+            }
+        }
+    }
+
+    getTabFields(frm, tab_field) {
+        const tab_fields = [];
+        const tab_field_index = frm?.meta?.fields?.findIndex(f => f.fieldname === tab_field);
+
+        if (tab_field_index === -1 || tab_field_index + 1 > frm?.meta?.fields.length) {
+            return tab_fields;
+        }
+
+        for (let i = tab_field_index + 1; i < frm?.meta?.fields.length; i++) {
+            const f = frm?.meta?.fields[i];
+            if (f.fieldtype === 'Tab Break') break;
+            if (f.fieldtype === 'HTML') tab_fields.push(f.fieldname);
+        }
+
+        return tab_fields;
+    }
+
+    processConfigurationFields(dts, tab_fields) {
+        const dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field)) || [];
+
+        const vm_fields = [
+            ...(dts?.number_cards?.filter(f => tab_fields.includes(f.html_field)) || []).map(f => f.html_field),
+            ...(dts?.charts?.filter(f => tab_fields.includes(f.html_field)) || []).map(f => f.html_field)
+        ];
+
+        const vm_all_fields = [
+            ...(dts?.number_cards?.map(f => f.html_field) || []),
+            ...(dts?.charts?.map(f => f.html_field) || [])
+        ];
+
+        return { dtFields, vm_fields, vm_all_fields };
+    }
+
+    clearOtherMappedFields(dts, relevant_html_fields, vm_all_fields, frm) {
+        const other_mapped_fields = [
+            ...(dts.child_doctypes?.filter(f => !relevant_html_fields.includes(f.html_field)) || []).map(f => f.html_field),
+            ...vm_all_fields.filter(f => !relevant_html_fields.includes(f))
+        ];
+
+        other_mapped_fields.forEach(field => {
+            frm.set_df_property(field, 'options', '');
+        });
+    }
+
+    async initializeDashboards(dts, frm, currentTabFields, signal) {
+        const initDashboard = async (item, type) => {
+            if (!currentTabFields.includes(item.html_field)) return;
+
+            const wrapper = document.createElement('div');
+            const wrapperId = `${item.html_field}-wrapper`;
+            wrapper.id = wrapperId;
+            this.activeComponents.add(wrapperId);
+
+            frm.set_df_property(item.html_field, 'options', wrapper);
+            let { _wrapper, ref } = new SVADashboardManager({
+                wrapper,
+                frm,
+                numberCards: type === 'card' ? [item] : [],
+                charts: type === 'chart' ? [item] : [],
+                signal
+            });
+            wrapper._dashboard = _wrapper;
+        };
+
+        // let loader = new Loader(this.wrapper);
+        // loader.show();
+        await Promise.all([
+            ...(dts?.number_cards || []).map(card => initDashboard(card, 'card')),
+            ...(dts?.charts || []).map(chart => initDashboard(chart, 'chart'))
+        ]);
+        // loader.hide();
+    }
+
+    async processDataTables(dtFields, frm, dts, signal) {
+        this.sva_tables = {};
+        for (const field of dtFields) {
+            try {
+                if (signal.aborted) break;
+
                 if (frm.doc.__islocal) {
-                    if (!document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
-                        document.querySelector(`[data-fieldname="${_f.html_field}"]`).innerHTML = `<div id="form-not-saved" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px; padding: 10px; border: 1px solid #525252; border-radius: 4px; margin: 10px 0;">
-                            <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png'/>
-                            Save ${frm.doctype} to add ${_f?.connection_type == "Is Custom Design" ? _f?.template : (_f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype)} items.
-                        </div>`;
-                    }
+                    await this.renderLocalFormMessage(field, frm);
                 } else {
-                    if (document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved')) {
-                        document.querySelector(`[data-fieldname="${_f.html_field}"]`)?.querySelector('#form-not-saved').remove();
-                    }
-                    if (_f?.connection_type == "Is Custom Design") {
-                        this.renderCustomComponent(frm, _f.html_field, _f.template)
-                    } else {
-                        let childLinks = dts.child_confs.filter(f => f.parent_doctype == _f.link_doctype)
-                        let wrapper = document.createElement('div');
-                        frm.set_df_property(_f.html_field, 'options', wrapper);
-                        isLoading(true, wrapper);
-                        let result = new SvaDataTable({
-                            label: frm.meta?.fields?.find(f => f.fieldname == _f.html_field)?.label,
-                            wrapper: wrapper, // Wrapper element   // Pass your data
-                            doctype: _f.connection_type == "Direct" ? _f.link_doctype : _f.referenced_link_doctype, // Doctype name
-                            frm: frm,       // Pass the current form object (optional)
-                            connection: _f,
-                            childLinks: childLinks,
-                            options: {
-                                serialNumberColumn: true, // Enable serial number column (optional)
-                                editable: false,      // Enable editing (optional),
-                            },
-                            onFieldClick: (e) => {
-                                if (e && window?.onFieldClick) {
-                                    let obj = {
-                                        dt: e?.target?.getAttribute('data-dt'),
-                                        dn: e?.target?.getAttribute('data-dn'),
-                                        fieldname: e?.target?.getAttribute('data-fieldname')
-                                    }
-                                    window?.onFieldClick(obj);
-                                }
-                            },
-                            onFieldValueChange: function (e) {
-                                if (e && window?.onFieldValueChange) {
-                                    let obj = {
-                                        dt: e?.target?.getAttribute('data-dt'),
-                                        dn: e?.target?.getAttribute('data-dn'),
-                                        fieldtype: e?.target?.getAttribute('data-fieldtype'),
-                                        fieldname: e?.target?.getAttribute('data-fieldname'),
-                                        value: e?.target?.value
-                                    }
-                                    window?.onFieldValueChange(obj);
-                                }
-                            }
-                        });
-                        isLoading(false, wrapper);
-                    }
+                    await this.renderSavedFormContent(field, frm, dts, signal);
                 }
+            } catch (error) {
+                if (error.name === 'AbortError') throw error;
+                console.error(`Error processing datatable for field ${field.html_field}:`, error);
             }
         }
     }
-    apply_custom_filter(field_name, filter_on, frm, filter_value) {
-        frm.fields_dict[field_name].get_query = () => {
-            return {
-                filters: {
-                    [filter_on]: filter_value || frm.doc[filter_on] || `please select ${filter_on}`,
-                },
-                page_length: 1000
-            };
+
+    async renderLocalFormMessage(field, frm) {
+        const element = await this.getDataElement(field.html_field);
+        if (!element?.querySelector('#form-not-saved')) {
+            const message = __(
+                `Save ${__(frm.doctype)} to add ${__(field?.connection_type === "Is Custom Design" ?
+                    field?.template :
+                    (field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype))} items`
+            );
+            element.innerHTML = `
+                <div id="form-not-saved" class="flex flex-col items-center justify-center gap-3 p-3 border border-gray-600 rounded my-3">
+                    <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png' alt="Not Saved"/>
+                    ${message}
+                </div>`;
         }
     }
+
+    async renderSavedFormContent(field, frm, dts, signal) {
+        const element = await this.getDataElement(field.html_field);
+        element?.querySelector('#form-not-saved')?.remove();
+
+        if (field?.connection_type === "Is Custom Design") {
+            await this.renderCustomComponent(frm, field.html_field, field.template, signal);
+        } else {
+            await this.initializeSvaDataTable(field, frm, dts, signal);
+        }
+    }
+
+    getComponentClass(template) {
+        const componentMap = {
+            "Gallery": GalleryComponent,
+            "Email": EmailComponent,
+            "Tasks": mGrantTask,
+            "Timeline": TimelineGenerator,
+            "Notes": NotesManager,
+            "Linked Users": LinkedUser
+        };
+        return componentMap[template];
+    }
+
+    // Continuing from handleFieldEvent...
+    handleFieldEvent = (eventType) => (e) => {
+        if (e && window?.[eventType]) {
+            const attrs = ['dt', 'dn', 'fieldname', 'fieldtype', 'value'];
+            const obj = attrs.reduce((acc, attr) => {
+                const value = e?.target?.getAttribute(`data-${attr}`);
+                if (value) acc[attr] = value;
+                return acc;
+            }, {});
+            window[eventType](obj);
+        }
+    }
+
+    apply_custom_filter(field_name, filter_on, frm, filter_value) {
+        frm.fields_dict[field_name].get_query = () => ({
+            filters: {
+                [filter_on]: filter_value || frm.doc[filter_on] || __(`please select ${filter_on}`),
+            },
+            page_length: 1000
+        });
+    }
+
     getPropertySetterData = async (dt) => {
-        return new Promise((resolve, reject) => {
-            frappe.call({
+        try {
+            const response = await frappe.call({
                 method: "frappe_theme.api.get_property_set",
-                args: {
-                    doctype: dt
-                },
-                callback: function (r) {
-                    if (r && r.message) {
-                        resolve(r.message);
-                    } else {
-                        reject("Error fetching data");
+                args: { doctype: dt }
+            });
+            return response?.message || [];
+        } catch (error) {
+            console.error("Error fetching property setter data:", error);
+            return [];
+        }
+    }
+
+    goToCommentButton = (frm) => {
+        const buttonHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
+            <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"/>
+        </svg>`;
+
+        frm.add_custom_button(buttonHTML, () => {
+            const commentSection = document.querySelector('.comment-box');
+            commentSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+    clearPreviousComponents() {
+        try {
+            // Clean up mounted components
+            this.mountedComponents.forEach((cleanup, componentId) => {
+                try {
+                    if (typeof cleanup === 'function') {
+                        cleanup();
                     }
+                    const element = document.getElementById(componentId);
+                    if (element) {
+                        if (element._dashboard) {
+                            element._dashboard.cleanup && element._dashboard.cleanup();
+                            delete element._dashboard;
+                        }
+                        element.replaceWith(element.cloneNode(false));
+                        element.innerHTML = '';
+                    }
+                } catch (err) {
+                    console.error(`Error cleaning up component ${componentId}:`, err);
                 }
             });
-        });
-    };
-    goToCommentButton = (frm) => {
-        frm.add_custom_button(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
-                                    <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"/>
-                                </svg>`,
-            () => {
-                const commentSection = document.querySelector('.comment-box');
-                if (commentSection) {
-                    commentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Clear tracking maps and sets
+            this.mountedComponents.clear();
+            this.activeComponents.clear();
+
+            // Clear global event listeners
+            this.clearGlobalEventListeners();
+
+            // Clear remaining fields only if frm is available
+            // if (this.frm && this.frm.meta) {
+            //     this.clearRemainingFields();
+            // }
+
+        } catch (error) {
+            console.error("Error in clearPreviousComponents:", error);
+        }
+    }
+
+
+    clearGlobalEventListeners() {
+        try {
+            if (window.onFieldClick) window.onFieldClick = null;
+            if (window.onFieldValueChange) window.onFieldValueChange = null;
+        } catch (error) {
+            console.error("Error clearing global event listeners:", error);
+        }
+    }
+
+    clearRemainingFields() {
+        try {
+            if (!this.frm?.meta?.fields) return;
+
+            const htmlFields = this.frm.meta.fields.filter(f => f.fieldtype === 'HTML');
+            htmlFields.forEach(field => {
+                try {
+                    const element = document.querySelector(`[data-fieldname="${field.fieldname}"]`);
+                    if (element) {
+                        element.innerHTML = '';
+                        if (this.frm.set_df_property) {
+                            this.frm.set_df_property(field.fieldname, 'options', '');
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Error clearing field ${field.fieldname}:`, err);
                 }
+            });
+        } catch (error) {
+            console.error("Error in clearRemainingFields:", error);
+        }
+    }
+
+    async renderCustomComponent(frm, fieldname, template, signal) {
+        const el = document.createElement('div');
+        const componentId = `custom-component-${fieldname}`;
+        el.id = componentId;
+
+        // Register component before mounting
+        this.activeComponents.add(componentId);
+
+        frm.set_df_property(fieldname, 'options', el);
+
+        const loader = new Loader(el, componentId);
+        try {
+            loader.show();
+
+            if (signal.aborted) return;
+
+            const ComponentClass = this.getComponentClass(template);
+            if (ComponentClass) {
+                const instance = new ComponentClass(frm, el, { signal });
+
+                // Store cleanup function
+                this.mountedComponents.set(componentId, () => {
+                    if (instance.cleanup) {
+                        instance.cleanup();
+                    }
+                    if (instance.destroy) {
+                        instance.destroy();
+                    }
+                    if (instance.unmount) {
+                        instance.unmount();
+                    }
+                });
             }
-        );
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(`Error rendering component ${template}:`, error);
+                el.innerHTML = `<div class="error-message">Error loading component</div>`;
+            }
+        } finally {
+            loader.hide();
+        }
+    }
+
+    async initializeSvaDataTable(field, frm, dts, signal) {
+
+        const childLinks = dts.child_confs.filter(f => f.parent_doctype === field.link_doctype);
+        const wrapper = document.createElement('div');
+        const wrapperId = `sva-datatable-wrapper-${field.html_field}`;
+        wrapper.id = wrapperId;
+
+        let loader = new Loader(wrapper);
+        loader.show();
+        // console.log("loader show", loader);
+
+        // Register component
+        this.activeComponents.add(wrapperId);
+
+        frm.set_df_property(field.html_field, 'options', wrapper);
+
+        const instance = new SvaDataTable({
+            label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
+            wrapper,
+            doctype: field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype,
+            frm,
+            connection: field,
+            childLinks,
+            options: {
+                serialNumberColumn: true,
+                editable: false,
+            },
+            signal,
+            loader,
+            onFieldClick: this.handleFieldEvent('onFieldClick'),
+            onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
+        });
+        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
+        // Store cleanup function
+        this.mountedComponents.set(wrapperId, () => {
+            if (instance.cleanup) {
+                instance.cleanup();
+            }
+            if (instance.destroy) {
+                instance.destroy();
+            }
+            // Clear any datatable specific resources
+            if (instance.datatable) {
+                instance.datatable.destroy();
+            }
+        });
+
+        return instance;
+    }
+
+    async _activeTab(frm) {
+        try {
+            frm['sva_cards'] = {};
+            frm['sva_charts'] = {};
+            frm['sva_tables'] = {};
+            const newTabField = frm?.get_active_tab()?.df?.fieldname;
+            if (!newTabField || newTabField === this.currentTabField) return;
+
+            // Cancel pending requests from previous tab
+            if (this.currentTabField && this.pendingRequests.has(this.currentTabField)) {
+                this.pendingRequests.get(this.currentTabField).abort('User navigated away');
+                this.pendingRequests.delete(this.currentTabField);
+            }
+
+            // Assign frm before clearing components
+            this.frm = frm;
+
+            // Clean up previous components
+            this.clearPreviousComponents();
+
+            // Update current tab
+            this.currentTabField = newTabField;
+
+            if (this.currentTabField) {
+                await this.tabContent(frm, this.currentTabField);
+            }
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('Tab switch cancelled previous requests');
+            } else {
+                console.error("Error in _activeTab:", error);
+            }
+        }
+    }
+
+    // When the form is being destroyed or navigated away from
+    cleanup() {
+        this.clearPreviousComponents();
+        this.pendingRequests.forEach(controller => controller.abort());
+        this.pendingRequests.clear();
+        this.currentTabField = null;
     }
 }

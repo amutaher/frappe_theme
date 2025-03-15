@@ -18,10 +18,12 @@ app_include_css = [
     f"/assets/frappe_theme/css/number_card_mapper.css?ver={time.time()}"
 ]
 app_include_js = [
-    # f"/assets/frappe_theme/filters/filter_area.js?ver={time.time()}",
-    # f"/assets/frappe_theme/filters/filter_list.js?ver={time.time()}",
-    # f"/assets/frappe_theme/filters/filter.js?ver={time.time()}",
-    # f"/assets/frappe_theme/filters/field_select.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/task.js?ver={time.time()}",
+    f"/assets/frappe_theme/filters/filter_area.js?ver={time.time()}",
+    f"/assets/frappe_theme/filters/filter_list.js?ver={time.time()}",
+    f"/assets/frappe_theme/filters/filter.js?ver={time.time()}",
+    f"/assets/frappe_theme/filters/field_select.js?ver={time.time()}",
     "https://cdn.jsdelivr.net/npm/chart.js",
     f"/assets/frappe_theme/js/overwrite_form.js?ver={time.time()}",
     f"/assets/frappe_theme/js/sva_dashboard_manager.js?ver={time.time()}",
@@ -35,13 +37,13 @@ app_include_js = [
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
     f"/assets/frappe_theme/js/loader-element.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/dependency.js?ver={time.time()}",
     f"/assets/frappe_theme/js/mobile_view.js?ver={time.time()}",
     f"/assets/frappe_theme/js/workspace.js?ver={time.time()}",
     f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}",
     f"/assets/frappe_theme/js/number_card.js?ver={time.time()}",
     f"/assets/frappe_theme/js/custom_import.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}"
+    f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/linked_users.js?ver={time.time()}"
 ]
 extend_bootinfo = f"frappe_theme.boot.boot_theme"
 # include js, css files in header of web template

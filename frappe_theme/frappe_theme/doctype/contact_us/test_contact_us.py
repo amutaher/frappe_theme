@@ -12,18 +12,18 @@ EXTRA_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
-class UnitTestVisualizationMapper(UnitTestCase):
+class UnitTestContactUs(UnitTestCase):
 	"""
-	Unit tests for VisualizationMapper.
+	Unit tests for ContactUs.
 	Use this class for testing individual functions and methods.
 	"""
 
 	pass
 
 
-class IntegrationTestVisualizationMapper(IntegrationTestCase):
+class IntegrationTestContactUs(IntegrationTestCase):
 	"""
-	Integration tests for VisualizationMapper.
+	Integration tests for ContactUs.
 	Use this class for testing interactions between multiple components.
 	"""
 
