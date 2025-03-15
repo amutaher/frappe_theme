@@ -211,21 +211,21 @@ class SvaDataTable {
         list_filter.style = `
             padding-bottom: 10px;
         `;
-        new CustomFilterArea({
-            wrapper: list_filter,
-            doctype: this.doctype,
-            on_change: (filters) => {
-                if (filters.length == 0) {
-                    if (this.additional_list_filters.length) {
-                        this.additional_list_filters = []
-                        this.reloadTable(true);
-                    }
-                } else {
-                    this.additional_list_filters = filters
-                    this.reloadTable(true);
-                }
-            }
-        })
+        // new CustomFilterArea({
+        //     wrapper: list_filter,
+        //     doctype: this.doctype,
+        //     on_change: (filters) => {
+        //         if (filters.length == 0) {
+        //             if (this.additional_list_filters.length) {
+        //                 this.additional_list_filters = []
+        //                 this.reloadTable(true);
+        //             }
+        //         } else {
+        //             this.additional_list_filters = filters
+        //             this.reloadTable(true);
+        //         }
+        //     }
+        // })
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
