@@ -347,7 +347,11 @@ class SvaDataTable {
                     create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
                     create_button.style = 'width:fit-content;height:fit-content; margin-bottom:10px;';
                     create_button.addEventListener('click', async () => {
-                        await this.createFormDialog(this.doctype);
+                        if(this.connection?.redirect_to_main_form_on_add_row){
+                            frappe.new_doc(this.doctype);
+                        }else{
+                            await this.createFormDialog(this.doctype);
+                        }
                     });
                     wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
                 }
