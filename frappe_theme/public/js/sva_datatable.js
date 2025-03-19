@@ -559,30 +559,7 @@ class SvaDataTable {
                                 f.hidden = 1;
                             }
                         } else if (f.hidden) {
-                            if (doc[f.fieldname]) {
-                                f.fieldtype = 'HTML';
-                                f.options = `
-                                    <div class="form-group horizontal">
-                                        <div class="clearfix">
-                                            <label class="control-label" style="padding-right: 0px;">${f.label}</label>
-                                            <span class="help"></span>
-                                        </div>
-                                        <div class="control-input-wrapper">
-                                        <div class="control-input" style="display: none;"></div>
-                                        <div class="control-value like-disabled-input ellipsis">
-                                            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
-                                                <use class="" href="#es-line-link"></use>
-                                            </svg>
-                                                <a href="${doc[f.fieldname]}" target="_blank">${doc[f.fieldname]}</a>
-                                            </div>
-                                            <div class="help-box small text-extra-muted hide"></div>
-                                        </div>
-                                    </div>
-                                `;
-                            } else {
-                                f.default = '';
-                                f.hidden = 1;
-                            }
+                            f.fieldtype = 'Data'
                         }
                         continue;
                     }
@@ -629,6 +606,13 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
+                    if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
+                        if (f.hidden) {
+                            f.fieldtype = 'Data'
+                            f.hidden = 1;
+                        }
+                        continue;
+                    }
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
                         if (f.fieldtype === 'Button') {
