@@ -609,6 +609,7 @@ class SvaDataTable {
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
+                            f.hidden = 1;
                         }
                         continue;
                     }
