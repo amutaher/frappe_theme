@@ -11,6 +11,10 @@ class Heatmap {
         this.districtLayer = null;
         this.mapId = 'map-' + frappe.utils.get_random(8);
         this.isLoading = true;
+        this.targetNumericField = opts.targetNumericField || 'count';
+        this.stateField = opts.stateField;
+        this.districtField = opts.districtField;
+        this.isLoadingDistricts = null;
 
         this.init();
     }
@@ -29,6 +33,23 @@ class Heatmap {
                 margin: '0 auto'
             });
 
+        this.resetButton = $('<button>')
+            .text('Reset to Country View')
+            .css({
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                zIndex: 1000,
+                padding: '8px 15px',
+                backgroundColor: '#fff',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'none'
+            })
+            .on('click', () => this.resetToCountryView());
+
+        this.mapContainer.append(this.resetButton);
         this.loader = $('<div>')
             .addClass('map-loader')
             .css({
@@ -92,7 +113,26 @@ class Heatmap {
             callback: (r) => {
                 if (r.message) {
                     this.reportData = r.message;
-                    this.applyDataToMap();
+                    const hasStateColumn = this.reportData.columns.some(col => col.options === 'State');
+                    if (!this.stateField && hasStateColumn) {
+                        this.stateField = this.reportData.columns.find(col => col.options === 'State').fieldname;
+                    }
+                    const hasDistrictColumn = this.reportData.columns.some(col => col.options === 'District');
+                    if (!this.districtField && hasDistrictColumn) {
+                        this.districtField = this.reportData.columns.find(col => col.options === 'District').fieldname;
+                    }
+                    if (hasStateColumn) {
+                        this.applyDataToMap();
+                    } else {
+                        this.hideLoader();
+                        $(this.wrapper).html('<div class="alert alert-warning">Report does not have a State column.</div>');
+                    }
+
+                    if (hasDistrictColumn) {
+                        this.hasDistrictColumn = true;
+                    } else {
+                        this.hasDistrictColumn = false;
+                    }
                 }
                 this.hideLoader();
             },
@@ -110,19 +150,22 @@ class Heatmap {
     applyDataToMap() {
         if (!this.reportData || !this.stateLayer) return;
 
-        const stateData = {};
+        this.stateData = {};
         this.reportData.result.forEach(row => {
-            stateData[row.state_id] = row.value;
+            this.stateData[row[this.stateField]] = {
+                count: this.stateData[row[this.stateField]] ? this.stateData[row[this.stateField]]?.count + row[this.targetNumericField] : row[this.targetNumericField],
+                id: row[this.stateField]
+            };
         });
 
         this.stateLayer.eachLayer(layer => {
-            const stateId = layer.feature.properties.id;
-            if (stateData[stateId]) {
+            const stateID = layer.feature.properties.id;
+            const data = this.stateData[stateID];
+            if (data) {
                 layer.setStyle({
-                    fillColor: this.getColorByValue(stateData[stateId]),
+                    fillColor: this.getColorByValue(data.count),
                     fillOpacity: 0.7
                 });
-                layer.bindPopup(`State: ${layer.feature.properties.name}<br>Value: ${stateData[stateId]}`);
             }
         });
     }
@@ -144,21 +187,35 @@ class Heatmap {
                 this.stateLayer = L.geoJSON(data, {
                     style: {
                         color: '#FF5733',
-                        weight: 1,
-                        fillOpacity: 0.4
+                        weight: 0.9,
+                        fillOpacity: 0.7
                     },
                     onEachFeature: (feature, layer) => {
                         layer.on({
-                            mouseover: this.highlightFeature.bind(this),
-                            mouseout: this.resetHighlight.bind(this),
+                            mouseover: (e) => {
+                                const stateName = feature.properties.ST_NM;
+                                const stateId = feature.properties.id;
+                                const data = this.stateData?.[stateId] || { count: 0 };
+                                const columnLabel = this.reportData?.columns.find(
+                                    (column) => column.fieldname === this.targetNumericField
+                                )?.label || 'Count';
+
+                                e.target.bindPopup(`
+                                    <div>
+                                        <strong>${stateName}</strong><br/>
+                                        ${columnLabel}: ${data.count}
+                                    </div>
+                                `).openPopup();
+                            },
                             click: this.onStateClick.bind(this)
                         });
-                        layer.bindPopup(`State: ${feature.properties.name}`);
                     }
                 }).addTo(this.map);
 
                 this.map.fitBounds(this.stateLayer.getBounds());
-                if (this.reportData) this.applyDataToMap();
+                if (this.reportData) {
+                    this.applyDataToMap();
+                }
                 this.hideLoader();
             })
             .catch(error => {
@@ -167,24 +224,12 @@ class Heatmap {
             });
     }
 
-    highlightFeature(e) {
-        const layer = e.target;
-        layer.setStyle({
-            weight: 2,
-            color: '#666',
-            fillOpacity: 0.7
-        });
-        layer.openPopup();
-        if (this.map) layer.bringToFront();
-    }
-
-    resetHighlight(e) {
-        this.stateLayer.resetStyle(e.target);
-        e.target.closePopup();
-    }
-
     onStateClick(e) {
+        if (!this.hasDistrictColumn) return;
+
         const state = e.target.feature.properties;
+        this.stateLayer.clearLayers();
+        this.map.removeLayer(this.stateLayer);
         this.showDistrictLoader();
         this.loadDistricts(state.ST_NM);
     }
@@ -205,32 +250,68 @@ class Heatmap {
     }
 
     loadDistricts(stateName) {
+        this.resetButton.show();
         fetch(this.districtGeoJsonUrl)
             .then(response => response.json())
             .then(data => {
                 if (this.districtLayer) this.map.removeLayer(this.districtLayer);
                 if (this.stateLayer) this.map.removeLayer(this.stateLayer);
-
                 const filtered = {
                     type: 'FeatureCollection',
-                    features: data.features.filter(f => f.properties.ST_NM === stateName)
+                    features: data.features.filter(f => f.properties.DISTRICT && f.properties.ST_NM === stateName)
                 };
 
+                // Process district data for easier lookup
+                this.districtData = {};
+                if (this.reportData?.result) {
+                    this.reportData.result.forEach(row => {
+                        if (row[this.districtField]) {
+                            const districtName = String(row[this.districtField]).toUpperCase();
+                            this.districtData[districtName] = {
+                                count: this.districtData[districtName] 
+                                    ? this.districtData[districtName].count + row[this.targetNumericField] 
+                                    : row[this.targetNumericField],
+                                id: districtName
+                            };
+                        }
+                    });
+                }
                 this.districtLayer = L.geoJSON(filtered, {
                     style: {
                         color: '#007BFF',
                         weight: 1,
-                        fillOpacity: 0.6
+                        fillOpacity: 0.7
                     },
                     onEachFeature: (feature, layer) => {
-                        const props = feature.properties;
-                        const districtData = this.reportData.district_data?.find(
-                            d => d.district_id === props.id
-                        );
-                        layer.bindPopup(`
-                            District: ${props.DISTRICT}<br>
-                            Value: ${districtData?.value || 'N/A'}
-                        `);
+                        layer.on({
+                            click: (e) => {
+                                const districtID = feature.properties?.censuscode 
+                                const districtName = feature.properties?.DISTRICT 
+                                    ? String(feature.properties.DISTRICT).toUpperCase() 
+                                    : 'Unknown District';
+                                const data = this.districtData[districtID] || { count: 0 };
+                                const columnLabel = this.reportData?.columns.find(
+                                    (column) => column.fieldname === this.targetNumericField
+                                )?.label || 'Count';
+
+                                e.target.bindPopup(`
+                                    <div>
+                                        <strong>${districtName || 'Unknown District'}</strong><br/>
+                                        ${columnLabel}: ${data.count}
+                                    </div>
+                                `).openPopup();
+                            }
+                        });
+
+                        // Set initial color based on data
+                        const districtID = feature.properties?.censuscode;
+                        const data = this.districtData[districtID];
+                        if (data) {
+                            layer.setStyle({
+                                fillColor: this.getColorByValue(data.count),
+                                fillOpacity: 0.7
+                            });
+                        }
                     }
                 }).addTo(this.map);
 
@@ -242,9 +323,49 @@ class Heatmap {
                 this.hideDistrictLoader();
             });
     }
+    
 
     hideDistrictLoader() {
         if (this.districtLoader) this.districtLoader.remove();
+    }
+
+    resetToCountryView() {
+        if (this.districtLayer) {
+            this.map.removeLayer(this.districtLayer);
+            this.districtLayer = null;
+        }
+        
+        if (!this.stateLayer) {
+            this.loadStates();
+        } else {
+            this.map.addLayer(this.stateLayer);
+            
+            const bounds = this.stateLayer.getBounds();
+            if (bounds && bounds.isValid()) {
+                this.map.fitBounds(bounds);
+            } else {
+                console.warn("Invalid bounds, reinitializing country map");
+                
+                // Remove the current stateLayer
+                this.map.removeLayer(this.stateLayer);
+                this.stateLayer = null;
+                
+                // Reinitialize the country map
+                this.loadStates();
+                
+                // You might need to add a slight delay to ensure the layer is loaded
+                setTimeout(() => {
+                    if (this.stateLayer && this.stateLayer.getBounds().isValid()) {
+                        this.map.fitBounds(this.stateLayer.getBounds());
+                    } else {
+                        // Ultimate fallback if reinitialization fails
+                        this.map.setView([37.8, -96], 4); // Example for US center
+                    }
+                }, 300);
+            }
+        }
+        
+        this.resetButton.hide();
     }
 
     destroy() {
@@ -256,15 +377,14 @@ class Heatmap {
     }
 }
 
-
 let index = 0;
 let interval = setInterval(() => {
     let wrapper = document.querySelector('[custom_block_name="TESTING HEATMAP"]');
-    console.log(wrapper, 'wrapper');
     if (wrapper) {
         new Heatmap({
             reportName: 'NGOs By District',
             wrapper: $(wrapper),
+            targetNumericField: 'count' // Replace 'count' with the actual field name you want to use
         });
     }
     index++;
