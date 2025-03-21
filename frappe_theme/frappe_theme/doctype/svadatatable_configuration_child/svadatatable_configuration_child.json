@@ -20,7 +20,9 @@
   "listview_settings",
   "setup_list_settings",
   "crud_permissions",
-  "setup_crud_permissions"
+  "setup_crud_permissions",
+  "redirect_to_main_form_on_add_row",
+  "redirect_to_main_form_on_view"
  ],
  "fields": [
   {
@@ -138,12 +140,24 @@
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title"
+  },
+  {
+   "default": "0",
+   "fieldname": "redirect_to_main_form_on_add_row",
+   "fieldtype": "Check",
+   "label": "Redirect to main form on Add Row"
+  },
+  {
+   "default": "0",
+   "fieldname": "redirect_to_main_form_on_view",
+   "fieldtype": "Check",
+   "label": "Redirect to main form on View"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-19 18:59:51.075227",
+ "modified": "2025-03-21 10:24:55.836657",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
