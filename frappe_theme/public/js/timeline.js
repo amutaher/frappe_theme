@@ -3,10 +3,11 @@ class TimelineGenerator {
         this.frm = frm;
         this.wrapper = this.setupWrapper(wrapper);
         this.page = 1;
-        this.pageSize = 10000;
+        this.pageSize = 10;
         this.loading = false;
         this.hasMore = true;
         this.setupInfiniteScroll();
+        this.setupPagination();
         this.fetchTimelineData();
         return this.wrapper;
     }
@@ -362,6 +363,70 @@ class TimelineGenerator {
         document.head.appendChild(styleTag);
         wrapper.appendChild(this.timeline_wrapper);
         return wrapper;
+    }
+    setupPagination() {
+        const paginationContainer = document.createElement('div');
+        paginationContainer.className = 'pagination-controls';
+        paginationContainer.style.cssText = `
+            display: flex;
+            justify-content: end;
+            gap: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        `;
+
+        this.prevButton = document.createElement('button');
+        this.nextButton = document.createElement('button');
+        this.pageInfo = document.createElement('span');
+
+        [this.prevButton, this.nextButton].forEach(button => {
+            button.style.cssText = `
+                padding: 8px 16px;
+                border: 1px solid #e5e7eb;
+                background: white;
+                border-radius: 6px;
+                cursor: pointer;
+                color: #4b5563;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            `;
+        });
+
+        this.pageInfo.style.cssText = `
+            padding: 8px 16px;
+            color: #4b5563;
+            font-weight: 500;
+        `;
+
+        this.prevButton.innerHTML = '← Previous';
+        this.nextButton.innerHTML = 'Next →';
+        this.pageInfo.innerHTML = `Page ${this.page}`;
+
+        this.prevButton.onclick = () => this.changePage(-1);
+        this.nextButton.onclick = () => this.changePage(1);
+
+        paginationContainer.appendChild(this.prevButton);
+        paginationContainer.appendChild(this.pageInfo);
+        paginationContainer.appendChild(this.nextButton);
+
+        this.wrapper.appendChild(paginationContainer);
+    }
+
+    async changePage(direction) {
+        if (this.loading) return;
+
+        const newPage = this.page + direction;
+        if (newPage < 1) return;
+
+        this.page = newPage;
+        this.pageInfo.innerHTML = `Page ${this.page}`;
+        await this.fetchTimelineData();
+
+        // Update button states
+        this.prevButton.disabled = this.page === 1;
+        this.prevButton.style.opacity = this.page === 1 ? '0.5' : '1';
+        this.nextButton.disabled = !this.hasMore;
+        this.nextButton.style.opacity = !this.hasMore ? '0.5' : '1';
     }
     formatRelativeTime(dateStr) {
         const date = frappe.datetime.str_to_obj(dateStr);
