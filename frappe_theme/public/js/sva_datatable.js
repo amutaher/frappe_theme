@@ -1051,13 +1051,17 @@ class SvaDataTable {
         // View Button
         if (this.conf_perms.length && this.permissions.length && this.permissions.includes('read')) {
             appendDropdownOption('View', async () => {
-                await this.createFormDialog(this.doctype, primaryKey, 'view');
+                if(this.connection?.redirect_to_main_form_on_view){
+                    frappe.set_route("Form",this.doctype, primaryKey);
+                }else{
+                    await this.createFormDialog(this.doctype, primaryKey, 'view');
+                }
             });
         }
 
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
-            if (this.permissions.includes('write')) {
+            if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
                 if (positiveClosureState && row['workflow_state']) {
                     if ((positiveClosureState.state != row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
@@ -1070,7 +1074,7 @@ class SvaDataTable {
                     });
                 }
             }
-            if (this.permissions.includes('delete')) {
+            if (this.permissions.includes('delete') && this.conf_perms.includes('delete')) {
                 if (positiveClosureState && row['workflow_state']) {
                     if ((positiveClosureState.state != row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
@@ -1238,7 +1242,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if ((this.frm.doc.docstatus === 0 && this.conf_perms.length && (this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if ((this.frm.doc.docstatus === 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';

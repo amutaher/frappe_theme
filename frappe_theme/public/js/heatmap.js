@@ -33,6 +33,38 @@
 //                 margin: '0 auto'
 //             });
 
+//         // Add title container
+//         this.titleContainer = $('<div>')
+//             .css({
+//                 position: 'absolute',
+//                 top: '10px',
+//                 left: '50%',
+//                 transform: 'translateX(-50%)',
+//                 zIndex: 1000,
+//                 padding: '8px 15px',
+//                 backgroundColor: '#fff',
+//                 border: '1px solid #ccc',
+//                 borderRadius: '4px',
+//                 fontWeight: 'bold',
+//                 fontSize: '16px'
+//             });
+
+//         // Add legend container
+//         this.legendContainer = $('<div>')
+//             .css({
+//                 position: 'absolute',
+//                 bottom: '20px',
+//                 right: '20px',
+//                 zIndex: 1000,
+//                 backgroundColor: '#fff',
+//                 padding: '10px',
+//                 borderRadius: '4px',
+//                 border: '1px solid #ccc'
+//             });
+
+//         this.mapContainer.append(this.titleContainer);
+//         this.mapContainer.append(this.legendContainer);
+
 //         this.resetButton = $('<button>')
 //             .text('Reset to Country View')
 //             .css({
@@ -113,6 +145,12 @@
 //             callback: (r) => {
 //                 if (r.message) {
 //                     this.reportData = r.message;
+//                     // Update title with report name
+//                     this.titleContainer.text(this.reportName);
+                    
+//                     // Add legend
+//                     this.updateLegend();
+
 //                     const hasStateColumn = this.reportData.columns.some(col => col.options === 'State');
 //                     if (!this.stateField && hasStateColumn) {
 //                         this.stateField = this.reportData.columns.find(col => col.options === 'State').fieldname;
@@ -169,7 +207,7 @@
 //             }
 //         });
 //     }
-
+//     // Define color scale
 //     getColorByValue(value) {
 //         return value > 1000 ? '#800026' :
 //             value > 500 ? '#BD0026' :
@@ -186,8 +224,8 @@
 //             .then(data => {
 //                 this.stateLayer = L.geoJSON(data, {
 //                     style: {
-//                         color: '#FF5733',
-//                         weight: 0.9,
+//                         color: '#007BFF',
+//                         weight: 1,
 //                         fillOpacity: 0.7
 //                     },
 //                     onEachFeature: (feature, layer) => {
@@ -284,7 +322,7 @@
 //                     },
 //                     onEachFeature: (feature, layer) => {
 //                         layer.on({
-//                             click: (e) => {
+//                             mouseover: (e) => {
 //                                 const districtID = feature.properties?.censuscode 
 //                                 const districtName = feature.properties?.DISTRICT 
 //                                     ? String(feature.properties.DISTRICT).toUpperCase() 
@@ -374,6 +412,33 @@
 //             this.map = null;
 //         }
 //         this.mapContainer?.remove();
+//     }
+
+//     // Add new method for legend
+//     updateLegend() {
+//         const ranges = [
+//             {min: 1000, label: '> 1000'},
+//             {min: 500, max: 1000, label: '500-1000'},
+//             {min: 200, max: 500, label: '200-500'},
+//             {min: 100, max: 200, label: '100-200'},
+//             {min: 50, max: 100, label: '50-100'},
+//             {min: 20, max: 50, label: '20-50'},
+//             {min: 10, max: 20, label: '10-20'},
+//             {min: 0, max: 10, label: '0-10'}
+//         ];
+
+//         let legendHtml = '<div style="font-weight: bold; margin-bottom: 5px">Legend</div>';
+//         ranges.forEach(range => {
+//             const value = range.max ? (range.min + 1) : range.min + 1;
+//             legendHtml += `
+//                 <div style="display: flex; align-items: center; margin: 2px 0;">
+//                     <div style="width: 20px; height: 20px; background: ${this.getColorByValue(value)}; margin-right: 5px;"></div>
+//                     <div>${range.label}</div>
+//                 </div>
+//             `;
+//         });
+
+//         this.legendContainer.html(legendHtml);
 //     }
 // }
 
