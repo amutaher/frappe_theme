@@ -5,6 +5,7 @@ class Heatmap {
         this.filters = opts.filters || {};
         this.stateGeoJsonUrl = '/assets/frappe_theme/json/states.json';
         this.districtGeoJsonUrl = '/assets/frappe_theme/json/districts.json';
+        this.defaultView = opts.default_view || 'State';
 
         this.map = null;
         this.stateLayer = null;
@@ -27,10 +28,12 @@ class Heatmap {
         this.mapContainer = $('<div>')
             .attr('id', this.mapId)
             .css({
-                height: '500px',
+                height: '280px',
                 width: '100%',
                 position: 'relative',
-                margin: '0 auto'
+                margin: '0 auto',
+                // transform: 'scale(1.5)',
+                backgroundColor: '#fff'
             });
 
         // Add title container
@@ -38,32 +41,32 @@ class Heatmap {
             .css({
                 position: 'absolute',
                 top: '10px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: '15%',
+                // transform: 'translateX(-50%)',
                 zIndex: 1000,
-                padding: '8px 15px',
+                // padding: '8px 15px',
                 backgroundColor: '#fff',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
+                // border: '1px solid #ccc',
+                // borderRadius: '4px',
                 fontWeight: 'bold',
                 fontSize: '16px'
             });
 
-        // Add legend container
-        this.legendContainer = $('<div>')
-            .css({
-                position: 'absolute',
-                bottom: '20px',
-                right: '20px',
-                zIndex: 1000,
-                backgroundColor: '#fff',
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc'
-            });
+        // // Add legend container
+        // this.legendContainer = $('<div>')
+        //     .css({
+        //         position: 'absolute',
+        //         bottom: '20px',
+        //         left: '20px',
+        //         zIndex: 1000,
+        //         backgroundColor: '#fff',
+        //         padding: '10px',
+        //         borderRadius: '4px',
+        //         border: '1px solid #ccc'
+        //     });
 
         this.mapContainer.append(this.titleContainer);
-        this.mapContainer.append(this.legendContainer);
+        // this.mapContainer.append(this.legendContainer);
 
         this.resetButton = $('<button>')
             .text('Reset to Country View')
@@ -117,10 +120,13 @@ class Heatmap {
                 touchZoom: false,
                 boxZoom: false,
                 keyboard: false,
-                dragging: false
+                dragging: false,
             }).setView([22.5937, 78.9629], 5);
-
-            this.loadStates();
+            if (this.defaultView == "State") {
+                this.loadStates();
+            } else {
+                this.loadDistricts();
+            }
 
             setTimeout(() => {
                 if (this.map) this.map.invalidateSize();
@@ -147,9 +153,9 @@ class Heatmap {
                     this.reportData = r.message;
                     // Update title with report name
                     this.titleContainer.text(this.reportName);
-                    
+
                     // Add legend
-                    this.updateLegend();
+                    // this.updateLegend();
 
                     const hasStateColumn = this.reportData.columns.some(col => col.options === 'State');
                     if (!this.stateField && hasStateColumn) {
@@ -224,9 +230,10 @@ class Heatmap {
             .then(data => {
                 this.stateLayer = L.geoJSON(data, {
                     style: {
-                        color: '#007BFF',
+                        color: '#F2F2F3',
                         weight: 1,
-                        fillOpacity: 0.7
+                        fillOpacity: 0.7,
+                        // zoom : 15
                     },
                     onEachFeature: (feature, layer) => {
                         layer.on({
@@ -287,17 +294,26 @@ class Heatmap {
             .appendTo(this.mapContainer);
     }
 
-    loadDistricts(stateName) {
-        this.resetButton.show();
+    loadDistricts(stateName = null) {
+        if (this.defaultView == "State") {
+            this.resetButton.show();
+        } else {
+            this.resetButton.hide();
+        }
         fetch(this.districtGeoJsonUrl)
             .then(response => response.json())
             .then(data => {
                 if (this.districtLayer) this.map.removeLayer(this.districtLayer);
                 if (this.stateLayer) this.map.removeLayer(this.stateLayer);
-                const filtered = {
+                let filtered = {
                     type: 'FeatureCollection',
-                    features: data.features.filter(f => f.properties.DISTRICT && f.properties.ST_NM === stateName)
+                    features: []
                 };
+                if (!stateName) {
+                    filtered.features = data.features.filter(f => f.properties.DISTRICT)
+                } else {
+                    filtered.features = data.features.filter(f => f.properties.DISTRICT && f.properties.ST_NM === stateName)
+                }
 
                 // Process district data for easier lookup
                 this.districtData = {};
@@ -306,8 +322,8 @@ class Heatmap {
                         if (row[this.districtField]) {
                             const districtName = String(row[this.districtField]).toUpperCase();
                             this.districtData[districtName] = {
-                                count: this.districtData[districtName] 
-                                    ? this.districtData[districtName].count + row[this.targetNumericField] 
+                                count: this.districtData[districtName]
+                                    ? this.districtData[districtName].count + row[this.targetNumericField]
                                     : row[this.targetNumericField],
                                 id: districtName
                             };
@@ -323,9 +339,9 @@ class Heatmap {
                     onEachFeature: (feature, layer) => {
                         layer.on({
                             mouseover: (e) => {
-                                const districtID = feature.properties?.censuscode 
-                                const districtName = feature.properties?.DISTRICT 
-                                    ? String(feature.properties.DISTRICT).toUpperCase() 
+                                const districtID = feature.properties?.censuscode
+                                const districtName = feature.properties?.DISTRICT
+                                    ? String(feature.properties.DISTRICT).toUpperCase()
                                     : 'Unknown District';
                                 const data = this.districtData[districtID] || { count: 0 };
                                 const columnLabel = this.reportData?.columns.find(
@@ -334,7 +350,7 @@ class Heatmap {
 
                                 e.target.bindPopup(`
                                     <div>
-                                        <strong>${districtName || 'Unknown District'}</strong><br/>
+                                        <strong>${districtName + '(' + districtID + ')' || 'Unknown District'}</strong><br/>
                                         ${columnLabel}: ${data.count}
                                     </div>
                                 `).openPopup();
@@ -361,7 +377,7 @@ class Heatmap {
                 this.hideDistrictLoader();
             });
     }
-    
+
 
     hideDistrictLoader() {
         if (this.districtLoader) this.districtLoader.remove();
@@ -372,25 +388,25 @@ class Heatmap {
             this.map.removeLayer(this.districtLayer);
             this.districtLayer = null;
         }
-        
+
         if (!this.stateLayer) {
             this.loadStates();
         } else {
             this.map.addLayer(this.stateLayer);
-            
+
             const bounds = this.stateLayer.getBounds();
             if (bounds && bounds.isValid()) {
                 this.map.fitBounds(bounds);
             } else {
                 console.warn("Invalid bounds, reinitializing country map");
-                
+
                 // Remove the current stateLayer
                 this.map.removeLayer(this.stateLayer);
                 this.stateLayer = null;
-                
+
                 // Reinitialize the country map
                 this.loadStates();
-                
+
                 // You might need to add a slight delay to ensure the layer is loaded
                 setTimeout(() => {
                     if (this.stateLayer && this.stateLayer.getBounds().isValid()) {
@@ -402,7 +418,7 @@ class Heatmap {
                 }, 300);
             }
         }
-        
+
         this.resetButton.hide();
     }
 
@@ -415,45 +431,30 @@ class Heatmap {
     }
 
     // Add new method for legend
-    updateLegend() {
-        const ranges = [
-            {min: 1000, label: '> 1000'},
-            {min: 500, max: 1000, label: '500-1000'},
-            {min: 200, max: 500, label: '200-500'},
-            {min: 100, max: 200, label: '100-200'},
-            {min: 50, max: 100, label: '50-100'},
-            {min: 20, max: 50, label: '20-50'},
-            {min: 10, max: 20, label: '10-20'},
-            {min: 0, max: 10, label: '0-10'}
-        ];
+    //     updateLegend() {
+    //         const ranges = [
+    //             {min: 1000, label: '> 1000'},
+    //             {min: 500, max: 1000, label: '500-1000'},
+    //             {min: 200, max: 500, label: '200-500'},
+    //             {min: 100, max: 200, label: '100-200'},
+    //             {min: 50, max: 100, label: '50-100'},
+    //             {min: 20, max: 50, label: '20-50'},
+    //             {min: 10, max: 20, label: '10-20'},
+    //             {min: 0, max: 10, label: '0-10'}
+    //         ];
 
-        let legendHtml = '<div style="font-weight: bold; margin-bottom: 5px">Legend</div>';
-        ranges.forEach(range => {
-            const value = range.max ? (range.min + 1) : range.min + 1;
-            legendHtml += `
-                <div style="display: flex; align-items: center; margin: 2px 0;">
-                    <div style="width: 20px; height: 20px; background: ${this.getColorByValue(value)}; margin-right: 5px;"></div>
-                    <div>${range.label}</div>
-                </div>
-            `;
-        });
+    //         let legendHtml = '<div style="font-weight: bold; margin-bottom: 5px">Legend</div>';
+    //         ranges.forEach(range => {
+    //             const value = range.max ? (range.min + 1) : range.min + 1;
+    //             legendHtml += `
+    //                 <div style="display: flex; align-items: center; margin: 2px 0;">
+    //                     <div style="width: 20px; height: 20px; background: ${this.getColorByValue(value)}; margin-right: 5px;"></div>
+    //                     <div>${range.label}</div>
+    //                 </div>
+    //             `;
+    //         });
 
-        this.legendContainer.html(legendHtml);
-    }
+    //         this.legendContainer.html(legendHtml);
+    //     }
 }
 
-let index = 0;
-let interval = setInterval(() => {
-    let wrapper = document.querySelector('[custom_block_name="TESTING HEATMAP"]');
-    if (wrapper) {
-        new Heatmap({
-            reportName: 'NGOs By District',
-            wrapper: $(wrapper),
-            targetNumericField: 'count' // Replace 'count' with the actual field name you want to use
-        });
-    }
-    index++;
-    if (wrapper || index == 20) {
-        clearInterval(interval);
-    }
-}, 1000);
