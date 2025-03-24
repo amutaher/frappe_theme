@@ -7,23 +7,30 @@ if (frappe?.workspace_block.blocks?.custom_block) {
             }
         }
         render_sva_custom_block() {
-            if (this.data.custom_block_name == "TESTING HEATMAP") {
-                let index = 0;
-                let interval = setInterval(() => {
-                    let wrapper = document.querySelector('[custom_block_name="TESTING HEATMAP"]');
-                    if (wrapper) {
-                        console.log('index:', index);
-                        new Heatmap({
-                            reportName: 'NGOs By District',
-                            wrapper: $(wrapper),
-                            targetNumericField: 'count' // Replace 'count' with the actual field name you want to use
-                        });
+            let page_type = frappe.get_route()[0];
+            if (page_type == "Workspaces") {
+                let workspace_name = frappe.get_route()[1];
+                let workspace_conf = frappe.boot?.sva_workspaces?.[workspace_name];
+                let blocks = [...workspace_conf?.heatmaps.map((heatmap) => {return {...heatmap,'type':"Heatmap"}}),]
+                if(workspace_conf){
+                    let block = blocks.find(e => e.custom_block == this.data.custom_block_name);
+                    if(block && block.type == "Heatmap"){
+                        let index = 0;
+                        let interval = setInterval(() => {
+                            let wrapper = document.querySelector(`[custom_block_name="${block.custom_block}"]`);
+                            if (wrapper) {
+                                new Heatmap({
+                                    wrapper: $(wrapper),
+                                    ...block,
+                                });
+                            }
+                            index++;
+                            if (wrapper || index == 20) {
+                                clearInterval(interval);
+                            }
+                        }, 1000);
                     }
-                    index++;
-                    if (wrapper || index == 20) {
-                        clearInterval(interval);
-                    }
-                }, 1000);
+                }
             }
         }
     }

@@ -33,7 +33,6 @@ class SvaDataTable {
     }) {
         this.signal = signal;
         this.sva_db = new SVAHTTP(signal)
-        // console.log("SVA DataTable constructor",doctype);
         this.label = label
         wrapper.innerHTML = '';
         this.wrapper = wrapper;
