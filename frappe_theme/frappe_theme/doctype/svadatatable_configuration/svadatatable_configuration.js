@@ -45,10 +45,10 @@ const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
     let dtmeta = await frappe.call({
         method: 'frappe_theme.api.get_meta',
-        args: { doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
+        args: { doctype: ["Direct", "Unfiltered"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
     });
     new ListSettings({
-        doctype: row.connection_type == "Direct" ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype,
+        doctype: ["Direct", "Unfiltered"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype,
         meta: dtmeta.message,
         settings: row,
         dialog_primary_action: async (listview_settings) => {
@@ -104,6 +104,16 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 }
             }
         }
+        if (row.connection_type === 'Unfiltered') {
+            frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
+                return {
+                    filters: {
+                        'issingle': 0,
+                        'istable': 0
+                    }
+                }
+            }
+        }
         if (row.connection_type === 'Referenced') {
             let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
             let dts = await frappe.db.get_list('DocType', {
@@ -113,7 +123,7 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                     ['DocType', 'istable', '=', 0],
                 ],
                 pluck: 'name',
-                limit:1000
+                limit: 1000
             });
             let dts_2 = await frappe.db.get_list('Custom Field', {
                 filters: [
@@ -134,8 +144,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
-        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'],limit:100 });
+        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
+        let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
@@ -184,17 +194,30 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
+        if (row.connection_type === 'Unfiltered') {
+            frm.cur_grid.grid_form.fields_dict.link_doctype.get_query = () => {
+                return {
+                    filters: [
+                        ['DocType', 'issingle', '=', 0],
+                        ['DocType', 'istable', '=', 0]
+                    ],
+                    limit_page_length: 100
+                }
+            }
+        }
     },
     link_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
-        if (row.link_doctype) {
-            let fields = await frappe.call('frappe_theme.dt_api.get_direct_connection_fields', { dt: frm.doc.parent_doctype, link_dt: row.link_doctype });
-            let field = fields.message[0];
-            if (field) {
-                frappe.model.set_value(cdt, cdn, 'link_fieldname', field.fieldname);
+        if (row.connection_type == "Direct") {
+            if (row.link_doctype) {
+                let fields = await frappe.call('frappe_theme.dt_api.get_direct_connection_fields', { dt: frm.doc.parent_doctype, link_dt: row.link_doctype });
+                let field = fields.message[0];
+                if (field) {
+                    frappe.model.set_value(cdt, cdn, 'link_fieldname', field.fieldname);
+                }
+            } else {
+                frappe.model.set_value(cdt, cdn, 'link_fieldname', '');
             }
-        } else {
-            frappe.model.set_value(cdt, cdn, 'link_fieldname', '');
         }
     },
     referenced_link_doctype: async function (frm, cdt, cdn) {
@@ -424,7 +447,7 @@ frappe.ui.form.on("SVADatatable Action Conf", {
                     "number_cards": "Number Card",
                     "charts": "Chart"
                 }
-                let selected_targets = targets?.filter((row) => prev_targets?.includes(row.link_doctype || row.referenced_link_doctype || row.number_card || row.dashboard_chart))?.map((i) => { return {type : type_mapper[i.parentfield],name: i.link_doctype || i.referenced_link_doctype || i.number_card || i.dashboard_chart} });
+                let selected_targets = targets?.filter((row) => prev_targets?.includes(row.link_doctype || row.referenced_link_doctype || row.number_card || row.dashboard_chart))?.map((i) => { return { type: type_mapper[i.parentfield], name: i.link_doctype || i.referenced_link_doctype || i.number_card || i.dashboard_chart } });
                 frappe.model.set_value(cdt, cdn, "targets", JSON.stringify(selected_targets));
                 target_dialog.hide();
             }
