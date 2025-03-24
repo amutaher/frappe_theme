@@ -1,18 +1,19 @@
 class Heatmap {
     constructor(opts) {
-        this.reportName = opts.reportName || '';
+        this.reportName = opts.report || '';
         this.wrapper = opts.wrapper;
-        this.filters = opts.filters || {};
         this.stateGeoJsonUrl = '/assets/frappe_theme/json/states.json';
         this.districtGeoJsonUrl = '/assets/frappe_theme/json/districts.json';
         this.defaultView = opts.default_view || 'State';
+        this.blockHeight = opts.block_height || 280;
 
         this.map = null;
         this.stateLayer = null;
         this.districtLayer = null;
         this.mapId = 'map-' + frappe.utils.get_random(8);
         this.isLoading = true;
-        this.targetNumericField = opts.targetNumericField || 'count';
+        this.primaryTargetField = opts.primary_target;
+        this.targetFields = JSON.parse(opts.target_fields || '[]')?.filter((field) => field.fieldname !== this.primaryTargetField);
         this.stateField = opts.stateField;
         this.districtField = opts.districtField;
         this.isLoadingDistricts = null;
@@ -28,7 +29,7 @@ class Heatmap {
         this.mapContainer = $('<div>')
             .attr('id', this.mapId)
             .css({
-                height: '280px',
+                height: `${this.blockHeight}px`,
                 width: '100%',
                 position: 'relative',
                 margin: '0 auto',
@@ -41,7 +42,7 @@ class Heatmap {
             .css({
                 position: 'absolute',
                 top: '10px',
-                left: '15%',
+                left: '0%',
                 // transform: 'translateX(-50%)',
                 zIndex: 1000,
                 // padding: '8px 15px',
@@ -49,7 +50,7 @@ class Heatmap {
                 // border: '1px solid #ccc',
                 // borderRadius: '4px',
                 fontWeight: 'bold',
-                fontSize: '16px'
+                fontSize: '14px'
             });
 
         // // Add legend container
@@ -84,21 +85,44 @@ class Heatmap {
             })
             .on('click', () => this.resetToCountryView());
 
+        // Add refresh button
+        this.refreshButton = $('<button class="btn btn-secondary btn-sm" title="Refresh Data">')
+            .html('<svg class="icon icon-sm"><use href="#icon-refresh"></use></svg>')
+            .css({
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                zIndex: 1000,
+                padding: '4px 6px',
+                backgroundColor: '#fff',
+                border: 'none',
+                cursor: 'pointer'
+            })
+            .on('click', () => this.refreshData());
+
+        this.mapContainer.append(this.refreshButton);
         this.mapContainer.append(this.resetButton);
         this.loader = $('<div>')
             .addClass('map-loader')
             .css({
                 position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
+                top: '0',
+                left: '0',
+                right: '0',
+                bottom: '0',
                 zIndex: 1000,
-                background: 'rgba(255, 255, 255, 0.7)',
-                padding: '20px',
-                borderRadius: '5px',
-                textAlign: 'center'
+                background: 'rgba(255, 255, 255, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column'
             })
-            .html('<div>Loading map data...</div>');
+            .html(`
+                <div class="loading-indicator text-muted">
+                    <i class="fa fa-spinner fa-pulse fa-2x"></i>
+                </div>
+                <div class="text-muted mt-2">Loading map data...</div>
+            `);
 
         this.mapContainer.append(this.loader);
         this.wrapper.html(this.mapContainer);
@@ -196,10 +220,26 @@ class Heatmap {
 
         this.stateData = {};
         this.reportData.result.forEach(row => {
-            this.stateData[row[this.stateField]] = {
-                count: this.stateData[row[this.stateField]] ? this.stateData[row[this.stateField]]?.count + row[this.targetNumericField] : row[this.targetNumericField],
-                id: row[this.stateField]
-            };
+            const stateId = row[this.stateField];
+            if (!this.stateData[stateId]) {
+                this.stateData[stateId] = {
+                    data: { ...row },  // Create a copy of the row data
+                    count: row[this.primaryTargetField],
+                    id: stateId
+                };
+            } else {
+                this.stateData[stateId].count += row[this.primaryTargetField];
+                // Merge the data for additional fields
+                this.targetFields.forEach(field => {
+                    const fieldname = field.fieldname;
+                    if (typeof row[fieldname] === 'number') {
+                        this.stateData[stateId].data[fieldname] = 
+                            (this.stateData[stateId].data[fieldname] || 0) + row[fieldname];
+                    } else {
+                        this.stateData[stateId].data[fieldname] = row[fieldname];
+                    }
+                });
+            }
         });
 
         this.stateLayer.eachLayer(layer => {
@@ -233,30 +273,22 @@ class Heatmap {
                         color: '#F2F2F3',
                         weight: 1,
                         fillOpacity: 0.7,
-                        // zoom : 15
                     },
                     onEachFeature: (feature, layer) => {
                         layer.on({
                             mouseover: (e) => {
                                 const stateName = feature.properties.ST_NM;
                                 const stateId = feature.properties.id;
-                                const data = this.stateData?.[stateId] || { count: 0 };
-                                const columnLabel = this.reportData?.columns.find(
-                                    (column) => column.fieldname === this.targetNumericField
-                                )?.label || 'Count';
-
-                                e.target.bindPopup(`
-                                    <div>
-                                        <strong>${stateName}</strong><br/>
-                                        ${columnLabel}: ${data.count}
-                                    </div>
-                                `).openPopup();
+                                const data = this.stateData?.[stateId] || { count: 0, data: {} };
+                                
+                                e.target.bindPopup(
+                                    this.getPopupContent(stateName, null, data)
+                                ).openPopup();
                             },
                             click: this.onStateClick.bind(this)
                         });
                     }
                 }).addTo(this.map);
-
                 this.map.fitBounds(this.stateLayer.getBounds());
                 if (this.reportData) {
                     this.applyDataToMap();
@@ -283,22 +315,33 @@ class Heatmap {
         this.districtLoader = $('<div>')
             .css({
                 position: 'absolute',
-                bottom: '10px',
-                right: '10px',
+                top: '0',
+                left: '0',
+                right: '0',
+                bottom: '0',
                 zIndex: 1000,
-                background: 'rgba(255, 255, 255, 0.9)',
-                padding: '10px',
-                borderRadius: '5px'
+                background: 'rgba(255, 255, 255, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column'
             })
-            .text('Loading districts...')
+            .html(`
+                <div class="loading-indicator text-muted">
+                    <i class="fa fa-spinner fa-pulse fa-2x"></i>
+                </div>
+                <div class="text-muted mt-2">Loading districts...</div>
+            `)
             .appendTo(this.mapContainer);
     }
 
     loadDistricts(stateName = null) {
         if (this.defaultView == "State") {
             this.resetButton.show();
+            this.refreshButton.hide();
         } else {
             this.resetButton.hide();
+            this.refreshButton.show();
         }
         fetch(this.districtGeoJsonUrl)
             .then(response => response.json())
@@ -322,9 +365,10 @@ class Heatmap {
                         if (row[this.districtField]) {
                             const districtName = String(row[this.districtField]).toUpperCase();
                             this.districtData[districtName] = {
+                                data: row,  // Store the complete row data
                                 count: this.districtData[districtName]
-                                    ? this.districtData[districtName].count + row[this.targetNumericField]
-                                    : row[this.targetNumericField],
+                                    ? this.districtData[districtName].count + row[this.primaryTargetField]
+                                    : row[this.primaryTargetField],
                                 id: districtName
                             };
                         }
@@ -332,28 +376,22 @@ class Heatmap {
                 }
                 this.districtLayer = L.geoJSON(filtered, {
                     style: {
-                        color: '#007BFF',
+                        color: '#F2F2F3',
                         weight: 1,
                         fillOpacity: 0.7
                     },
                     onEachFeature: (feature, layer) => {
                         layer.on({
                             mouseover: (e) => {
-                                const districtID = feature.properties?.censuscode
+                                const districtID = feature.properties?.censuscode;
                                 const districtName = feature.properties?.DISTRICT
                                     ? String(feature.properties.DISTRICT).toUpperCase()
                                     : 'Unknown District';
-                                const data = this.districtData[districtID] || { count: 0 };
-                                const columnLabel = this.reportData?.columns.find(
-                                    (column) => column.fieldname === this.targetNumericField
-                                )?.label || 'Count';
-
-                                e.target.bindPopup(`
-                                    <div>
-                                        <strong>${districtName + '(' + districtID + ')' || 'Unknown District'}</strong><br/>
-                                        ${columnLabel}: ${data.count}
-                                    </div>
-                                `).openPopup();
+                                const data = this.districtData[districtID] || { count: 0, data: {} };
+                                
+                                e.target.bindPopup(
+                                    this.getPopupContent(districtName, districtID, data)
+                                ).openPopup();
                             }
                         });
 
@@ -384,6 +422,8 @@ class Heatmap {
     }
 
     resetToCountryView() {
+        this.refreshButton.show();
+        this.resetButton.hide();
         if (this.districtLayer) {
             this.map.removeLayer(this.districtLayer);
             this.districtLayer = null;
@@ -418,8 +458,40 @@ class Heatmap {
                 }, 300);
             }
         }
+    }
 
-        this.resetButton.hide();
+    // Add new method to refresh data
+    refreshData() {
+        this.showLoader();
+        this.fetchData();
+    }
+
+    showLoader() {
+        this.isLoading = true;
+        if (!this.loader) {
+            this.loader = $('<div>')
+                .addClass('map-loader')
+                .css({
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    zIndex: 1000,
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column'
+                })
+                .html(`
+                    <div class="loading-indicator text-muted">
+                        <i class="fa fa-spinner fa-pulse fa-2x"></i>
+                    </div>
+                    <div class="text-muted mt-2">Loading map data...</div>
+                `);
+        }
+        this.mapContainer.append(this.loader);
     }
 
     destroy() {
@@ -428,6 +500,31 @@ class Heatmap {
             this.map = null;
         }
         this.mapContainer?.remove();
+    }
+
+    // Add this new method for consistent popup configuration
+    getPopupContent(name, id, data) {
+        const columnLabel = this.reportData?.columns.find(
+            (column) => column.fieldname === this.primaryTargetField
+        )?.label || 'Count';
+
+        let additionalFields = '';
+        if (this.targetFields?.length && data?.data) {
+            additionalFields = this.targetFields
+                .map(field => {
+                    const value = data.data[field.fieldname];
+                    return value ? `<br/>${field.label}: ${value}` : '';
+                })
+                .join('');
+        }
+
+        return `
+            <div>
+                <strong>${name}${id ? ' (' + id + ')' : ''}</strong><br/>
+                ${columnLabel}: ${data?.count || 0}
+                ${additionalFields}
+            </div>
+        `;
     }
 
     // Add new method for legend
