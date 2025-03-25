@@ -531,15 +531,20 @@ class TimelineGenerator {
         if (!append) {
             this.showSkeletonLoader();
         }
+        // Ensure filters are properly formatted
+        const filters = {
+            doctype: this.filters.doctype || '',
+            owner: this.filters.owner || ''
+        };
 
         return frappe.call({
-            method: "mgrant.apis.api.get_versions",
+            method: "frappe_theme.api.get_versions",
             args: {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
                 page_length: this.pageSize,
-                filters: this.filters,
+                filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
@@ -773,7 +778,6 @@ class TimelineGenerator {
 
         // Add event listeners
         this.doctypeSelect.addEventListener('change', () => {
-            console.log('this.doctypeSelect :>> ', this.doctypeSelect.value);
             this.filters.doctype = this.doctypeSelect.value;
             this.page = 1;
             this.fetchTimelineData();
@@ -782,7 +786,6 @@ class TimelineGenerator {
         // Debounce search input
         let timeout;
         this.ownerSearch.addEventListener('input', () => {
-            console.log('this.ownerSearch :>> ', this.ownerSearch.value);
             clearTimeout(timeout);
             timeout = setTimeout(() => {
                 this.filters.owner = this.ownerSearch.value;
@@ -798,7 +801,7 @@ class TimelineGenerator {
     async fetchDoctypes() {
         try {
             const response = await frappe.call({
-                method: "mgrant.apis.api.get_timeline_dt",
+                method: "frappe_theme.api.get_timeline_dt",
                 args: {
                     dt: this.frm.doctype,
                     dn: this.frm.docname,
