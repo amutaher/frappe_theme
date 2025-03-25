@@ -1,0 +1,75 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-24 13:00:17.825716",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "custom_block",
+  "report",
+  "target_fields",
+  "setup_target_fields",
+  "primary_target",
+  "default_view",
+  "block_height"
+ ],
+ "fields": [
+  {
+   "fieldname": "custom_block",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custom Block",
+   "options": "Custom HTML Block",
+   "reqd": 1
+  },
+  {
+   "fieldname": "report",
+   "fieldtype": "Link",
+   "label": "Report",
+   "options": "Report",
+   "reqd": 1
+  },
+  {
+   "default": "State",
+   "fieldname": "default_view",
+   "fieldtype": "Select",
+   "label": "Default View",
+   "options": "State\nDistrict",
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_fields",
+   "fieldtype": "Code",
+   "label": "Target Fields",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_target_fields",
+   "fieldtype": "Button",
+   "label": "Setup Target Fields"
+  },
+  {
+   "fieldname": "primary_target",
+   "fieldtype": "Select",
+   "label": "Primary Target",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_height",
+   "fieldtype": "Int",
+   "label": "Block Height (px)"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-03-24 18:06:32.934638",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVAWorkspace Heatmap Child",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
