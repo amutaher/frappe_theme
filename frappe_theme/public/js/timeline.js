@@ -370,6 +370,11 @@ class TimelineGenerator {
         return wrapper;
     }
     setupPagination() {
+        // Purane pagination controls ko remove karna
+        const existingPagination = this.wrapper.querySelector('.pagination-controls');
+        if (existingPagination) {
+            existingPagination.remove();
+        }
         const paginationContainer = document.createElement('div');
         paginationContainer.className = 'pagination-controls';
         paginationContainer.style.cssText = `
@@ -425,6 +430,7 @@ class TimelineGenerator {
 
         this.page = newPage;
         this.pageInfo.innerHTML = `Page ${this.page}`;
+        // this.setupPagination();
         await this.fetchTimelineData();
 
         // Update button states
@@ -488,6 +494,7 @@ class TimelineGenerator {
         this.loading = true;
         this.page += 1;
         this.showSkeletonLoader();
+        // this.setupPagination();
         await this.fetchTimelineData(true);
         this.loading = false;
     }
@@ -780,6 +787,7 @@ class TimelineGenerator {
         this.doctypeSelect.addEventListener('change', () => {
             this.filters.doctype = this.doctypeSelect.value;
             this.page = 1;
+            this.setupPagination();
             this.fetchTimelineData();
         });
 
@@ -790,6 +798,7 @@ class TimelineGenerator {
             timeout = setTimeout(() => {
                 this.filters.owner = this.ownerSearch.value;
                 this.page = 1;
+                this.setupPagination();
                 this.fetchTimelineData();
             }, 300);
         });
@@ -809,7 +818,6 @@ class TimelineGenerator {
             });
 
             const doctypes = response.message || [];
-            console.log('doctypes :>> ', doctypes);
 
             // Clear existing options
             this.doctypeSelect.innerHTML = "";

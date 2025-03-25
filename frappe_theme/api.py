@@ -210,19 +210,19 @@ def get_linked_doctype_fields(doc_type, frm_doctype):
 
 @frappe.whitelist()
 def get_versions(dt,dn,page_length,start,filters = None):
-    print(f"====================================================== dt: {dt}, DN:n {dn}, page_length: {page_length}, start: {start}, filters: {filters}")
     if isinstance(filters, str):
         filters = json.loads(filters)
     
     where_clause = f"ver.ref_doctype = '{dt}' AND ver.docname = '{dn}'"
-    
+    search_param_cond = ""
     if filters and isinstance(filters, dict):
         if filters.get('doctype'):
             where_clause += f" AND (ver.custom_actual_doctype = '{filters['doctype']}' OR (COALESCE(ver.custom_actual_doctype, '') = '' AND ver.ref_doctype = '{filters['doctype']}'))"
+        
         if filters.get('owner'):
-            where_clause += f" AND ver.owner LIKE '%{filters['owner']}%'"
-    
-
+            search_param_cond = f" WHERE usr.full_name LIKE '{filters['owner']}%'"
+        else:
+            search_param_cond = ""
     
     sql = f"""
         WITH extracted AS (
@@ -276,6 +276,7 @@ def get_versions(dt,dn,page_length,start,filters = None):
         LEFT JOIN `tabDocField` AS tf ON (e.field_name = tf.fieldname AND tf.parent IN (e.ref_doctype, e.custom_actual_doctype))
         LEFT JOIN `tabCustom Field` AS ctf ON (e.field_name = ctf.fieldname AND ctf.dt IN (e.ref_doctype, e.custom_actual_doctype))
         LEFT JOIN `tabUser` AS usr ON e.owner = usr.name
+        {search_param_cond}
         GROUP BY e.name
         ORDER BY e.creation DESC
         LIMIT {page_length}
