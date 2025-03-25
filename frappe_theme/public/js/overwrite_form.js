@@ -27,7 +27,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         if (!frappe.ui.form.handlers[this.doctype]) {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change: [this._activeTab.bind(this)]
+                on_tab_change: [this._activeTab.bind(this)],
+                after_save: [this.custom_after_save.bind(this)]
             };
             return;
         }
@@ -44,6 +45,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)];
         } else if (!frappe.ui.form.handlers[this.doctype].on_tab_change.includes(this._activeTab.bind(this))) {
             frappe.ui.form.handlers[this.doctype].on_tab_change.push(this._activeTab.bind(this));
+        }
+        
+        // Setup custom after save handlers
+        if (!frappe.ui.form.handlers[this.doctype].after_save) {
+            frappe.ui.form.handlers[this.doctype].after_save = [this.custom_after_save.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].after_save.includes(this.custom_after_save.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].after_save.push(this.custom_after_save.bind(this));
         }
     }
     async custom_refresh(frm) {
@@ -86,6 +94,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             }
         } catch (error) {
             console.error("Error in custom_refresh:", error);
+        }
+    }
+    async custom_after_save(frm) {
+        if(frm?.sva_dt_prev_route && frm?.sva_dt_prev_route.length){
+            frappe.set_route(frm.sva_dt_prev_route);
+            frm.sva_dt_prev_route = null;
         }
     }
     async set_properties(doctype) {
@@ -664,7 +678,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const instance = new SvaDataTable({
             label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
-            doctype: field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype,
+            doctype: ["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
             connection: field,
             childLinks,
