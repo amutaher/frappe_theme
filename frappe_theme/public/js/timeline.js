@@ -7,6 +7,11 @@ class TimelineGenerator {
         this.loading = false;
         this.hasMore = true;
         this.setupInfiniteScroll();
+        this.filters = {
+            doctype: '',
+            owner: ''
+        };
+        this.setupFilters()
         this.setupPagination();
         this.fetchTimelineData();
         return this.wrapper;
@@ -365,6 +370,11 @@ class TimelineGenerator {
         return wrapper;
     }
     setupPagination() {
+        // Purane pagination controls ko remove karna
+        const existingPagination = this.wrapper.querySelector('.pagination-controls');
+        if (existingPagination) {
+            existingPagination.remove();
+        }
         const paginationContainer = document.createElement('div');
         paginationContainer.className = 'pagination-controls';
         paginationContainer.style.cssText = `
@@ -420,6 +430,7 @@ class TimelineGenerator {
 
         this.page = newPage;
         this.pageInfo.innerHTML = `Page ${this.page}`;
+        // this.setupPagination();
         await this.fetchTimelineData();
 
         // Update button states
@@ -483,6 +494,7 @@ class TimelineGenerator {
         this.loading = true;
         this.page += 1;
         this.showSkeletonLoader();
+        // this.setupPagination();
         await this.fetchTimelineData(true);
         this.loading = false;
     }
@@ -526,14 +538,20 @@ class TimelineGenerator {
         if (!append) {
             this.showSkeletonLoader();
         }
+        // Ensure filters are properly formatted
+        const filters = {
+            doctype: this.filters.doctype || '',
+            owner: this.filters.owner || ''
+        };
 
         return frappe.call({
-            method: "mgrant.apis.api.get_versions",
+            method: "frappe_theme.api.get_versions",
             args: {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
-                page_length: this.pageSize
+                page_length: this.pageSize,
+                filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
@@ -570,7 +588,7 @@ class TimelineGenerator {
                                     <div class="timeline-meta">${item.owner}</div>
                                 </div>
                                 <a href="#" class="timeline-link"
-                                 style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
+                                style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
                                 >
                                     ${item.custom_actual_doctype || item.ref_doctype} - 
                                     ${item.custom_actual_document_name || item.docname}
@@ -664,5 +682,171 @@ class TimelineGenerator {
                 `;
             }
         });
+    }
+
+    //  Filter UI
+
+    setupFilters() {
+        // Create filters container
+        const filtersContainer = document.createElement('div');
+        filtersContainer.className = 'timeline-filters';
+        filtersContainer.style.cssText = `
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-left: 32px;
+        `;
+
+        // Doctype dropdown
+        const doctypeContainer = document.createElement('div');
+        doctypeContainer.style.cssText = `
+            flex: 1;
+            min-width: 200px;
+        `;
+
+        const doctypeLabel = document.createElement('label');
+        doctypeLabel.innerHTML = 'Document Type';
+        doctypeLabel.style.cssText = `
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4b5563;
+        `;
+
+        this.doctypeSelect = document.createElement('select');
+        this.doctypeSelect.style.cssText = `
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            outline: none;
+            border-radius: 6px;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
+        `;
+
+        // Owner search
+        const ownerContainer = document.createElement('div');
+        ownerContainer.style.cssText = `
+            flex: 1;
+            min-width: 200px;
+        `;
+
+        const ownerLabel = document.createElement('label');
+        ownerLabel.innerHTML = 'Search Owner';
+        ownerLabel.style.cssText = `
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4b5563;
+        `;
+
+        this.ownerSearch = document.createElement('input');
+        this.ownerSearch.type = 'text';
+        this.ownerSearch.placeholder = 'Search by owner...';
+        this.ownerSearch.style.cssText = `
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            outline: none;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        `;
+
+        // Append elements
+        doctypeContainer.appendChild(doctypeLabel);
+        doctypeContainer.appendChild(this.doctypeSelect);
+        ownerContainer.appendChild(ownerLabel);
+        ownerContainer.appendChild(this.ownerSearch);
+        filtersContainer.appendChild(doctypeContainer);
+        filtersContainer.appendChild(ownerContainer);
+
+        // Add to wrapper before timeline
+        this.wrapper.insertBefore(filtersContainer, this.timeline_wrapper);
+
+        // Add event listeners
+        this.doctypeSelect.addEventListener('change', () => {
+            this.filters.doctype = this.doctypeSelect.value;
+            this.page = 1;
+            this.setupPagination();
+            this.fetchTimelineData();
+        });
+
+        // Debounce search input
+        let timeout;
+        this.ownerSearch.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                this.filters.owner = this.ownerSearch.value;
+                this.page = 1;
+                this.setupPagination();
+                this.fetchTimelineData();
+            }, 300);
+        });
+
+        // Fetch doctypes for dropdown
+        this.fetchDoctypes();
+    }
+
+    async fetchDoctypes() {
+        try {
+            const response = await frappe.call({
+                method: "frappe_theme.api.get_timeline_dt",
+                args: {
+                    dt: this.frm.doctype,
+                    dn: this.frm.docname,
+                }
+            });
+
+            const doctypes = response.message || [];
+
+            // Clear existing options
+            this.doctypeSelect.innerHTML = "";
+
+
+
+            // Append 'All Document Types' as the second option
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = 'Select Doctype';
+            emptyOption.selected = true;
+
+            this.doctypeSelect.appendChild(emptyOption);
+            // Append frm.doc.doctype as the first option
+            const currentOption = document.createElement('option');
+            currentOption.value = this.frm.doc.doctype;
+            currentOption.textContent = this.frm.doc.doctype;
+            this.doctypeSelect.appendChild(currentOption);
+
+            // Append fetched doctype options
+            doctypes.forEach(dt => {
+                const option = document.createElement('option');
+                option.value = dt;  // Directly set the value from the array
+                option.textContent = dt;  // Display same value as label
+                this.doctypeSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error fetching doctypes:", error);
+        }
+
     }
 }
