@@ -370,6 +370,11 @@ class TimelineGenerator {
         return wrapper;
     }
     setupPagination() {
+        // Purane pagination controls ko remove karna
+        const existingPagination = this.wrapper.querySelector('.pagination-controls');
+        if (existingPagination) {
+            existingPagination.remove();
+        }
         const paginationContainer = document.createElement('div');
         paginationContainer.className = 'pagination-controls';
         paginationContainer.style.cssText = `
@@ -425,6 +430,7 @@ class TimelineGenerator {
 
         this.page = newPage;
         this.pageInfo.innerHTML = `Page ${this.page}`;
+        // this.setupPagination();
         await this.fetchTimelineData();
 
         // Update button states
@@ -488,6 +494,7 @@ class TimelineGenerator {
         this.loading = true;
         this.page += 1;
         this.showSkeletonLoader();
+        // this.setupPagination();
         await this.fetchTimelineData(true);
         this.loading = false;
     }
@@ -531,15 +538,20 @@ class TimelineGenerator {
         if (!append) {
             this.showSkeletonLoader();
         }
+        // Ensure filters are properly formatted
+        const filters = {
+            doctype: this.filters.doctype || '',
+            owner: this.filters.owner || ''
+        };
 
         return frappe.call({
-            method: "mgrant.apis.api.get_versions",
+            method: "frappe_theme.api.get_versions",
             args: {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
                 page_length: this.pageSize,
-                filters: this.filters,
+                filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
@@ -773,20 +785,20 @@ class TimelineGenerator {
 
         // Add event listeners
         this.doctypeSelect.addEventListener('change', () => {
-            console.log('this.doctypeSelect :>> ', this.doctypeSelect.value);
             this.filters.doctype = this.doctypeSelect.value;
             this.page = 1;
+            this.setupPagination();
             this.fetchTimelineData();
         });
 
         // Debounce search input
         let timeout;
         this.ownerSearch.addEventListener('input', () => {
-            console.log('this.ownerSearch :>> ', this.ownerSearch.value);
             clearTimeout(timeout);
             timeout = setTimeout(() => {
                 this.filters.owner = this.ownerSearch.value;
                 this.page = 1;
+                this.setupPagination();
                 this.fetchTimelineData();
             }, 300);
         });
@@ -798,7 +810,7 @@ class TimelineGenerator {
     async fetchDoctypes() {
         try {
             const response = await frappe.call({
-                method: "mgrant.apis.api.get_timeline_dt",
+                method: "frappe_theme.api.get_timeline_dt",
                 args: {
                     dt: this.frm.doctype,
                     dn: this.frm.docname,
@@ -806,7 +818,6 @@ class TimelineGenerator {
             });
 
             const doctypes = response.message || [];
-            console.log('doctypes :>> ', doctypes);
 
             // Clear existing options
             this.doctypeSelect.innerHTML = "";
