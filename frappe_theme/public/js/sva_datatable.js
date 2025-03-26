@@ -860,13 +860,16 @@ class SvaDataTable {
                     }
                 }
                 if (additional_action) {
-                    additional_action();
+                    additional_action(true);
                 }
                 dialog.clear();
                 dialog.hide();
             },
             secondary_action_label: 'Cancel',
             secondary_action: () => {
+                if (additional_action) {
+                    additional_action(false);
+                }
                 dialog.clear();
                 dialog.hide();
             }
@@ -1256,7 +1259,11 @@ class SvaDataTable {
                                 .map(e => e.action))]
                                 .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
                                 .join('');
-
+                        el.addEventListener('focus', (event) => {
+                            const originalState = el?.getAttribute('title');
+                            el.value = '';
+                            el.title = originalState;
+                        });
                         el.addEventListener('change', async (event) => {
                             const action = event.target.value;
                             const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
@@ -1265,7 +1272,12 @@ class SvaDataTable {
                                 if (window.onWorkflowStateChange) {
                                     await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
                                 } else {
-                                    await this.wf_action(link, primaryKey, el, originalState);
+                                    try {
+                                        await this.wf_action(link, primaryKey, el, originalState);
+                                    } catch (error) {
+                                        el.value = ''; // Reset dropdown value
+                                        el.title = originalState;
+                                    }
                                 }
                                 el.value = '';
                                 el.title = originalState;
@@ -1342,7 +1354,7 @@ class SvaDataTable {
             ...(fields ? fields : []),
         ];
         if (!this.skip_workflow_confirmation) {
-            workflowFormValue = await new Promise((resolve) => {
+            workflowFormValue = await new Promise((resolve,reject) => {
                 dialog = new frappe.ui.Dialog({
                     title: "Confirm",
                     size: this.getDialogSize(popupFields),
@@ -1354,6 +1366,7 @@ class SvaDataTable {
                     secondary_action_label: "Cancel",
                     secondary_action: () => {
                         dialog.hide();
+                        reject(false);
                         wf_select_el.value = ""; // Reset dropdown value
                         wf_select_el.title = prevState;
                         frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
@@ -1394,7 +1407,6 @@ class SvaDataTable {
                     message: error.message
                 })
             }
-            console.error(error);
         }
         if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
