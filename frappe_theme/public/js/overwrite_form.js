@@ -27,7 +27,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         if (!frappe.ui.form.handlers[this.doctype]) {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change: [this._activeTab.bind(this)]
+                on_tab_change: [this._activeTab.bind(this)],
+                after_save: [this.custom_after_save.bind(this)]
             };
             return;
         }
@@ -45,10 +46,21 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         } else if (!frappe.ui.form.handlers[this.doctype].on_tab_change.includes(this._activeTab.bind(this))) {
             frappe.ui.form.handlers[this.doctype].on_tab_change.push(this._activeTab.bind(this));
         }
+        
+        // Setup custom after save handlers
+        if (!frappe.ui.form.handlers[this.doctype].after_save) {
+            frappe.ui.form.handlers[this.doctype].after_save = [this.custom_after_save.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].after_save.includes(this.custom_after_save.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].after_save.push(this.custom_after_save.bind(this));
+        }
     }
     async custom_refresh(frm) {
         try {
-            // console.log(frm,'frm')
+            if (frm.doctype == "DocType") {
+                frm.add_custom_button('Set Property', () => {
+                    this.set_properties(frm.doc.name);
+                });
+            }
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
                 const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
@@ -66,18 +78,107 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             await this.tabContent(frm, tab_field);
 
             const props = await this.getPropertySetterData(frm.doc.doctype);
+            let field_events = {};
             if (props?.length) {
                 for (const prop of props) {
                     if (prop?.value) {
-                        const [filterField, valueField] = prop.value.split("->");
+                        const [valueField,filterField] = prop.value.split("->");
+                        field_events[valueField] = function (frm) {
+                            this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                            frm.set_value(prop.field_name, "");
+                        }.bind(this);
                         this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
                     }
                 }
+                frappe.ui.form.on(frm.doctype, field_events)
             }
         } catch (error) {
             console.error("Error in custom_refresh:", error);
         }
     }
+    async custom_after_save(frm) {
+        if(frm?.sva_dt_prev_route && frm?.sva_dt_prev_route.length){
+            frappe.set_route(frm.sva_dt_prev_route);
+            frm.sva_dt_prev_route = null;
+        }
+    }
+    async set_properties(doctype) {
+        let res = await frappe.db.get_list('Property Setter', {
+            filters: {
+                doc_type: doctype
+            }
+        })
+
+        let list = new frappe.ui.Dialog({
+            title: 'Set Property',
+            fields: [
+                {
+                    label: 'List of Properties',
+                    fieldname: 'property_name',
+                    fieldtype: 'Autocomplete',
+                    options: res.map(d => d.name),
+                    depends_on: `eval: ${JSON.stringify(res.length)} > 0`,
+                },
+                {
+                    label: 'New Property Value',
+                    fieldname: 'property_value',
+                    fieldtype: 'Data',
+                    mandatory_depends_on: 'eval: !doc.property_name ',
+                    depends_on: 'eval: !doc.property_name'
+                }
+            ],
+            primary_action_label: 'Set',
+            primary_action: async function () {
+                let property_value = list.fields_dict.property_value.get_value()
+                list.hide();
+                this.add_properties(doctype, property_value);
+            }.bind(this)
+        })
+        list.show();
+    }
+    async add_properties(doctype, new_property) {
+        let fields = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: 'Property Setter' });
+        let add = new frappe.ui.Dialog({
+            title: 'Add Property',
+            fields: fields.message.map(d => {
+                return {
+                    label: d.label,
+                    fieldname: d.fieldname,
+                    fieldtype: d.fieldtype,
+                    options: d.options,
+                    default: d.fieldname == 'property' ? new_property : '',
+                    reqd: d.reqd,
+                    read_only: d.fieldname == 'property' ? 1 : 0,
+                }
+            }),
+            primary_action_label: 'Add',
+            primary_action: async function () {
+                let res = await frappe.call({
+                    method: 'frappe.desk.form.save.savedocs',
+                    args: {
+                        doc: {
+                            doctype: 'Property Setter',
+                            doc_type: doctype,
+                            doctype_or_field: add.fields_dict.doctype_or_field.get_value(),
+                            property: new_property,
+                            row_name: add.fields_dict.row_name.get_value(),
+                            module: add.fields_dict.module.get_value(),
+                            value: add.fields_dict.value.get_value(),
+                            property_type: add.fields_dict.property_type.get_value(),
+                            default_value: add.fields_dict.default_value.get_value(),
+                        },
+                        action: 'Save',
+                    }
+                });
+                if (res.docs.length > 0) {
+                    frappe.msgprint('Property set successfully');
+                    add.hide();
+                }
+            }
+        })
+        add.show();
+    }
+
     setupDTTriggers(frm) {
         if (!frm.dt_events) {
             frm['dt_events'] = {};
@@ -88,14 +189,14 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 if (!targets.length) continue;
                 // console.log(trigger, 'trigger')
                 if (trigger.table_type == "Custom Design") {
-                    this.bindCustomDesignActionEvents(frm,trigger, targets);
+                    this.bindCustomDesignActionEvents(frm, trigger, targets);
                 } else {
-                    this.bindDTActionEvents(frm,trigger, targets);
+                    this.bindDTActionEvents(frm, trigger, targets);
                 }
             }
         }
     }
-    bindDTActionEvents(frm,trigger, targets) {
+    bindDTActionEvents(frm, trigger, targets) {
         let dt = trigger.ref_doctype;
         let action = trigger.action;
         if (!frm.dt_events?.[dt]) {
@@ -124,16 +225,16 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         }
         if (action == "Workflow Action") {
             if (!frm.dt_events[dt]['after_workflow_action']) {
-                frm.dt_events[dt]['after_workflow_action'] = (dt,action) => {
+                frm.dt_events[dt]['after_workflow_action'] = (dt, action) => {
                     let states_for_action = JSON.parse(trigger?.workflow_states || '[]');
-                    if(states_for_action.length && states_for_action.includes(action?.next_state)){
+                    if (states_for_action.length && states_for_action.includes(action?.next_state)) {
                         this.triggerTargets(targets);
                     };
                 };
             }
         }
     }
-    bindCustomDesignActionEvents(frm,trigger, targets) {
+    bindCustomDesignActionEvents(frm, trigger, targets) {
         let dt;
         switch (trigger.custom_design) {
             case "Tasks":
@@ -150,22 +251,22 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         if (!frm.dt_events?.[dt]) {
             frm.dt_events[dt] = {};
         }
-        if(action == "Create"){
-            if(!frm.dt_events[dt]['after_insert']){
+        if (action == "Create") {
+            if (!frm.dt_events[dt]['after_insert']) {
                 frm.dt_events[dt]['after_insert'] = () => {
                     this.triggerTargets(targets);
                 };
             }
         }
-        if(action == "Update"){
-            if(!frm.dt_events[dt]['after_update']){
+        if (action == "Update") {
+            if (!frm.dt_events[dt]['after_update']) {
                 frm.dt_events[dt]['after_update'] = () => {
                     this.triggerTargets(targets);
                 };
             }
         }
-        if(action == "Delete"){
-            if(!frm.dt_events[dt]['after_delete']){
+        if (action == "Delete") {
+            if (!frm.dt_events[dt]['after_delete']) {
                 frm.dt_events[dt]['after_delete'] = () => {
                     this.triggerTargets(targets);
                 };
@@ -473,9 +574,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             this.clearGlobalEventListeners();
 
             // Clear remaining fields only if frm is available
-            if (this.frm && this.frm.meta) {
-                this.clearRemainingFields();
-            }
+            // if (this.frm && this.frm.meta) {
+            //     this.clearRemainingFields();
+            // }
 
         } catch (error) {
             console.error("Error in clearPreviousComponents:", error);
@@ -577,7 +678,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const instance = new SvaDataTable({
             label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
-            doctype: field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype,
+            doctype: ["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
             connection: field,
             childLinks,
