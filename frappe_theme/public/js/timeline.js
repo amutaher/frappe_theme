@@ -3,10 +3,16 @@ class TimelineGenerator {
         this.frm = frm;
         this.wrapper = this.setupWrapper(wrapper);
         this.page = 1;
-        this.pageSize = 10000;
+        this.pageSize = 10;
         this.loading = false;
         this.hasMore = true;
         this.setupInfiniteScroll();
+        this.filters = {
+            doctype: '',
+            owner: ''
+        };
+        this.setupFilters()
+        this.setupPagination();
         this.fetchTimelineData();
         return this.wrapper;
     }
@@ -363,6 +369,72 @@ class TimelineGenerator {
         wrapper.appendChild(this.timeline_wrapper);
         return wrapper;
     }
+    setupPagination() {
+        // Purane pagination controls ko remove karna
+        const existingPagination = this.wrapper.querySelector('.pagination-controls');
+        if (existingPagination) {
+            existingPagination.remove();
+        }
+        const paginationContainer = document.createElement('div');
+        paginationContainer.className = 'pagination-controls';
+        paginationContainer.style.cssText = `
+            display: flex;
+            justify-content: end;
+            gap: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        `;
+
+        this.prevButton = document.createElement('button');
+        this.nextButton = document.createElement('button');
+        this.pageInfo = document.createElement('span');
+
+        [this.prevButton, this.nextButton].forEach(button => {
+            button.style.cssText = `
+                padding: 8px 16px;
+                border: 1px solid #e5e7eb;
+                background: white;
+                border-radius: 6px;
+                cursor: pointer;
+                color: #4b5563;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            `;
+        });
+
+        this.pageInfo.style.cssText = `
+            padding: 8px 16px;
+            color: #4b5563;
+            font-weight: 500;
+        `;
+
+        this.prevButton.onclick = () => this.changePage(-1);
+        this.nextButton.onclick = () => this.changePage(1);
+
+        paginationContainer.appendChild(this.prevButton);
+        paginationContainer.appendChild(this.pageInfo);
+        paginationContainer.appendChild(this.nextButton);
+
+        this.wrapper.appendChild(paginationContainer);
+    }
+
+    async changePage(direction) {
+        if (this.loading) return;
+
+        const newPage = this.page + direction;
+        if (newPage < 1) return;
+
+        this.page = newPage;
+        this.pageInfo.innerHTML = `Page ${this.page}`;
+        // this.setupPagination();
+        await this.fetchTimelineData();
+
+        // Update button states
+        this.prevButton.disabled = this.page === 1;
+        this.prevButton.style.opacity = this.page === 1 ? '0.5' : '1';
+        this.nextButton.disabled = !this.hasMore;
+        this.nextButton.style.opacity = !this.hasMore ? '0.5' : '1';
+    }
     formatRelativeTime(dateStr) {
         const date = frappe.datetime.str_to_obj(dateStr);
         if (!date) return '';
@@ -418,6 +490,7 @@ class TimelineGenerator {
         this.loading = true;
         this.page += 1;
         this.showSkeletonLoader();
+        // this.setupPagination();
         await this.fetchTimelineData(true);
         this.loading = false;
     }
@@ -461,14 +534,20 @@ class TimelineGenerator {
         if (!append) {
             this.showSkeletonLoader();
         }
+        // Ensure filters are properly formatted
+        const filters = {
+            doctype: this.filters.doctype || '',
+            owner: this.filters.owner || ''
+        };
 
         return frappe.call({
-            method: "mgrant.apis.api.get_versions",
+            method: "frappe_theme.api.get_versions",
             args: {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
-                page_length: this.pageSize
+                page_length: this.pageSize,
+                filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
@@ -505,7 +584,7 @@ class TimelineGenerator {
                                     <div class="timeline-meta">${item.owner}</div>
                                 </div>
                                 <a href="#" class="timeline-link"
-                                 style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
+                                style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
                                 >
                                     ${item.custom_actual_doctype || item.ref_doctype} - 
                                     ${item.custom_actual_document_name || item.docname}
@@ -599,5 +678,217 @@ class TimelineGenerator {
                 `;
             }
         });
+    }
+
+    //  Filter UI
+
+    setupFilters() {
+        const filtersContainer = document.createElement('div');
+        filtersContainer.className = 'timeline-filters';
+        filtersContainer.style.cssText = `
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+            margin-left: 32px;
+            border: 1px solid #f3f4f6;
+        `;
+
+        // Create compact filters wrapper with search bar look
+        const filtersWrapper = document.createElement('div');
+        filtersWrapper.style.cssText = `
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 6px;
+        `;
+
+        // Filter icon
+        const filterIcon = document.createElement('div');
+        filterIcon.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280">
+                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" 
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        filterIcon.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            color: #6b7280;
+        `;
+
+        // Doctype filter with icon
+        this.doctypeSelect = document.createElement('select');
+        this.doctypeSelect.style.cssText = `
+            min-width: 180px;
+            padding: 8px 32px 8px 28px;
+            border: 1px solid #e5e7eb;
+            outline: none;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat, no-repeat;
+            background-position: right 8px center, left 8px center;
+            background-size: 16px, 16px;
+        `;
+
+        // Owner search with icon
+        const searchWrapper = document.createElement('div');
+        searchWrapper.style.cssText = `
+            position: relative;
+            flex: 1;
+            min-width: 160px;
+        `;
+
+        this.ownerSearch = document.createElement('input');
+        this.ownerSearch.type = 'text';
+        this.ownerSearch.placeholder = 'Search user...';
+        this.ownerSearch.style.cssText = `
+            width: 100%;
+            padding: 8px 32px 8px 28px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            outline: none;
+            background: white;
+            color: #374151;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 8px center;
+            background-size: 16px;
+        `;
+
+        // Clear filters button with improved styling
+        this.clearButton = document.createElement('button');
+        this.clearButton.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        this.clearButton.style.cssText = `
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: #f3f4f6;
+            color: #4b5563;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        `;
+
+        // Hover and focus states
+        [this.doctypeSelect, this.ownerSearch].forEach(element => {
+            element.addEventListener('focus', () => {
+                element.style.borderColor = '#6366f1';
+                element.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.1)';
+            });
+            element.addEventListener('blur', () => {
+                element.style.borderColor = '#e5e7eb';
+                element.style.boxShadow = 'none';
+            });
+        });
+
+        // Append elements
+        filtersWrapper.appendChild(filterIcon);
+        filtersWrapper.appendChild(this.doctypeSelect);
+        searchWrapper.appendChild(this.ownerSearch);
+        filtersWrapper.appendChild(searchWrapper);
+        filtersWrapper.appendChild(this.clearButton);
+        filtersContainer.appendChild(filtersWrapper);
+        this.wrapper.insertBefore(filtersContainer, this.timeline_wrapper);
+
+        this.setupFilterEventListeners();
+        this.fetchDoctypes();
+    }
+
+    setupFilterEventListeners() {
+        const updateClearButtonVisibility = () => {
+            const hasFilters = this.filters.doctype || this.filters.owner;
+            this.clearButton.style.display = hasFilters ? 'inline-flex' : 'none';
+        };
+
+        this.doctypeSelect.addEventListener('change', () => {
+            this.filters.doctype = this.doctypeSelect.value;
+            this.page = 1;
+            this.setupPagination();
+            this.fetchTimelineData();
+            updateClearButtonVisibility();
+        });
+
+        let timeout;
+        this.ownerSearch.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                this.filters.owner = this.ownerSearch.value;
+                this.page = 1;
+                this.setupPagination();
+                this.fetchTimelineData();
+                updateClearButtonVisibility();
+            }, 300);
+        });
+
+        this.clearButton.addEventListener('click', () => {
+            this.doctypeSelect.value = '';
+            this.ownerSearch.value = '';
+            this.filters.doctype = '';
+            this.filters.owner = '';
+            this.page = 1;
+            this.setupPagination();
+            this.fetchTimelineData();
+            updateClearButtonVisibility();
+        });
+    }
+
+    async fetchDoctypes() {
+        try {
+            const response = await frappe.call({
+                method: "frappe_theme.api.get_timeline_dt",
+                args: {
+                    dt: this.frm.doctype,
+                    dn: this.frm.docname,
+                }
+            });
+
+            const doctypes = response.message || [];
+            this.doctypeSelect.innerHTML = "";
+
+            // Add placeholder option
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'All Documents';
+            placeholderOption.selected = true;
+            this.doctypeSelect.appendChild(placeholderOption);
+
+            // Add current doctype option
+            const currentOption = document.createElement('option');
+            currentOption.value = this.frm.doc.doctype;
+            currentOption.textContent = this.frm.doc.doctype;
+            this.doctypeSelect.appendChild(currentOption);
+
+            // Add other doctype options
+            doctypes.forEach(dt => {
+                const option = document.createElement('option');
+                option.value = dt;
+                option.textContent = dt;
+                this.doctypeSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error fetching doctypes:", error);
+        }
     }
 }
