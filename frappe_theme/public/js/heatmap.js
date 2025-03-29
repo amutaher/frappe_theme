@@ -18,6 +18,51 @@ class Heatmap {
         this.districtField = opts.districtField;
         this.isLoadingDistricts = null;
 
+        this.highNumberCode = opts.high_number_code || '#800026';  // Default red
+        this.lowNumberCode = opts.low_number_code || '#FFEDA0';    // Default yellow
+
+        // Add custom CSS for fixed popup
+        const style = document.createElement('style');
+        style.textContent = `
+            .fixed-popup-container {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 1000;
+                background: white;
+                padding: 8px 15px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                background-color:#F2F2F3;
+                display: none;
+            }
+            .legend-container {
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                z-index: 1000;
+                background: white;
+                padding: 6px 8px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                font-size: 11px;
+                min-width: 120px;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                margin: 2px 0;
+                white-space: nowrap;
+            }
+            .legend-color {
+                width: 8px;
+                height: 8px;
+                margin-right: 6px;
+                border-radius: 50%;
+            }
+        `;
+        document.head.appendChild(style);
+
         this.init();
     }
 
@@ -33,7 +78,6 @@ class Heatmap {
                 width: '100%',
                 position: 'relative',
                 margin: '0 auto',
-                // transform: 'scale(1.5)',
                 backgroundColor: '#fff'
             });
 
@@ -43,43 +87,27 @@ class Heatmap {
                 position: 'absolute',
                 top: '10px',
                 left: '0%',
-                // transform: 'translateX(-50%)',
                 zIndex: 1000,
-                // padding: '8px 15px',
                 backgroundColor: '#fff',
-                // border: '1px solid #ccc',
-                // borderRadius: '4px',
                 fontWeight: 'bold',
                 fontSize: '14px'
             });
 
-        // // Add legend container
-        // this.legendContainer = $('<div>')
-        //     .css({
-        //         position: 'absolute',
-        //         bottom: '20px',
-        //         left: '20px',
-        //         zIndex: 1000,
-        //         backgroundColor: '#fff',
-        //         padding: '10px',
-        //         borderRadius: '4px',
-        //         border: '1px solid #ccc'
-        //     });
-
         this.mapContainer.append(this.titleContainer);
-        // this.mapContainer.append(this.legendContainer);
 
-        this.resetButton = $('<button>')
-            .text('Reset to Country View')
+        this.resetButton = $('<button class="btn btn-secondary btn-sm" title="Reset to Country View">')
+            .html(`<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1">
+                    <circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16">
+                    </polyline><line x1="16" y1="12" x2="8" y2="12"></line>
+                </svg>`)
             .css({
                 position: 'absolute',
                 top: '10px',
                 right: '10px',
                 zIndex: 1000,
-                padding: '8px 15px',
+                padding: '4px 6px',
                 backgroundColor: '#fff',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
+                border: 'none',
                 cursor: 'pointer',
                 display: 'none'
             })
@@ -125,6 +153,12 @@ class Heatmap {
             `);
 
         this.mapContainer.append(this.loader);
+
+        // Add fixed popup container
+        this.fixedPopupContainer = $('<div>')
+            .addClass('fixed-popup-container')
+            .appendTo(this.mapContainer);
+
         this.wrapper.html(this.mapContainer);
 
         setTimeout(() => {
@@ -177,9 +211,6 @@ class Heatmap {
                     this.reportData = r.message;
                     // Update title with report name
                     this.titleContainer.text(this.reportName);
-
-                    // Add legend
-                    // this.updateLegend();
 
                     const hasStateColumn = this.reportData.columns.some(col => col.options === 'State');
                     if (!this.stateField && hasStateColumn) {
@@ -242,6 +273,10 @@ class Heatmap {
             }
         });
 
+        // After processing data, create legend
+        const range = this.calculateDataRange(this.stateData);
+        this.createLegend(range);
+
         this.stateLayer.eachLayer(layer => {
             const stateID = layer.feature.properties.id;
             const data = this.stateData[stateID];
@@ -253,15 +288,132 @@ class Heatmap {
             }
         });
     }
-    // Define color scale
+
+    // Add new method to calculate range and steps
+    calculateDataRange(data) {
+        let values = Object.values(data).map(item => item.count);
+        return {
+            min: Math.min(...values),
+            max: Math.max(...values)
+        };
+    }
+
+    // Add new method to create legend
+    createLegend(range) {
+        if (!range || typeof range.min === 'undefined') return;
+
+        // Remove existing legend if any
+        $('.legend-container').remove();
+
+        const legendContainer = $('<div>')
+            .addClass('legend-container')
+            .appendTo(this.mapContainer);
+
+        // Add title using primaryTargetField's label
+        const legendTitle = this.reportData?.columns.find(
+            (column) => column.fieldname === this.primaryTargetField
+        )?.label || 'Count';
+        
+        $('<div>')
+            .text(legendTitle)
+            .css({
+                'font-weight': 'bold',
+                'margin-bottom': '4px'
+            })
+            .appendTo(legendContainer);
+
+        // Calculate breaks
+        const breaks = this.calculateBreaks(range.min, range.max);
+        
+        // Create legend items
+        breaks.forEach((break_, index) => {
+            const nextBreak = breaks[index + 1];
+            if (nextBreak) {
+                const color = this.getColorByValue((break_ + nextBreak) / 2);
+                const legendItem = $('<div>').addClass('legend-item');
+                
+                $('<div>')
+                    .addClass('legend-color')
+                    .css('background-color', color)
+                    .appendTo(legendItem);
+                
+                const rangeText = index === breaks.length - 2 
+                    ? `${break_.toLocaleString()} And Above`
+                    : `${break_.toLocaleString()} - ${nextBreak.toLocaleString()}`;
+                
+                $('<div>')
+                    .text(rangeText)
+                    .appendTo(legendItem);
+                
+                legendItem.appendTo(legendContainer);
+            }
+        });
+    }
+
+    // Update calculateBreaks method
+    calculateBreaks(min, max) {
+        let breaks = [];
+        
+        // Always start from 0
+        const actualMax = Math.ceil(max);
+        
+        // We want 5 breaks (which creates 4 ranges)
+        if (actualMax <= 50) {
+            // For small numbers (≤50), use smart rounding
+            const step = Math.ceil(actualMax / 4); // 4 segments = 5 breaks
+            for (let i = 0; i <= 4; i++) {
+                breaks.push(Math.min(i * step, actualMax));
+            }
+        } else {
+            // For larger numbers, round to nearest 10
+            const step = Math.ceil(actualMax / 40) * 10; // Round to nearest 10
+            for (let i = 0; i <= 4; i++) {
+                breaks.push(Math.min(i * step, actualMax));
+            }
+        }
+        
+        // Ensure the last break is the maximum value
+        if (breaks[breaks.length - 1] < actualMax) {
+            breaks[breaks.length - 1] = actualMax;
+        }
+        
+        return breaks;
+    }
+
+    // Update color scale to use dynamic high/low colors
     getColorByValue(value) {
-        return value > 1000 ? '#800026' :
-            value > 500 ? '#BD0026' :
-                value > 200 ? '#E31A1C' :
-                    value > 100 ? '#FC4E2A' :
-                        value > 50 ? '#FD8D3C' :
-                            value > 20 ? '#FEB24C' :
-                                value > 10 ? '#FED976' : '#FFEDA0';
+        const data = this.defaultView === 'State' ? this.stateData : this.districtData;
+        const range = this.calculateDataRange(data);
+        
+        if (!range || typeof range.min === 'undefined') {
+            return this.lowNumberCode;
+        }
+
+        const breaks = this.calculateBreaks(range.min, range.max);
+        const percentage = (value - range.min) / (range.max - range.min);
+        
+        // Convert hex colors to RGB for interpolation
+        const lowRGB = this.hexToRGB(this.lowNumberCode);
+        const highRGB = this.hexToRGB(this.highNumberCode);
+        
+        // Interpolate between colors
+        const resultRGB = {
+            r: Math.round(lowRGB.r + (highRGB.r - lowRGB.r) * percentage),
+            g: Math.round(lowRGB.g + (highRGB.g - lowRGB.g) * percentage),
+            b: Math.round(lowRGB.b + (highRGB.b - lowRGB.b) * percentage)
+        };
+
+        return `rgb(${resultRGB.r}, ${resultRGB.g}, ${resultRGB.b})`;
+    }
+
+    // Helper function to convert hex to RGB
+    hexToRGB(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
     }
 
     loadStates() {
@@ -281,9 +433,14 @@ class Heatmap {
                                 const stateId = feature.properties.id;
                                 const data = this.stateData?.[stateId] || { count: 0, data: {} };
                                 
-                                e.target.bindPopup(
-                                    this.getPopupContent(stateName, null, data)
-                                ).openPopup();
+                                this.refreshButton.hide();
+                                this.fixedPopupContainer
+                                    .html(this.getPopupContent(stateName, null, data))
+                                    .show();
+                            },
+                            mouseout: () => {
+                                this.fixedPopupContainer.hide();
+                                this.refreshButton.show();
                             },
                             click: this.onStateClick.bind(this)
                         });
@@ -374,6 +531,11 @@ class Heatmap {
                         }
                     });
                 }
+
+                // After processing district data, update legend
+                const range = this.calculateDataRange(this.districtData);
+                this.createLegend(range);
+
                 this.districtLayer = L.geoJSON(filtered, {
                     style: {
                         color: '#F2F2F3',
@@ -389,9 +551,14 @@ class Heatmap {
                                     : 'Unknown District';
                                 const data = this.districtData[districtID] || { count: 0, data: {} };
                                 
-                                e.target.bindPopup(
-                                    this.getPopupContent(districtName, districtID, data)
-                                ).openPopup();
+                                this.refreshButton.hide();
+                                this.fixedPopupContainer
+                                    .html(this.getPopupContent(districtName, districtID, data))
+                                    .show();
+                            },
+                            mouseout: () => {
+                                this.fixedPopupContainer.hide();
+                                this.refreshButton.show();
                             }
                         });
 
@@ -415,7 +582,6 @@ class Heatmap {
                 this.hideDistrictLoader();
             });
     }
-
 
     hideDistrictLoader() {
         if (this.districtLoader) this.districtLoader.remove();
@@ -499,6 +665,7 @@ class Heatmap {
             this.map.remove();
             this.map = null;
         }
+        this.fixedPopupContainer?.remove();
         this.mapContainer?.remove();
     }
 
@@ -526,32 +693,5 @@ class Heatmap {
             </div>
         `;
     }
-
-    // Add new method for legend
-    //     updateLegend() {
-    //         const ranges = [
-    //             {min: 1000, label: '> 1000'},
-    //             {min: 500, max: 1000, label: '500-1000'},
-    //             {min: 200, max: 500, label: '200-500'},
-    //             {min: 100, max: 200, label: '100-200'},
-    //             {min: 50, max: 100, label: '50-100'},
-    //             {min: 20, max: 50, label: '20-50'},
-    //             {min: 10, max: 20, label: '10-20'},
-    //             {min: 0, max: 10, label: '0-10'}
-    //         ];
-
-    //         let legendHtml = '<div style="font-weight: bold; margin-bottom: 5px">Legend</div>';
-    //         ranges.forEach(range => {
-    //             const value = range.max ? (range.min + 1) : range.min + 1;
-    //             legendHtml += `
-    //                 <div style="display: flex; align-items: center; margin: 2px 0;">
-    //                     <div style="width: 20px; height: 20px; background: ${this.getColorByValue(value)}; margin-right: 5px;"></div>
-    //                     <div>${range.label}</div>
-    //                 </div>
-    //             `;
-    //         });
-
-    //         this.legendContainer.html(legendHtml);
-    //     }
 }
 
