@@ -1725,7 +1725,6 @@ class SvaDataTable {
                     console.log("Exception: while parsing extended_condition", error);
                 }
             }
-            console.log(this.connection,'this.connection/////')
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
