@@ -86,7 +86,7 @@ class SvaDataTable {
                 let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype, 'is_active': 1 })
                 if (workflow) {
                     this.workflow = await this.sva_db.get_doc("Workflow", workflow)
-                    if (this.workflow.states?.length){
+                    if (this.workflow.states?.length) {
                         this.wf_positive_closure = this.workflow.states.find(tr => tr.custom_closure === "Positive")?.state;
                         this.wf_negative_closure = this.workflow.states.find(tr => tr.custom_closure === "Negative")?.state;
                     }
@@ -1359,7 +1359,7 @@ class SvaDataTable {
             ...(fields ? fields : []),
         ];
         if (!this.skip_workflow_confirmation) {
-            workflowFormValue = await new Promise((resolve,reject) => {
+            workflowFormValue = await new Promise((resolve, reject) => {
                 dialog = new frappe.ui.Dialog({
                     title: "Confirm",
                     size: this.getDialogSize(popupFields),
@@ -1449,7 +1449,7 @@ class SvaDataTable {
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
             connection: link,
-            frm: { doctype: this.doctype, doc: { name: primaryKeyValue, docstatus: parentRow.docstatus }, parentRow },
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue, docstatus: parentRow.docstatus }, parentRow, dt_events: this.frm?.dt_events },
             options: {
                 serialNumberColumn: true,
                 editable: false,
@@ -1729,7 +1729,7 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
-            }else if (this.connection.link_fieldname){
+            } else if (this.connection.link_fieldname) {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });
