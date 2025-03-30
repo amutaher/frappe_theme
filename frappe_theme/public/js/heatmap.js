@@ -309,10 +309,12 @@ class Heatmap {
             .addClass('legend-container')
             .appendTo(this.mapContainer);
 
-        // Add title using primaryTargetField's label
-        const legendTitle = this.reportData?.columns.find(
+        // Get the column details for primaryTargetField
+        const column = this.reportData?.columns.find(
             (column) => column.fieldname === this.primaryTargetField
-        )?.label || 'Count';
+        );
+        
+        const legendTitle = column?.label || 'Count';
         
         $('<div>')
             .text(legendTitle)
@@ -337,9 +339,21 @@ class Heatmap {
                     .css('background-color', color)
                     .appendTo(legendItem);
                 
+                // Format the numbers based on fieldtype
+                let formattedBreak = break_;
+                let formattedNextBreak = nextBreak;
+                
+                if (column?.fieldtype === 'Currency') {
+                    formattedBreak = frappe.utils.format_currency(break_, column.options);
+                    formattedNextBreak = frappe.utils.format_currency(nextBreak, column.options);
+                } else {
+                    formattedBreak = frappe.utils.shorten_number(break_, frappe.sys_defaults.country);
+                    formattedNextBreak = frappe.utils.shorten_number(nextBreak, frappe.sys_defaults.country);
+                }
+                
                 const rangeText = index === breaks.length - 2 
-                    ? `${break_.toLocaleString()} And Above`
-                    : `${break_.toLocaleString()} - ${nextBreak.toLocaleString()}`;
+                    ? `${formattedBreak} And Above`
+                    : `${formattedBreak} - ${formattedNextBreak}`;
                 
                 $('<div>')
                     .text(rangeText)
