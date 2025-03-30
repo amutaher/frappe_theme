@@ -790,7 +790,7 @@ class SvaDataTable {
             }
         }
         const dialog = new frappe.ui.Dialog({
-            title: __(`Create ${__(this.connection?.title || doctype)}`),
+            title: __(`${mode == 'view' ? 'View' : mode == 'create' ? 'Create' : 'Update'} ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
@@ -1729,6 +1729,8 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+            }else if (this.connection.link_fieldname){
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });
