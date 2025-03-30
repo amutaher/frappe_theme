@@ -18,8 +18,8 @@ class Heatmap {
         this.districtField = opts.districtField;
         this.isLoadingDistricts = null;
 
-        this.highNumberCode = opts.high_number_code || '#800026';  // Default red
-        this.lowNumberCode = opts.low_number_code || '#FFEDA0';    // Default yellow
+        this.highNumberCode = opts.max_data_color || '#800026';  // Default red
+        this.lowNumberCode = opts.min_data_color || '#FFEDA0';    // Default yellow
 
         // Add custom CSS for fixed popup
         const style = document.createElement('style');
