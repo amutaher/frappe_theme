@@ -435,7 +435,7 @@ class Heatmap {
                                 
                                 this.refreshButton.hide();
                                 this.fixedPopupContainer
-                                    .html(this.getPopupContent(stateName, null, data))
+                                    .html(this.getPopupContent(stateName, data))
                                     .show();
                             },
                             mouseout: () => {
@@ -553,7 +553,7 @@ class Heatmap {
                                 
                                 this.refreshButton.hide();
                                 this.fixedPopupContainer
-                                    .html(this.getPopupContent(districtName, districtID, data))
+                                    .html(this.getPopupContent(districtName, data))
                                     .show();
                             },
                             mouseout: () => {
@@ -670,16 +670,23 @@ class Heatmap {
     }
 
     // Add this new method for consistent popup configuration
-    getPopupContent(name, id, data) {
-        const columnLabel = this.reportData?.columns.find(
+    getPopupContent(name, data) {
+        const column = this.reportData?.columns.find(
             (column) => column.fieldname === this.primaryTargetField
-        )?.label || 'Count';
+        );
 
         let additionalFields = '';
         if (this.targetFields?.length && data?.data) {
             additionalFields = this.targetFields
                 .map(field => {
-                    const value = data.data[field.fieldname];
+                    let value = data.data[field.fieldname];
+                    if(value){
+                        if (field.fieldtype === 'Currency') {
+                            value = frappe.utils.format_currency(value, field.options);
+                        }else{
+                            value = frappe.utils.shorten_number(value, frappe.sys_defaults.country);
+                        }
+                    }
                     return value ? `<br/>${field.label}: ${value}` : '';
                 })
                 .join('');
@@ -687,8 +694,8 @@ class Heatmap {
 
         return `
             <div>
-                <strong>${name}${id ? ' (' + id + ')' : ''}</strong><br/>
-                ${columnLabel}: ${data?.count || 0}
+                <strong>${name}</strong><br/>
+                ${column.label || "Count"}: ${column.fieldtype == "Currency" ? frappe.utils.format_currency(data?.count || 0) : frappe.utils.shorten_number(data?.count || 0, frappe.sys_defaults.country)}
                 ${additionalFields}
             </div>
         `;
