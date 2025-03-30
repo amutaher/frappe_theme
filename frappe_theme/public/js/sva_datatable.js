@@ -62,6 +62,8 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.wf_positive_closure = '';
+        this.wf_negative_closure = '';
         this.wf_editable_allowed = false;
         this.wf_transitions_allowed = false;
         this.skip_workflow_confirmation = false;
@@ -84,6 +86,10 @@ class SvaDataTable {
                 let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype, 'is_active': 1 })
                 if (workflow) {
                     this.workflow = await this.sva_db.get_doc("Workflow", workflow)
+                    if (this.workflow.states?.length){
+                        this.wf_positive_closure = this.workflow.states.find(tr => tr.custom_closure === "Positive")?.state;
+                        this.wf_negative_closure = this.workflow.states.find(tr => tr.custom_closure === "Negative")?.state;
+                    }
                     this.workflow_state_bg = await this.sva_db.get_list("Workflow State", {
                         fields: ['name', 'style']
                     });
