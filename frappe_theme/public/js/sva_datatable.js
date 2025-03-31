@@ -1042,7 +1042,6 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
-        const positiveClosureState = this.workflow?.states?.find(s => s.custom_closure == "Positive");
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
@@ -1085,8 +1084,8 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
             if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
-                if (positiveClosureState && row['workflow_state']) {
-                    if ((positiveClosureState.state != row['workflow_state'])) {
+                if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
+                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
                             if (this.connection?.redirect_to_main_form) {
                                 let route = frappe.get_route()
@@ -1112,8 +1111,8 @@ class SvaDataTable {
                 }
             }
             if (this.permissions.includes('delete') && this.conf_perms.includes('delete')) {
-                if (positiveClosureState && row['workflow_state']) {
-                    if ((positiveClosureState.state != row['workflow_state'])) {
+                if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
+                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
