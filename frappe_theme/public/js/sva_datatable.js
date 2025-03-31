@@ -1718,7 +1718,7 @@ class SvaDataTable {
                 try {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
-                        filters.push(cond);
+                        filters = filters.concat(cond);
                     }
                 } catch (error) {
                     console.log("Exception: while parsing extended_condition", error);
