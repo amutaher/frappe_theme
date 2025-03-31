@@ -388,6 +388,9 @@ class TimelineGenerator {
         this.prevButton = document.createElement('button');
         this.nextButton = document.createElement('button');
         this.pageInfo = document.createElement('span');
+        this.prevButton.innerHTML = '&#8592; Previous';
+        this.nextButton.innerHTML = `Next &rarr;`;
+        this.pageInfo.innerHTML = `Page ${this.page}`;
 
         [this.prevButton, this.nextButton].forEach(button => {
             button.style.cssText = `
