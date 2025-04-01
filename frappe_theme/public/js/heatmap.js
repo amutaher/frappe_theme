@@ -275,7 +275,7 @@ class Heatmap {
 
         // After processing data, create legend
         const range = this.calculateDataRange(this.stateData);
-        this.createLegend(range,'stateMode');
+        this.createLegend(range);
 
         this.stateLayer.eachLayer(layer => {
             const stateID = layer.feature.properties.id;
@@ -301,7 +301,7 @@ class Heatmap {
     }
 
     // Add new method to create legend
-    createLegend(range,mode) {
+    createLegend(range) {
         if (!range || typeof range.min === 'undefined') return;
 
         // Remove existing legend if any
@@ -550,7 +550,7 @@ class Heatmap {
 
                 // After processing district data, update legend
                 const range = this.calculateDataRange(this.districtData);
-                this.createLegend(range,'districtMode');
+                this.createLegend(range);
 
                 this.districtLayer = L.geoJSON(filtered, {
                     style: {
