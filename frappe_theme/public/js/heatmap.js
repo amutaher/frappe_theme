@@ -38,7 +38,7 @@ class Heatmap {
             }
             .legend-container {
                 position: absolute;
-                bottom: 10px;
+                bottom: 18px;
                 right: 10px;
                 z-index: 1000;
                 background: white;
