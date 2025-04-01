@@ -292,8 +292,6 @@ class Heatmap {
     // Add new method to calculate range and steps
     calculateDataRange(data) {
         let values = Object.values(data).map(item => item.count || 0);
-        console.log(values,'values')
-        // console.log(data,'data')
         return {
             min: isNaN(Math.min(...values)) ? 0 : Math.min(...values),
             max: isNaN(Math.max(...values)) ? 0 : Math.max(...values)
