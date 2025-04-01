@@ -117,8 +117,9 @@
   {
    "default": "{}",
    "depends_on": "eval:doc.extend_condition == true",
+   "description": "Only Double Quote (\") is allowed in the conditions,\ne.g. [[\"dt\",\"fieldname\",\"operator\",\"value\"],[\"dt\",\"fieldname\",\"operator\",\"value\"]]",
    "fieldname": "extended_condition",
-   "fieldtype": "JSON",
+   "fieldtype": "Code",
    "label": "Extended Condition"
   },
   {
@@ -150,7 +151,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-24 11:18:35.257363",
+ "modified": "2025-03-31 09:41:33.452154",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
