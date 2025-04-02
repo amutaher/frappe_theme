@@ -579,6 +579,8 @@ class SvaDataTable {
                             }
                         } else if (f.hidden) {
                             f.fieldtype = 'Data'
+                        }else if (doc[f.fieldname]){
+                            f.default = doc[f.fieldname];
                         }
                         continue;
                     }
@@ -776,7 +778,7 @@ class SvaDataTable {
                         `;
                     } else {
                         f.default = '';
-                        f.read_only = 1;
+                        f.hidden = 1;
                     }
                     continue;
                 }
