@@ -293,8 +293,6 @@ class GalleryComponent {
                 'is_folder': 0
             };
 
-            console.log('Fetching files with filters:', filters);
-
             this.gallery_files = await frappe.db.get_list('File', {
                 fields: ['*'],  // Get all fields
                 filters: filters,
@@ -302,7 +300,6 @@ class GalleryComponent {
                 limit: 1000,
             }) || [];
 
-            console.log('Fetched files:', this.gallery_files);
             this.updateGallery();
         } catch (error) {
             console.error('Error fetching files:', error);
@@ -503,6 +500,10 @@ class GalleryComponent {
                 loader.show();
                 let doc = await frappe.db.get_doc('File', fileId);
                 fields = fields.map(f => {
+                    if (f.fieldname === 'file' && doc.file_url) {
+                        f.default = doc.file_url;
+                        return f;
+                    }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
                     }
@@ -580,6 +581,9 @@ class GalleryComponent {
         });
 
         fileDialog.show();
+        fileDialog.onhide = function () {
+            loader.hide();
+        }
         this.dialog = fileDialog;
     }
 
@@ -705,7 +709,6 @@ class GalleryComponent {
     }
 
     updateGallery() {
-        console.log('called', 'updateGallery');
         const bodyWrapper = this.wrapper.querySelector('#gallery-body');
         if (this.view === 'Card') {
             bodyWrapper.innerHTML = this.renderCardView();
