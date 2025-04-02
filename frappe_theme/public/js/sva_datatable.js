@@ -62,6 +62,8 @@ class SvaDataTable {
         this.permissions = [];
         this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
+        this.wf_positive_closure = '';
+        this.wf_negative_closure = '';
         this.wf_editable_allowed = false;
         this.wf_transitions_allowed = false;
         this.skip_workflow_confirmation = false;
@@ -84,6 +86,10 @@ class SvaDataTable {
                 let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype, 'is_active': 1 })
                 if (workflow) {
                     this.workflow = await this.sva_db.get_doc("Workflow", workflow)
+                    if (this.workflow.states?.length) {
+                        this.wf_positive_closure = this.workflow.states.find(tr => tr.custom_closure === "Positive")?.state;
+                        this.wf_negative_closure = this.workflow.states.find(tr => tr.custom_closure === "Negative")?.state;
+                    }
                     this.workflow_state_bg = await this.sva_db.get_list("Workflow State", {
                         fields: ['name', 'style']
                     });
@@ -573,6 +579,8 @@ class SvaDataTable {
                             }
                         } else if (f.hidden) {
                             f.fieldtype = 'Data'
+                        }else if (doc[f.fieldname]){
+                            f.default = doc[f.fieldname];
                         }
                         continue;
                     }
@@ -770,7 +778,7 @@ class SvaDataTable {
                         `;
                     } else {
                         f.default = '';
-                        f.read_only = 1;
+                        f.hidden = 1;
                     }
                     continue;
                 }
@@ -784,7 +792,7 @@ class SvaDataTable {
             }
         }
         const dialog = new frappe.ui.Dialog({
-            title: __(`Create ${__(this.connection?.title || doctype)}`),
+            title: __(`${mode == 'view' ? 'View' : mode == 'create' ? 'Create' : 'Update'} ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
             primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
@@ -1036,7 +1044,6 @@ class SvaDataTable {
         });
     }
     createActionColumn(row, primaryKey) {
-        const positiveClosureState = this.workflow?.states?.find(s => s.custom_closure == "Positive");
         const dropdown = document.createElement('div');
         dropdown.classList.add('dropdown');
 
@@ -1079,8 +1086,8 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
             if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
-                if (positiveClosureState && row['workflow_state']) {
-                    if ((positiveClosureState.state != row['workflow_state'])) {
+                if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
+                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
                             if (this.connection?.redirect_to_main_form) {
                                 let route = frappe.get_route()
@@ -1106,8 +1113,8 @@ class SvaDataTable {
                 }
             }
             if (this.permissions.includes('delete') && this.conf_perms.includes('delete')) {
-                if (positiveClosureState && row['workflow_state']) {
-                    if ((positiveClosureState.state != row['workflow_state'])) {
+                if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
+                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
@@ -1354,7 +1361,7 @@ class SvaDataTable {
             ...(fields ? fields : []),
         ];
         if (!this.skip_workflow_confirmation) {
-            workflowFormValue = await new Promise((resolve,reject) => {
+            workflowFormValue = await new Promise((resolve, reject) => {
                 dialog = new frappe.ui.Dialog({
                     title: "Confirm",
                     size: this.getDialogSize(popupFields),
@@ -1444,7 +1451,7 @@ class SvaDataTable {
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
             doctype: doctype,
             connection: link,
-            frm: { doctype: this.doctype, doc: { name: primaryKeyValue, docstatus: parentRow.docstatus }, parentRow },
+            frm: { doctype: this.doctype, doc: { name: primaryKeyValue, docstatus: parentRow.docstatus }, parentRow, dt_events: this.frm?.dt_events },
             options: {
                 serialNumberColumn: true,
                 editable: false,
@@ -1713,7 +1720,7 @@ class SvaDataTable {
                 try {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
-                        filters.push(cond);
+                        filters = filters.concat(cond);
                     }
                 } catch (error) {
                     console.log("Exception: while parsing extended_condition", error);
@@ -1723,6 +1730,8 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+            } else if (this.connection.link_fieldname) {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });

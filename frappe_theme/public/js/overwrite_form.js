@@ -46,7 +46,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         } else if (!frappe.ui.form.handlers[this.doctype].on_tab_change.includes(this._activeTab.bind(this))) {
             frappe.ui.form.handlers[this.doctype].on_tab_change.push(this._activeTab.bind(this));
         }
-        
+
         // Setup custom after save handlers
         if (!frappe.ui.form.handlers[this.doctype].after_save) {
             frappe.ui.form.handlers[this.doctype].after_save = [this.custom_after_save.bind(this)];
@@ -60,6 +60,11 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 frm.add_custom_button('Set Property', () => {
                     this.set_properties(frm.doc.name);
                 });
+            }
+            let dropdown = frm?.page?.btn_secondary?.parent();
+            if (dropdown) {
+                dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
+                dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
@@ -82,7 +87,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             if (props?.length) {
                 for (const prop of props) {
                     if (prop?.value) {
-                        const [valueField,filterField] = prop.value.split("->");
+                        const [valueField, filterField] = prop.value.split("->");
                         field_events[valueField] = function (frm) {
                             this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
                             frm.set_value(prop.field_name, "");
@@ -97,7 +102,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         }
     }
     async custom_after_save(frm) {
-        if(frm?.sva_dt_prev_route && frm?.sva_dt_prev_route.length){
+        if (frm?.sva_dt_prev_route && frm?.sva_dt_prev_route.length) {
             frappe.set_route(frm.sva_dt_prev_route);
             frm.sva_dt_prev_route = null;
         }
@@ -678,7 +683,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const instance = new SvaDataTable({
             label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
-            doctype: ["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
+            doctype: ["Direct", "Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
             connection: field,
             childLinks,
@@ -691,7 +696,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
+        this.sva_tables[["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {
