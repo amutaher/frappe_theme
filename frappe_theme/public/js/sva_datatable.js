@@ -26,7 +26,10 @@ class SvaDataTable {
     constructor({
         label = "",
         wrapper, columns = [], rows = [], limit = 10,
-        childLinks = [], connection, options,
+        childLinks = [], connection, options={
+            serialNumberColumn: true,
+            editable: false,
+        },
         frm, cdtfname, doctype, render_only = false,
         onFieldClick = () => { }, onFieldValueChange = () => { },
         signal = null,
@@ -98,8 +101,8 @@ class SvaDataTable {
                 }
                 // ================================ Workflow End ================================
                 try {
-                    if (this.mgrant_settings != null && this.frm.doctype == "Grant" && await this.sva_db.exists("mGrant Settings Grant Wise", this.frm.doc.name)) {
-                        let msgw = await this.sva_db.get_doc("mGrant Settings Grant Wise", this.frm.doc.name)
+                    if (this.mgrant_settings != null && this.frm?.doctype == "Grant" && await this.sva_db.exists("mGrant Settings Grant Wise", this.frm?.doc.name)) {
+                        let msgw = await this.sva_db.get_doc("mGrant Settings Grant Wise", this.frm?.doc.name)
                         if (msgw) {
                             this.mgrant_settings = msgw
                         }
@@ -343,7 +346,7 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-        if (this.frm.doc.docstatus == 0 && this.conf_perms.length && this.conf_perms.includes('create')) {
+        if ((this.frm ? this.frm?.doc?.docstatus == 0 : true) && this.conf_perms.length && this.conf_perms.includes('create')) {
             if (this.permissions.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
@@ -355,10 +358,10 @@ class SvaDataTable {
                         if (this.connection?.redirect_to_main_form) {
                             let params = {}
                             if (this.connection?.connection_type === 'Referenced') {
-                                params[this.connection.dt_reference_field] = this.frm.doc.doctype;
-                                params[this.connection.dn_reference_field] = this.frm.doc.name;
+                                params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
+                                params[this.connection.dn_reference_field] = this.frm?.doc.name;
                             } else if (this.connection?.connection_type === 'Direct') {
-                                params[this.connection.link_fieldname] = this.frm.doc.name;
+                                params[this.connection.link_fieldname] = this.frm?.doc.name;
                             }
                             let route = frappe.get_route()
                             frappe.new_doc(this.doctype, params).then(() => {
@@ -579,6 +582,8 @@ class SvaDataTable {
                             }
                         } else if (f.hidden) {
                             f.fieldtype = 'Data'
+                        }else if (doc[f.fieldname]){
+                            f.default = doc[f.fieldname];
                         }
                         continue;
                     }
@@ -640,32 +645,32 @@ class SvaDataTable {
                             f.onchange = change.bind(this, this, mode, f);
                         }
                     }
-                    if (this.frm.parentRow) {
-                        if (this.frm.parentRow[f.fieldname]) {
+                    if (this.frm?.parentRow) {
+                        if (this.frm?.parentRow[f.fieldname]) {
                             if (f.fieldname == "workflow_state") {
                                 continue;
                             }
-                            f.default = this.frm.parentRow[f.fieldname];
+                            f.default = this.frm?.parentRow[f.fieldname];
                             f.read_only = 1;
                         }
                     }
-                    if (this.frm.doctype === f.options) {
-                        f.default = this.frm.doc.name;
+                    if (this.frm?.doctype === f.options) {
+                        f.default = this.frm?.doc.name;
                         f.read_only = 1;
                     }
                     if (this.connection?.connection_type === 'Referenced') {
                         if (f.fieldname === this.connection.dt_reference_field) {
-                            f.default = this.frm.doc.doctype;
+                            f.default = this.frm?.doc.doctype;
                             f.read_only = 1;
                         }
                         if (f.fieldname === this.connection.dn_reference_field) {
-                            f.default = this.frm.doc.name;
+                            f.default = this.frm?.doc.name;
                             f.read_only = 1;
                         }
                     }
                     if (this.connection?.connection_type === 'Direct') {
                         if (f.fieldname === this.connection.link_fieldname) {
-                            f.default = this.frm.doc.name;
+                            f.default = this.frm?.doc.name;
                             f.read_only = 1;
                         }
                     }
@@ -776,7 +781,7 @@ class SvaDataTable {
                         `;
                     } else {
                         f.default = '';
-                        f.read_only = 1;
+                        f.hidden = 1;
                     }
                     continue;
                 }
@@ -938,7 +943,8 @@ class SvaDataTable {
     createTable() {
         const el = document.createElement('div');
         el.classList.add('form-grid-container', 'form-grid');
-        el.style = 'overflow:auto;';
+        let height = this.options?.style?.height ? `min-height:${this.options?.style?.height};` : ''
+        el.style = `overflow:auto; ${height}`;
         this.table = document.createElement('table');
         this.table.classList.add('table', 'table-bordered');
         this.table.style = 'width:100%;height:auto; font-size:13px; margin-top:0px !important;margin-bottom: 0px;';
@@ -1008,7 +1014,7 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (((this.frm.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
+        if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
             if (frappe.user_roles.includes("Administrator")) {
@@ -1082,7 +1088,7 @@ class SvaDataTable {
         }
 
         // Edit and Delete Buttons
-        if (!['1', '2'].includes(row.docstatus) && this.frm?.doc?.docstatus == 0) {
+        if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
             if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
@@ -1296,7 +1302,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if ((this.frm.doc.docstatus === 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if (((this.frm ? this.frm?.doc.docstatus === 0 : true) && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';
@@ -1718,19 +1724,26 @@ class SvaDataTable {
                 try {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
+                        cond = cond?.map(e=>{
+                            if(e.length > 3 && e[3] && e[3]?.toLowerCase() == 'today'){
+                                e[3] = new Date().toISOString().split('T')[0];
+                            }
+                            return e
+                        })
                         filters = filters.concat(cond);
                     }
                 } catch (error) {
                     console.log("Exception: while parsing extended_condition", error);
                 }
             }
+
             if (this.connection?.connection_type === 'Referenced') {
-                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm.doc.doctype]);
-                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm.doc.name]);
+                filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm?.doc.doctype]);
+                filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm?.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
             } else if (this.connection.link_fieldname) {
-                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm.doc.name]);
+                filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
             }
             this.total = await frappe.db.count(this.doctype, { filters: filters });
             let res = await frappe.call({

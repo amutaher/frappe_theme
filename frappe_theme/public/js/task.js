@@ -69,6 +69,10 @@ class mGrantTask {
                 name: 'custom_task_status',
                 actions: [
                     {
+                        name: 'Backlog',
+                        color: 'grey'
+                    },
+                    {
                         name: 'Todo',
                         color: 'grey'
                     },
@@ -195,6 +199,7 @@ class mGrantTask {
                                                     ${task?.custom_task_status ?? 'Status'}
                                                 </span>
                                                 <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Backlog">Backlog</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
