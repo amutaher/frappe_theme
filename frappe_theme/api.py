@@ -297,3 +297,135 @@ def get_timeline_dt(dt, dn):
     
     result = frappe.db.sql(sql, as_dict=True)
     return [row["doctype"] for row in result]
+
+@frappe.whitelist()
+def copy_role_perms(doc):
+    # Parse the doc parameter if it's a string
+    if isinstance(doc, str):
+        doc = frappe.parse_json(doc)
+    
+    # Get all existing Custom DocPerm records
+    existing_perms = frappe.get_all('Custom DocPerm', 
+                    filters={
+                        'role': doc.get('role_from'), 
+                        'permlevel': 0,
+                    },
+                    ignore_permissions=True
+                )
+    
+    # print("============================ existing_perms", existing_perms)
+    
+    # Check if records with role_to already exist
+    existing_role_to_perms = frappe.get_all('Custom DocPerm',
+                    filters={
+                        'role': doc.get('role_to'),
+                        'permlevel': 0,
+                    },
+                    ignore_permissions=True
+                )
+    
+    records_updated = 0
+    records_created = 0
+    
+    # Create a set of doctypes that already have permissions for role_to
+    existing_doctypes = set()
+    for perm in existing_role_to_perms:
+        perm_doc = frappe.get_doc('Custom DocPerm', perm.name)
+        existing_doctypes.add(perm_doc.parent)
+    
+    # Get the first permission to determine common permissions
+    common_permissions = {}
+    if existing_perms:
+        first_perm = frappe.get_doc('Custom DocPerm', existing_perms[0].name)
+        common_permissions = get_common_permissions(first_perm, doc)
+    
+    # Update existing records with common permissions
+    for perm in existing_role_to_perms:
+        perm_doc = frappe.get_doc('Custom DocPerm', perm.name)
+        
+        # Update the permission values with common permissions
+        apply_common_permissions(perm_doc, common_permissions)
+        
+        # print("============================ Updating permission", perm_doc.as_dict())
+        perm_doc.save()
+        records_updated += 1
+    
+    # Create new records for doctypes that don't have permissions for role_to
+    for perm in existing_perms:
+        # Get the full document for the permission
+        perm_doc = frappe.get_doc('Custom DocPerm', perm.name)
+        
+        # Skip if this doctype already has a permission for role_to
+        if perm_doc.parent in existing_doctypes:
+            continue
+        
+        # Create a new permission with role_to
+        new_perm = frappe.get_doc('Custom DocPerm', perm.name)
+        new_perm.role = doc.get('role_to')
+        
+        # Copy parent from the original permission
+        new_perm.parent = perm_doc.parent
+        
+        # Apply common permissions
+        apply_common_permissions(new_perm, common_permissions)
+        
+        # print("============================ Creating new permission", new_perm.as_dict())
+        new_perm.insert()
+        records_created += 1
+    
+    # frappe.db.commit()
+    
+    # Create redirect link
+    redirect_link = f'<a href="/app/custom-docperm" class="">View Permissions</a>'
+    
+    # Show appropriate message with redirect link
+    if records_updated > 0 and records_created > 0:
+        frappe.msgprint(f"{records_updated} permissions updated and {records_created} permissions created successfully {redirect_link}")
+    elif records_updated > 0:
+        frappe.msgprint(f"{records_updated} permissions updated successfully {redirect_link}")
+    elif records_created > 0:
+        frappe.msgprint(f"{records_created} permissions created successfully {redirect_link}")
+    else:
+        frappe.msgprint(f"No permissions were updated or created")
+    
+    return True
+
+def get_common_permissions(original_perm, doc):
+    """Get common permissions between original_perm and doc"""
+    common_permissions = {}
+    
+    # Check each permission field
+    common_permissions['select'] = 1 if int(original_perm.select) and int(doc.get('select', 0)) else 0
+    common_permissions['read'] = 1 if int(original_perm.read) and int(doc.get('read', 0)) else 0
+    common_permissions['write'] = 1 if int(original_perm.write) and int(doc.get('write', 0)) else 0
+    common_permissions['create'] = 1 if int(original_perm.create) and int(doc.get('create', 0)) else 0
+    common_permissions['delete'] = 1 if int(original_perm.delete) and int(doc.get('delete_to', 0)) else 0
+    common_permissions['submit'] = 1 if int(original_perm.submit) and int(doc.get('submit_to', 0)) else 0
+    common_permissions['cancel'] = 1 if int(original_perm.cancel) and int(doc.get('cancel_to', 0)) else 0
+    common_permissions['amend'] = 1 if int(original_perm.amend) and int(doc.get('amend', 0)) else 0
+    common_permissions['report'] = 1 if int(original_perm.report) and int(doc.get('report', 0)) else 0
+    common_permissions['export'] = 1 if int(original_perm.export) and int(doc.get('export', 0)) else 0
+    common_permissions['import'] = 1 if int(getattr(original_perm, 'import', 0)) and int(doc.get('import_to', 0)) else 0
+    common_permissions['share'] = 1 if int(original_perm.share) and int(doc.get('share', 0)) else 0
+    common_permissions['print'] = 1 if int(original_perm.print) and int(doc.get('print', 0)) else 0
+    common_permissions['email'] = 1 if int(original_perm.email) and int(doc.get('email', 0)) else 0
+    
+    return common_permissions
+
+def apply_common_permissions(perm_doc, common_permissions):
+    """Apply common permissions to a permission document"""
+    perm_doc.select = common_permissions.get('select', 0)
+    perm_doc.read = common_permissions.get('read', 0)
+    perm_doc.write = common_permissions.get('write', 0)
+    perm_doc.create = common_permissions.get('create', 0)
+    perm_doc.delete = common_permissions.get('delete', 0)
+    perm_doc.submit = common_permissions.get('submit', 0)
+    perm_doc.cancel = common_permissions.get('cancel', 0)
+    perm_doc.amend = common_permissions.get('amend', 0)
+    perm_doc.report = common_permissions.get('report', 0)
+    perm_doc.export = common_permissions.get('export', 0)
+    setattr(perm_doc, 'import', common_permissions.get('import', 0))
+    perm_doc.share = common_permissions.get('share', 0)
+    perm_doc.print = common_permissions.get('print', 0)
+    perm_doc.email = common_permissions.get('email', 0)
+
