@@ -38,7 +38,7 @@ class Heatmap {
             }
             .legend-container {
                 position: absolute;
-                bottom: 10px;
+                bottom: 18px;
                 right: 10px;
                 z-index: 1000;
                 background: white;
@@ -291,10 +291,10 @@ class Heatmap {
 
     // Add new method to calculate range and steps
     calculateDataRange(data) {
-        let values = Object.values(data).map(item => item.count);
+        let values = Object.values(data).map(item => item.count || 0);
         return {
-            min: Math.min(...values),
-            max: Math.max(...values)
+            min: isNaN(Math.min(...values)) ? 0 : Math.min(...values),
+            max: isNaN(Math.max(...values)) ? 0 : Math.max(...values)
         };
     }
 
@@ -303,7 +303,7 @@ class Heatmap {
         if (!range || typeof range.min === 'undefined') return;
 
         // Remove existing legend if any
-        $('.legend-container').remove();
+        $(this.mapContainer).find('.legend-container').remove();
 
         const legendContainer = $('<div>')
             .addClass('legend-container')
