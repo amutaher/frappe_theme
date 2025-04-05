@@ -388,6 +388,9 @@ class TimelineGenerator {
         this.prevButton = document.createElement('button');
         this.nextButton = document.createElement('button');
         this.pageInfo = document.createElement('span');
+        this.prevButton.innerHTML = '&#8592; Previous';
+        this.nextButton.innerHTML = `Next &rarr;`;
+        this.pageInfo.innerHTML = `Page ${this.page}`;
 
         [this.prevButton, this.nextButton].forEach(button => {
             button.style.cssText = `
@@ -407,10 +410,6 @@ class TimelineGenerator {
             color: #4b5563;
             font-weight: 500;
         `;
-
-        this.prevButton.innerHTML = '← Previous';
-        this.nextButton.innerHTML = 'Next →';
-        this.pageInfo.innerHTML = `Page ${this.page}`;
 
         this.prevButton.onclick = () => this.changePage(-1);
         this.nextButton.onclick = () => this.changePage(1);
@@ -687,111 +686,153 @@ class TimelineGenerator {
     //  Filter UI
 
     setupFilters() {
-        // Create filters container
         const filtersContainer = document.createElement('div');
         filtersContainer.className = 'timeline-filters';
         filtersContainer.style.cssText = `
             background: white;
-            padding: 16px;
+            padding: 12px;
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 24px;
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            flex-wrap: wrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
             margin-left: 32px;
+            border: 1px solid #f3f4f6;
         `;
 
-        // Doctype dropdown
-        const doctypeContainer = document.createElement('div');
-        doctypeContainer.style.cssText = `
-            flex: 1;
-            min-width: 200px;
+        // Create compact filters wrapper with search bar look
+        const filtersWrapper = document.createElement('div');
+        filtersWrapper.style.cssText = `
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 6px;
         `;
 
-        const doctypeLabel = document.createElement('label');
-        doctypeLabel.innerHTML = 'Document Type';
-        doctypeLabel.style.cssText = `
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #4b5563;
+        // Filter icon
+        const filterIcon = document.createElement('div');
+        filterIcon.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280">
+                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" 
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        filterIcon.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            color: #6b7280;
         `;
 
+        // Doctype filter with icon
         this.doctypeSelect = document.createElement('select');
         this.doctypeSelect.style.cssText = `
-            width: 100%;
-            padding: 8px 12px;
+            min-width: 180px;
+            padding: 8px 32px 8px 28px;
             border: 1px solid #e5e7eb;
             outline: none;
             border-radius: 6px;
-            background: #f9fafb;
+            background: white;
             color: #374151;
             font-size: 0.875rem;
             transition: all 0.2s ease;
             cursor: pointer;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 16px;
-            padding-right: 40px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat, no-repeat;
+            background-position: right 8px center, left 8px center;
+            background-size: 16px, 16px;
         `;
 
-        // Owner search
-        const ownerContainer = document.createElement('div');
-        ownerContainer.style.cssText = `
+        // Owner search with icon
+        const searchWrapper = document.createElement('div');
+        searchWrapper.style.cssText = `
+            position: relative;
             flex: 1;
-            min-width: 200px;
-        `;
-
-        const ownerLabel = document.createElement('label');
-        ownerLabel.innerHTML = 'Search Owner';
-        ownerLabel.style.cssText = `
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #4b5563;
+            min-width: 160px;
         `;
 
         this.ownerSearch = document.createElement('input');
         this.ownerSearch.type = 'text';
-        this.ownerSearch.placeholder = 'Search by owner...';
+        this.ownerSearch.placeholder = 'Search user...';
         this.ownerSearch.style.cssText = `
             width: 100%;
-            padding: 8px 12px;
+            padding: 8px 32px 8px 28px;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             outline: none;
-            background: #f9fafb;
+            background: white;
             color: #374151;
             font-size: 0.875rem;
             transition: all 0.2s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 8px center;
+            background-size: 16px;
         `;
 
-        // Append elements
-        doctypeContainer.appendChild(doctypeLabel);
-        doctypeContainer.appendChild(this.doctypeSelect);
-        ownerContainer.appendChild(ownerLabel);
-        ownerContainer.appendChild(this.ownerSearch);
-        filtersContainer.appendChild(doctypeContainer);
-        filtersContainer.appendChild(ownerContainer);
+        // Clear filters button with improved styling
+        this.clearButton = document.createElement('button');
+        this.clearButton.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        this.clearButton.style.cssText = `
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: #f3f4f6;
+            color: #4b5563;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        `;
 
-        // Add to wrapper before timeline
+        // Hover and focus states
+        [this.doctypeSelect, this.ownerSearch].forEach(element => {
+            element.addEventListener('focus', () => {
+                element.style.borderColor = '#6366f1';
+                element.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.1)';
+            });
+            element.addEventListener('blur', () => {
+                element.style.borderColor = '#e5e7eb';
+                element.style.boxShadow = 'none';
+            });
+        });
+
+        // Append elements
+        filtersWrapper.appendChild(filterIcon);
+        filtersWrapper.appendChild(this.doctypeSelect);
+        searchWrapper.appendChild(this.ownerSearch);
+        filtersWrapper.appendChild(searchWrapper);
+        filtersWrapper.appendChild(this.clearButton);
+        filtersContainer.appendChild(filtersWrapper);
         this.wrapper.insertBefore(filtersContainer, this.timeline_wrapper);
 
-        // Add event listeners
+        this.setupFilterEventListeners();
+        this.fetchDoctypes();
+    }
+
+    setupFilterEventListeners() {
+        const updateClearButtonVisibility = () => {
+            const hasFilters = this.filters.doctype || this.filters.owner;
+            this.clearButton.style.display = hasFilters ? 'inline-flex' : 'none';
+        };
+
         this.doctypeSelect.addEventListener('change', () => {
             this.filters.doctype = this.doctypeSelect.value;
             this.page = 1;
             this.setupPagination();
             this.fetchTimelineData();
+            updateClearButtonVisibility();
         });
 
-        // Debounce search input
         let timeout;
         this.ownerSearch.addEventListener('input', () => {
             clearTimeout(timeout);
@@ -800,11 +841,20 @@ class TimelineGenerator {
                 this.page = 1;
                 this.setupPagination();
                 this.fetchTimelineData();
+                updateClearButtonVisibility();
             }, 300);
         });
 
-        // Fetch doctypes for dropdown
-        this.fetchDoctypes();
+        this.clearButton.addEventListener('click', () => {
+            this.doctypeSelect.value = '';
+            this.ownerSearch.value = '';
+            this.filters.doctype = '';
+            this.filters.owner = '';
+            this.page = 1;
+            this.setupPagination();
+            this.fetchTimelineData();
+            updateClearButtonVisibility();
+        });
     }
 
     async fetchDoctypes() {
@@ -818,35 +868,30 @@ class TimelineGenerator {
             });
 
             const doctypes = response.message || [];
-
-            // Clear existing options
             this.doctypeSelect.innerHTML = "";
 
+            // Add placeholder option
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'All Documents';
+            placeholderOption.selected = true;
+            this.doctypeSelect.appendChild(placeholderOption);
 
-
-            // Append 'All Document Types' as the second option
-            const emptyOption = document.createElement('option');
-            emptyOption.value = '';
-            emptyOption.textContent = 'Select Doctype';
-            emptyOption.selected = true;
-
-            this.doctypeSelect.appendChild(emptyOption);
-            // Append frm.doc.doctype as the first option
+            // Add current doctype option
             const currentOption = document.createElement('option');
             currentOption.value = this.frm.doc.doctype;
             currentOption.textContent = this.frm.doc.doctype;
             this.doctypeSelect.appendChild(currentOption);
 
-            // Append fetched doctype options
+            // Add other doctype options
             doctypes.forEach(dt => {
                 const option = document.createElement('option');
-                option.value = dt;  // Directly set the value from the array
-                option.textContent = dt;  // Display same value as label
+                option.value = dt;
+                option.textContent = dt;
                 this.doctypeSelect.appendChild(option);
             });
         } catch (error) {
             console.error("Error fetching doctypes:", error);
         }
-
     }
 }
