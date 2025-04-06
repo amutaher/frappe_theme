@@ -7,7 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "workspace",
-  "heatmaps"
+  "heatmaps",
+  "tables_tab",
+  "tables"
  ],
  "fields": [
   {
@@ -24,11 +26,23 @@
    "fieldtype": "Table",
    "label": "Heatmaps",
    "options": "SVAWorkspace Heatmap Child"
+  },
+  {
+   "depends_on": "eval:doc.workspace",
+   "fieldname": "tables_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tables"
+  },
+  {
+   "fieldname": "tables",
+   "fieldtype": "Table",
+   "label": "Tables",
+   "options": "SVAWorkspace DT Child"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-24 15:09:27.428986",
+ "modified": "2025-04-02 19:47:45.638154",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVAWorkspace Configuration",

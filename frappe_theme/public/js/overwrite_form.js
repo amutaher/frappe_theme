@@ -696,7 +696,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
+        this.sva_tables[["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {

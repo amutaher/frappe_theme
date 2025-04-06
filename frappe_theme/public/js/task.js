@@ -69,6 +69,10 @@ class mGrantTask {
                 name: 'custom_task_status',
                 actions: [
                     {
+                        name: 'Backlog',
+                        color: 'grey'
+                    },
+                    {
                         name: 'Todo',
                         color: 'grey'
                     },
@@ -169,7 +173,14 @@ class mGrantTask {
                 </thead>
                 <tbody style="background-color: #fff; font-size: 12px;">
                     ${this.task_list.length === 0
-                        ? `<tr><td colspan="${showActions ? '9' : '8'}" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8; line-height: 92px;">No rows</td></tr>`
+                        ? `<tr><td colspan="${showActions ? '9' : '8'}" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8;">
+                            <div class="d-flex align-items-center" style="height: 100%; flex-direction: column; gap: 22px">
+                                <svg class="icon icon-xl" style="stroke: var(--text-light);">
+                                    <use href="#icon-small-file"></use>
+                                </svg>
+                                <p class="text-muted">You haven't created a Recored yet</p>
+                            </div>
+                        </td></tr>`
                         : this.task_list.map(task => `
                             <tr class="grid-row">
                                 ${showActions ? `
@@ -195,6 +206,7 @@ class mGrantTask {
                                                     ${task?.custom_task_status ?? 'Status'}
                                                 </span>
                                                 <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Backlog">Backlog</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
