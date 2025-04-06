@@ -20,6 +20,7 @@ app_include_css = [
 ]
 app_include_js = [
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/utils.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
     f"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
     f"/assets/frappe_theme/js/heatmap.js?ver={time.time()}",
@@ -41,7 +42,6 @@ app_include_js = [
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
     f"/assets/frappe_theme/js/loader-element.js?ver={time.time()}",
     f"/assets/frappe_theme/js/mobile_view.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}",
     f"/assets/frappe_theme/js/number_card.js?ver={time.time()}",
     f"/assets/frappe_theme/js/custom_import.js?ver={time.time()}",
     f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}",
