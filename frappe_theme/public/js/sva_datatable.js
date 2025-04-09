@@ -1346,6 +1346,7 @@ class SvaDataTable {
                 change(me, selected_state_info, docname, prevState);
             }
         }
+        
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
         let meta = await frappe.call({
             method: 'frappe_theme.api.get_meta',
@@ -1365,7 +1366,7 @@ class SvaDataTable {
             ...(fields ? fields : []),
         ];
         if (!this.skip_workflow_confirmation) {
-            workflowFormValue = await new Promise((resolve, reject) => {
+            workflowFormValue = await new Promise(async(resolve, reject) => {
                 dialog = new frappe.ui.Dialog({
                     title: "Confirm",
                     size: this.getDialogSize(popupFields),
@@ -1383,7 +1384,16 @@ class SvaDataTable {
                         frappe.show_alert({ message: `${selected_state_info.action} Action has been cancelled.`, indicator: "orange" });
                     },
                 });
-                dialog.show();
+                me['workflow_dialog'] = dialog;
+                dialog.show()
+                if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_dialog_render']) {
+                    let change = this.frm['dt_events'][this.doctype]['after_workflow_dialog_render']
+                    if (this.isAsync(change)) {
+                        await change(me, selected_state_info, docname, prevState);
+                    } else {
+                        change(me, selected_state_info, docname, prevState);
+                    }
+                };
             });
         }
         try {
