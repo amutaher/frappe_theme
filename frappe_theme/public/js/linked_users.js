@@ -55,7 +55,7 @@ class LinkedUser {
                             <td style="white-space: nowrap;">${user.email}</td>
                             <td style="padding: 5px 8px !important;">
                                 <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
-                                ${frappe.boot.user_team == "Donor" ?`
+                                ${frappe.boot.user_team == "Donor" ? `
                                     <span title="Status" id="dropStatus-${user.name}" class=" small dropdown-toggle badge bg-light pointer ${user.status === 'Active' ? 'text-success' : 'text-danger'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" >
                                         ${user?.status}
                                     </span>
@@ -63,7 +63,7 @@ class LinkedUser {
                                         <a class="dropdown-item user-status" data-user="${user.name}" data-status="Active">Active</a>
                                         <a class="dropdown-item user-status" data-user="${user.name}" data-status="Inactive">Inactive</a>
                                     </div>`
-                                    : `<span class="${user?.status=='Active'?'text-success':'text-danger'} small">${user.status}</span>`}
+                        : `<span class="${user?.status == 'Active' ? 'text-success' : 'text-danger'} small">${user.status}</span>`}
                                 </div>
                             </td>
                             ${frappe.boot.user_team == "Donor" ?
@@ -376,6 +376,9 @@ class LinkedUser {
             if (action === 'Edit User' && data) {
                 if (data[field.fieldname]) {
                     field.default = data[field.fieldname];
+                }
+                if (field.fieldname === 'email') {
+                    field.read_only = 1;
                 }
             }
             if (field.fieldname === 'role_profile') {
