@@ -873,21 +873,21 @@ class TimelineGenerator {
             // Add placeholder option
             const placeholderOption = document.createElement('option');
             placeholderOption.value = '';
-            placeholderOption.textContent = 'All Documents';
+            placeholderOption.textContent = __('All Documents');
             placeholderOption.selected = true;
             this.doctypeSelect.appendChild(placeholderOption);
 
             // Add current doctype option
             const currentOption = document.createElement('option');
             currentOption.value = this.frm.doc.doctype;
-            currentOption.textContent = this.frm.doc.doctype;
+            currentOption.textContent = __(this.frm.doc.doctype);
             this.doctypeSelect.appendChild(currentOption);
 
             // Add other doctype options
             doctypes.forEach(dt => {
                 const option = document.createElement('option');
                 option.value = dt;
-                option.textContent = dt;
+                option.textContent = __(dt);
                 this.doctypeSelect.appendChild(option);
             });
         } catch (error) {
