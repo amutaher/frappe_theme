@@ -23,6 +23,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         }
     }
 
+
     setupHandlers() {
         if (!frappe.ui.form.handlers[this.doctype]) {
             frappe.ui.form.handlers[this.doctype] = {
@@ -66,7 +67,17 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
                 dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
-            frm.page.hide_icon_group('print')
+            frappe.db.get_single_value('My Theme', 'hide_print_icon')
+                .then(value => {
+                    if (value) {
+                        frm.page.hide_icon_group('print')
+                    } else {
+                        frm.page.show_icon_group('print')
+                    }
+                });
+
+
+            // frm.page.hide_icon_group('print')
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
                 const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
