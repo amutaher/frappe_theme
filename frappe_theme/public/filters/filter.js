@@ -9,6 +9,8 @@ class CustomFilter {
 		this.set_conditions();
 		this.set_conditions_from_config();
 		this.make();
+		this.get_filter_fields()
+		this.fields = {};
 	}
 
 	set_conditions() {
@@ -95,18 +97,28 @@ class CustomFilter {
 			})
 		);
 		this.parent && this.filter_edit_area.appendTo(this.parent.find(".filter-edit-area"));
-		this.make_select();
 		this.set_events();
 		this.setup();
 	}
 
-	make_select() {
+	async get_filter_fields(){
+		let res = await frappe.call({
+			method: "frappe_theme.dt_api.doc_filters",
+			args: {
+				doctype:this.parent_doctype
+			},
+		});
+		this.fields = res.message;
+	}
+
+	async make_select() {
 		this.fieldselect = new CustomFieldSelect({
 			parent: this.filter_edit_area.find(".fieldname-select-area"),
 			doctype: this.parent_doctype,
 			parent_doctype: this._parent_doctype,
 			filter_fields: this.filter_fields,
 			input_class: "input-xs",
+			fields: this.fields,
 			select: (doctype, fieldname) => {
 				this.set_field(doctype, fieldname);
 			},
@@ -147,7 +159,9 @@ class CustomFilter {
 		});
 	}
 
-	setup() {
+	async setup() {
+		await this.get_filter_fields();
+		await this.make_select();
 		const fieldname = this.fieldname || "name";
 		// set the field
 		return this.set_values(this.doctype, fieldname, this.condition, this.value);
