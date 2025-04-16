@@ -66,6 +66,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
                 dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
+            frm.page.hide_icon_group('print')
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
                 const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
@@ -696,7 +697,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-        this.sva_tables[["Direct","Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype] = instance;
+        this.sva_tables[["Direct", "Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {
