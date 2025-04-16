@@ -45,6 +45,7 @@
   "main_body_section",
   "body_background_color",
   "hide_side_bar",
+  "hide_print_icon",
   "column_break_ojdd",
   "main_body_content_box_background_color",
   "table_tab",
@@ -422,13 +423,19 @@
    "fieldname": "dialog_width",
    "fieldtype": "Data",
    "label": "SVA DataTable Dialog Width"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_print_icon",
+   "fieldtype": "Check",
+   "label": "Hide Print Icon"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-17 14:14:55.187511",
+ "modified": "2025-04-16 15:24:05.907651",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
