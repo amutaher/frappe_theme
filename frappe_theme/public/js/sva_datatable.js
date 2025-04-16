@@ -1013,10 +1013,11 @@ class SvaDataTable {
         }
         if (this.frm?.['dt_events']?.[this.doctype]?.['after_render']) {
             let change = this.frm['dt_events'][this.doctype]['after_render']
+            let has_aditional_action = additional_action ? true : false
             if (this.isAsync(change)) {
-                await change(this, mode);
+                await change(this, mode, has_aditional_action);
             } else {
-                change(this, mode);
+                change(this, mode,has_aditional_action);
             }
         }
     }
