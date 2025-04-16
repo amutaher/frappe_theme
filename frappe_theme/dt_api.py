@@ -1,4 +1,5 @@
 import frappe
+import json
 
 @frappe.whitelist()
 def get_direct_connection_dts(dt):
@@ -34,3 +35,31 @@ def get_workflow_with_dt(dt):
         return wf_doc.as_dict()
     else:
         frappe.throw('No workflow found for this doctype')
+
+@frappe.whitelist()
+def doc_filters(doctype, filters=None):
+    dtmeta = frappe.get_meta(doctype)
+    field_dicts = {}
+    field_dicts[doctype] = []
+    
+    def process_field(field):
+        field_dict = {}
+        for key, value in field.__dict__.items():
+            if key == 'link_filters' and isinstance(value, list):
+                field_dict[key] = json.dumps(value)
+            else:
+                field_dict[key] = value
+        return field_dict
+    
+    for field in dtmeta.fields:
+        field_dict = process_field(field)
+        if field_dict.get('fieldtype') in ["Table", "Table MultiSelect"]:
+            child_meta = frappe.get_meta(field_dict.get('options'))
+            if len(child_meta.fields) > 0:
+                field_dicts[field_dict.get('options')] = []
+                for child_field in child_meta.fields:
+                    child_field_dict = process_field(child_field)
+                    field_dicts[field_dict.get('options')].append(child_field_dict)
+            continue
+        field_dicts[doctype].append(field_dict)
+    return field_dicts

@@ -115,7 +115,7 @@ class CustomFieldSelect{
 			});
 		}
 		// let fields = frappe.meta.get_docfields(me.doctype);
-		var main_table_fields = std_filters.concat(frappe.boot.filter_fields[me.doctype]);
+		var main_table_fields = std_filters.concat(me.fields[me.doctype]);
 		// console.log(main_table_fields,'main_table_fields')
 		$.each(frappe.utils.sort(main_table_fields, "label", "string"), function (i, df) {
 			me.add_field_option(df);
@@ -125,7 +125,7 @@ class CustomFieldSelect{
 		// console.log(me.table_fields,'me.table_fields')
 		$.each(me.table_fields, function (i, table_df) {
 			if (table_df.options) {
-				let child_table_fields = [].concat(frappe.boot.filter_fields[table_df.options]);
+				let child_table_fields = [].concat(me.fields[table_df.options]);
 				if (table_df.fieldtype === "Table MultiSelect") {
 					const link_field = frappe.meta
 						.get_docfields(table_df.options)
