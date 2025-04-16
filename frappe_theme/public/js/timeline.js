@@ -419,6 +419,9 @@ class TimelineGenerator {
         paginationContainer.appendChild(this.nextButton);
 
         this.wrapper.appendChild(paginationContainer);
+
+        // Initialize button states
+        this.updatePaginationButtons();
     }
 
     async changePage(direction) {
@@ -549,12 +552,21 @@ class TimelineGenerator {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
-                page_length: this.pageSize,
+                page_length: this.pageSize + 1, // Fetch one extra record to check if next page exists
                 filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
-            this.hasMore = versions.length === this.pageSize;
+            // Check if we got more records than pageSize to determine if next page exists
+            this.hasMore = versions.length > this.pageSize;
+
+            // If we got extra record, remove it from display
+            if (this.hasMore) {
+                versions.pop();
+            }
+
+            // Update pagination button states
+            this.updatePaginationButtons();
 
             if (!append) {
                 this.timeline_wrapper.innerHTML = '';
@@ -681,6 +693,15 @@ class TimelineGenerator {
                 `;
             }
         });
+    }
+
+    updatePaginationButtons() {
+        if (this.prevButton && this.nextButton) {
+            this.prevButton.disabled = this.page === 1;
+            this.prevButton.style.opacity = this.page === 1 ? '0.5' : '1';
+            this.nextButton.disabled = !this.hasMore;
+            this.nextButton.style.opacity = !this.hasMore ? '0.5' : '1';
+        }
     }
 
     //  Filter UI
