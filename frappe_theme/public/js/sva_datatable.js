@@ -85,6 +85,12 @@ class SvaDataTable {
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
+                if (frappe.session.user != "Administrator"){
+                    let user_wise_list_settings = await this.getUserWiseListSettings();
+                    if (user_wise_list_settings){
+                        this.header = JSON.parse(user_wise_list_settings || '[]');
+                    }
+                }
                 // ================================ Workflow Logic  ================================
                 let workflow = await this.sva_db.get_value("Workflow", { "document_type": this.doctype, 'is_active': 1 })
                 if (workflow) {
@@ -171,6 +177,14 @@ class SvaDataTable {
         }
         loader.hide();
     }
+    async getUserWiseListSettings(){
+        let res = await this.sva_db.call({
+            method:"frappe_theme.dt_api.get_user_list_settings",
+            parent_id: this.connection.parent,
+            child_dt:this.doctype
+        })
+        return res.message;
+    }
     setupHeader() {
         let row = document.createElement('div');
         row.id = 'header-element';
@@ -222,6 +236,7 @@ class SvaDataTable {
         new CustomFilterArea({
             wrapper: list_filter,
             doctype: this.doctype,
+            dt_filter_fields: this.header?.map(field => field.fieldname),
             on_change: (filters) => {
                 if (filters.length == 0) {
                     if (this.additional_list_filters.length) {
@@ -284,12 +299,21 @@ class SvaDataTable {
             meta: dtmeta.message,
             settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
             dialog_primary_action: async (listview_settings) => {
-                await frappe.xcall('frappe.client.set_value', {
-                    doctype: this.connection.doctype,
-                    name: this.connection.name,
-                    fieldname: 'listview_settings',
-                    value: JSON.stringify(listview_settings ?? []),
-                });
+                if(frappe.session.user == "Administrator"){
+                    await frappe.xcall('frappe.client.set_value', {
+                        doctype: this.connection.doctype,
+                        name: this.connection.name,
+                        fieldname: 'listview_settings',
+                        value: JSON.stringify(listview_settings ?? []),
+                    });
+                }else{
+                    await frappe.xcall('frappe_theme.dt_api.setup_user_list_settings',{
+                        parent_id: this.connection.parent,
+                        child_dt:this.doctype,
+                        user:frappe.session.user,
+                        listview_settings: JSON.stringify(listview_settings ?? []),
+                    });
+                }
                 this.header = listview_settings;
                 if(window.sva_datatable_configuration?.[this.connection.parent]){
                     let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
@@ -1124,15 +1148,15 @@ class SvaDataTable {
         if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
-            if (frappe.user_roles.includes("Administrator")) {
-                action_th.appendChild(this.createSettingsButton());
-                tr.appendChild(action_th);
-            } else {
-                if (this.conf_perms.length || this.childLinks?.length) {
-                    tr.appendChild(action_th);
-                    action_th.textContent = 'Actions'
-                }
-            }
+            // if (frappe.user_roles.includes("Administrator")) {
+            action_th.appendChild(this.createSettingsButton());
+            tr.appendChild(action_th);
+            // } else {
+            //     if (this.conf_perms.length || this.childLinks?.length) {
+            //         tr.appendChild(action_th);
+            //         action_th.textContent = 'Actions'
+            //     }
+            // }
         }
         thead.appendChild(tr);
         return thead;
