@@ -291,6 +291,15 @@ class SvaDataTable {
                     value: JSON.stringify(listview_settings ?? []),
                 });
                 this.header = listview_settings;
+                if(window.sva_datatable_configuration?.[this.connection.parent]){
+                    let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
+                    let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
+                    if (target){
+                        target.listview_settings = JSON.stringify(listview_settings ?? [])
+                    }else if (target_child){
+                        target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                    }
+                }
                 this.reloadTable(true);
                 frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
             }
