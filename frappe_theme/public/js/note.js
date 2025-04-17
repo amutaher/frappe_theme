@@ -482,7 +482,7 @@ class NotesManager {
 
             // Get the metadata for the doctype
             const { message: meta } = await frappe.call({
-                method: 'mgrant.apis.api.get_doctype_meta',
+                method: 'frappe_theme.api.get_meta',
                 args: { doctype: 'Notes' },
             });
 
@@ -629,7 +629,7 @@ class NotesManager {
     async createNoteForm() {
         try {
             const { message: meta } = await frappe.call({
-                method: 'mgrant.apis.api.get_doctype_meta',
+                method: 'frappe_theme.api.get_meta',
                 args: { doctype: 'Notes' }
             });
 
