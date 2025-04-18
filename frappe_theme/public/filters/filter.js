@@ -4,7 +4,7 @@ class CustomFilter {
 		if (this.value === null || this.value === undefined) {
 			this.value = "";
 		}
-
+		this.dt_filter_fields = opts.dt_filter_fields || []
 		this.utils = frappe.ui.filter_utils;
 		this.set_conditions();
 		this.set_conditions_from_config();
@@ -108,7 +108,11 @@ class CustomFilter {
 				doctype:this.parent_doctype
 			},
 		});
-		this.fields = res.message;
+		if (this.dt_filter_fields.length){
+			this.fields = {[this.parent_doctype]:res.message?.[this.parent_doctype]?.filter(f => this.dt_filter_fields.includes(f.fieldname))};
+		}else{
+			this.fields = res.message;
+		}
 	}
 
 	async make_select() {
