@@ -176,6 +176,7 @@ class SvaDataTable {
                     this.handleNoPermission();
                 }
             } else {
+                this.handleNoPermission();
                 console.log("Permission issues", this.doctype);
             }
         } else {
