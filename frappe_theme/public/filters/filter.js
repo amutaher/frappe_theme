@@ -9,7 +9,6 @@ class CustomFilter {
 		this.set_conditions();
 		this.set_conditions_from_config();
 		this.make();
-		this.get_filter_fields()
 		this.fields = {};
 	}
 
