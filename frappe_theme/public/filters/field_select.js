@@ -17,6 +17,7 @@ class CustomFieldSelect{
 			minChars: 0,
 			maxItems: 99,
 			autoFirst: true,
+			sort:false,
 			list: me.options,
 			item(item) {
 				return $(repl('<li class="filter-field-select"><p>%(label)s</p></li>', item))
@@ -114,18 +115,20 @@ class CustomFieldSelect{
 				value: "",
 			});
 		}
-		// let fields = frappe.meta.get_docfields(me.doctype);
-		var main_table_fields = std_filters.concat(frappe.boot.filter_fields[me.doctype]);
-		// console.log(main_table_fields,'main_table_fields')
-		$.each(frappe.utils.sort(main_table_fields, "label", "string"), function (i, df) {
+		
+		let name_field = std_filters.find(f => (f.fieldname == 'name'))
+		let _std_filters = std_filters.filter(f => ['creation','modified'].includes(f.fieldname))
+		
+		
+		var main_table_fields = [name_field, ...me.fields[me.doctype], ..._std_filters];
+		$.each(main_table_fields, function (i, df) {
 			me.add_field_option(df);
 		});
 
 		// child tables
-		// console.log(me.table_fields,'me.table_fields')
 		$.each(me.table_fields, function (i, table_df) {
 			if (table_df.options) {
-				let child_table_fields = [].concat(frappe.boot.filter_fields[table_df.options]);
+				let child_table_fields = [].concat(me.fields[table_df.options]);
 				if (table_df.fieldtype === "Table MultiSelect") {
 					const link_field = frappe.meta
 						.get_docfields(table_df.options)
