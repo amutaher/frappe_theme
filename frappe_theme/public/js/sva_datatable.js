@@ -57,6 +57,7 @@ class SvaDataTable {
         this.conf_perms = JSON.parse(this.connection?.crud_permissions ?? '[]');
         this.header = JSON.parse(this.connection?.listview_settings ?? '[]');
         this.childLinks = childLinks;
+        this.user_has_list_settings = false;
         // this.wrapper = this.setupWrapper(wrapper);
         this.uniqueness = this.options?.uniqueness || { row: [], column: [] };
         this.table_wrapper = document.createElement('div');
@@ -89,6 +90,7 @@ class SvaDataTable {
                     let user_wise_list_settings = await this.getUserWiseListSettings();
                     if (user_wise_list_settings){
                         this.header = JSON.parse(user_wise_list_settings || '[]');
+                        this.user_has_list_settings = true;
                     }
                 }
                 // ================================ Workflow Logic  ================================
@@ -278,7 +280,7 @@ class SvaDataTable {
         list_view_settings.id = 'list_view_settings';
         list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
         list_view_settings.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${this.user_has_list_settings ? (frappe.boot?.my_theme?.button_background_color || '#2196F3') : 'currentColor'}" class="bi bi-gear" viewBox="0 0 16 16">
             <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
             <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
         </svg>`;
@@ -298,21 +300,33 @@ class SvaDataTable {
             doctype: this.doctype,
             meta: dtmeta.message,
             settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
-            dialog_primary_action: async (listview_settings) => {
-                if(frappe.session.user == "Administrator"){
-                    await frappe.xcall('frappe.client.set_value', {
-                        doctype: this.connection.doctype,
-                        name: this.connection.name,
-                        fieldname: 'listview_settings',
-                        value: JSON.stringify(listview_settings ?? []),
-                    });
+            sva_dt:this,
+            dialog_primary_action: async (listview_settings,reset=false) => {
+                if(!reset){
+                    if(frappe.session.user == "Administrator"){
+                        await this.sva_db.call({
+                            method:'frappe.client.set_value',
+                            doctype: this.connection.doctype,
+                            name: this.connection.name,
+                            fieldname: 'listview_settings',
+                            value: JSON.stringify(listview_settings ?? []),
+                        });
+                    }else{
+                        await this.sva_db.call({
+                            method:'frappe_theme.dt_api.setup_user_list_settings',
+                            parent_id: this.connection.parent,
+                            child_dt:this.doctype,
+                            listview_settings: JSON.stringify(listview_settings ?? []),
+                        });
+                        this.user_has_list_settings = true;
+                    }
                 }else{
-                    await frappe.xcall('frappe_theme.dt_api.setup_user_list_settings',{
+                    await this.sva_db.call({
+                        method:'frappe_theme.dt_api.delete_user_list_settings',
                         parent_id: this.connection.parent,
-                        child_dt:this.doctype,
-                        user:frappe.session.user,
-                        listview_settings: JSON.stringify(listview_settings ?? []),
+                        child_dt:this.doctype
                     });
+                    this.user_has_list_settings = false;
                 }
                 this.header = listview_settings;
                 if(window.sva_datatable_configuration?.[this.connection.parent]){
