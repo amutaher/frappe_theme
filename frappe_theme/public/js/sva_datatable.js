@@ -78,21 +78,22 @@ class SvaDataTable {
         this.onFieldClick = onFieldClick;
         this.sort_by = 'modified';
         this.sort_order = 'desc';
+        this.header_element = null;
+        this.footer_element = null;
+        this.skeletonLoader = null;
         this.reloadTable();
         // return this.wrapper;
     }
     async reloadTable(reset = false) {
         // Remove existing skeleton loader if it exists
-        const existingSkeleton = this.wrapper.querySelector('#skeleton-loader');
+        const existingSkeleton = document.querySelector('#skeleton-loader-overlay');
         if (existingSkeleton) {
             existingSkeleton.remove();
         }
-
-        // Create and show skeleton loader
-        const skeletonLoader = this.createSkeletonLoader();
-        this.wrapper.appendChild(skeletonLoader);
-
+        
         await this.setupWrapper(this.wrapper)
+        this.showSkeletonLoader();
+
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype);
@@ -131,7 +132,7 @@ class SvaDataTable {
                 }
 
                 if (this.permissions.length && this.permissions.includes('read')) {
-                    let columns = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+                    let columns = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: this.doctype });
                     if (this.header.length) {
                         this.columns = [];
                         let ft = {
@@ -169,11 +170,13 @@ class SvaDataTable {
                         this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
                     }
                     this.tBody = this.table.querySelector('tbody');
+                    this.hideSkeletonLoader();
                     this.setupFooter(this.wrapper);
                 } else {
                     this.handleNoPermission();
                 }
             } else {
+                this.handleNoPermission();
                 console.log("Permission issues", this.doctype);
             }
         } else {
@@ -188,8 +191,23 @@ class SvaDataTable {
             this.tBody = this.table.querySelector('tbody');
         }
 
-        // Remove skeleton loader
-        skeletonLoader.remove();
+        this.hideSkeletonLoader();
+    }
+    hideSkeletonLoader(){
+        if(this.skeletonLoader){
+            this.skeletonLoader.remove();
+            this.skeletonLoader = null;
+            this.header_element?.classList.remove('hidden');
+            this.table_wrapper?.classList.remove('hidden');
+            this.footer_element?.classList.remove('hidden');
+        }
+    }
+    showSkeletonLoader(){
+        this.header_element?.classList.add('hidden');
+        this.table_wrapper?.classList.add('hidden');
+        this.footer_element?.classList.add('hidden');
+        this.skeletonLoader = this.createSkeletonLoader();
+        this.wrapper.appendChild(this.skeletonLoader);
     }
     async getUserWiseListSettings(){
         let res = await this.sva_db.call({
@@ -201,6 +219,7 @@ class SvaDataTable {
     }
     setupHeader() {
         let row = document.createElement('div');
+        this.header_element = row;
         row.id = 'header-element';
         row.style = `
             display: flex;
@@ -297,11 +316,10 @@ class SvaDataTable {
             e.style = rightColStyle;
             row.appendChild(e)
         }
-
         return row;
     }
     async setupWrapper(wrapper) {
-        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};};margin:0px !important;`;
+        wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};margin:0px !important;`;
         if (!wrapper.querySelector('div#header-element')) {
             wrapper.appendChild(this.setupHeader())
         }
@@ -324,9 +342,9 @@ class SvaDataTable {
         return list_view_settings;
     }
     async setupListviewSettings() {
-        let dtmeta = await frappe.call({
-            method: 'frappe_theme.api.get_meta',
-            args: { doctype: this.doctype },
+        let dtmeta = await this.sva_db.call({
+            method: 'frappe_theme.api.get_meta', 
+            doctype: this.doctype
         });
         new ListSettings({
             doctype: this.doctype,
@@ -418,6 +436,7 @@ class SvaDataTable {
         let footer = document.createElement('div');
         footer.id = 'footer-element';
         footer.style = 'display:flex;width:100%;height:fit-content;justify-content:space-between;';
+        this.footer_element = footer;
         if (!wrapper.querySelector('div#footer-element')) {
             wrapper.appendChild(footer);
         }
@@ -649,7 +668,7 @@ class SvaDataTable {
         return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
-                args: { doctype },
+                args: { doctype: doctype },
                 callback: function (response) {
                     rslv(response.message)
                 },
@@ -661,7 +680,7 @@ class SvaDataTable {
     }
     isAsync = (fn) => fn?.constructor?.name === "AsyncFunction";
     async createFormDialog(doctype, name = undefined, mode = 'create', additional_action = null) {
-        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: this.doctype });
+        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: this.doctype });
         let fields = res?.message;
         if (window?.SVADialog?.[this.doctype]) {
             window?.SVADialog?.[this.doctype](mode, fields);
@@ -696,7 +715,7 @@ class SvaDataTable {
                         }
                     }
                     if (f.fieldtype === "Table") {
-                        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
                             if (tf.fieldtype === 'Link') {
@@ -877,7 +896,7 @@ class SvaDataTable {
                         };
                     }
                     if (f.fieldtype === "Table") {
-                        let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
                             if (tf.fieldtype === 'Link') {
@@ -925,7 +944,7 @@ class SvaDataTable {
                     continue;
                 }
                 if (f.fieldtype === "Table") {
-                    let res = await frappe.call('frappe_theme.api.get_meta_fields', { doctype: f.options });
+                    let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
                     f.fields = tableFields;
                     f.cannot_add_rows = 1;
@@ -1527,9 +1546,9 @@ class SvaDataTable {
         }
         
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
-        let meta = await frappe.call({
+        let meta = await this.sva_db.call({
             method: 'frappe_theme.api.get_meta',
-            args: { doctype: me.doctype },
+            doctype: me.doctype
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
@@ -1950,16 +1969,14 @@ class SvaDataTable {
                     paginationElement.remove();
                 }
             }
-            let res = await frappe.call({
+            let res = await this.sva_db.call({
                 method: "frappe.client.get_list",
-                args: {
-                    doctype: this.doctype,
-                    filters: [...filters, ...this.additional_list_filters],
-                    fields: this.fields || ['*'],
-                    limit_page_length: this.limit,
-                    order_by: `${this.sort_by} ${this.sort_order}`,
-                    limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
-                }
+                doctype: this.doctype,
+                filters: [...filters, ...this.additional_list_filters],
+                fields: this.fields || ['*'],
+                limit_page_length: this.limit,
+                order_by: `${this.sort_by} ${this.sort_order}`,
+                limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
             });
             return res.message;
         } catch (error) {
@@ -2034,13 +2051,16 @@ class SvaDataTable {
     }
 
     createSkeletonLoader() {
-        const skeletonWrapper = document.createElement('div');
-        skeletonWrapper.id = 'skeleton-loader';
-        skeletonWrapper.style = `
+        const overlay = document.createElement('div');
+        overlay.id = 'skeleton-loader-overlay';
+        overlay.style = `
             width: 100%;
-            height: 100%;
-            background: #fff;
-            padding: 20px;
+            height: inherit;
+            background: white;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
         `;
 
         // Create header skeleton
@@ -2073,7 +2093,7 @@ class SvaDataTable {
         
         headerSkeleton.appendChild(leftHeader);
         headerSkeleton.appendChild(rightHeader);
-        skeletonWrapper.appendChild(headerSkeleton);
+        overlay.appendChild(headerSkeleton);
 
         // Create table skeleton
         const tableSkeleton = document.createElement('div');
@@ -2081,6 +2101,7 @@ class SvaDataTable {
             width: 100%;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
+            flex: 1;
         `;
 
         // Create table header skeleton
@@ -2133,7 +2154,7 @@ class SvaDataTable {
             tableSkeleton.appendChild(rowSkeleton);
         }
 
-        skeletonWrapper.appendChild(tableSkeleton);
+        overlay.appendChild(tableSkeleton);
 
         // Add shimmer animation style
         const style = document.createElement('style');
@@ -2143,10 +2164,9 @@ class SvaDataTable {
                 100% { background-position: -200% 0; }
             }
         `;
-        skeletonWrapper.appendChild(style);
+        overlay.appendChild(style);
 
-        return skeletonWrapper;
+        return overlay;
     }
-
 }
 
