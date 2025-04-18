@@ -76,12 +76,22 @@ class SvaDataTable {
         this.additional_list_filters = [];
         this.onFieldValueChange = onFieldValueChange;
         this.onFieldClick = onFieldClick;
+        this.sort_by = 'modified';
+        this.sort_order = 'desc';
         this.reloadTable();
         // return this.wrapper;
     }
     async reloadTable(reset = false) {
-        let loader = new Loader(this.wrapper);
-        loader.show();
+        // Remove existing skeleton loader if it exists
+        const existingSkeleton = this.wrapper.querySelector('#skeleton-loader');
+        if (existingSkeleton) {
+            existingSkeleton.remove();
+        }
+
+        // Create and show skeleton loader
+        const skeletonLoader = this.createSkeletonLoader();
+        this.wrapper.appendChild(skeletonLoader);
+
         await this.setupWrapper(this.wrapper)
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -147,10 +157,10 @@ class SvaDataTable {
                     }
                     this.rows = await this.getDocList();
                     this.table_element = this.createTable();
-                    if (!this.table_wrapper.querySelector('table') && !reset) {
+                    if (!this.table_wrapper.querySelector('div#sva_table_wrapper') && !reset) {
                         this.table_wrapper.appendChild(this.table_element);
                     } else {
-                        this.table_wrapper.querySelector('table').replaceWith(this.table_element);
+                        this.table_wrapper.querySelector('div#sva_table_wrapper').replaceWith(this.table_element);
                     }
                     this.table_wrapper = this.setupTableWrapper(this.table_wrapper);
                     if (!this.wrapper.querySelector('#table_wrapper') && !reset) {
@@ -177,7 +187,9 @@ class SvaDataTable {
             }
             this.tBody = this.table.querySelector('tbody');
         }
-        loader.hide();
+
+        // Remove skeleton loader
+        skeletonLoader.remove();
     }
     async getUserWiseListSettings(){
         let res = await this.sva_db.call({
@@ -234,6 +246,9 @@ class SvaDataTable {
         list_filter.id = 'list_filter';
         list_filter.style = `
             padding-bottom: 10px;
+            display:flex;
+            align-items:center;
+            gap:5px;
         `;
         new CustomFilterArea({
             wrapper: list_filter,
@@ -251,6 +266,23 @@ class SvaDataTable {
                 }
             }
         })
+        this.sort_selector = new SVASortSelector({
+			parent: $(list_filter),
+			doctype: this.doctype,
+            sorting_fields:this.header,
+			args: {
+				sort_by: this.sort_by,
+				sort_order: this.sort_order,
+			},
+			onchange: (sort_by,sort_order) => {
+                if (this.sort_by != sort_by || this.sort_order != sort_order){
+                    this.sort_by = sort_by || "modified";
+                    this.sort_order = sort_order || "desc";
+                    this.reloadTable(true);
+                }
+
+            },
+		});
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
@@ -376,8 +408,9 @@ class SvaDataTable {
                 vertical-align: middle;
             }
         `;
-        tableWrapper.appendChild(style);
-
+        if(!tableWrapper.querySelector('style')){
+            tableWrapper.appendChild(style);
+        }
         return tableWrapper;
     }
 
@@ -1087,6 +1120,7 @@ class SvaDataTable {
     }
     createTable() {
         const el = document.createElement('div');
+        el.id = 'sva_table_wrapper'
         el.classList.add('form-grid-container', 'form-grid');
         let height = this.options?.style?.height ? `min-height:${this.options?.style?.height};` : ''
         el.style = `overflow:auto; ${height}`;
@@ -1923,7 +1957,7 @@ class SvaDataTable {
                     filters: [...filters, ...this.additional_list_filters],
                     fields: this.fields || ['*'],
                     limit_page_length: this.limit,
-                    order_by: 'creation desc',
+                    order_by: `${this.sort_by} ${this.sort_order}`,
                     limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
                 }
             });
@@ -1997,6 +2031,121 @@ class SvaDataTable {
         } else {
             return "small"; // Default size
         }
+    }
+
+    createSkeletonLoader() {
+        const skeletonWrapper = document.createElement('div');
+        skeletonWrapper.id = 'skeleton-loader';
+        skeletonWrapper.style = `
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            padding: 20px;
+        `;
+
+        // Create header skeleton
+        const headerSkeleton = document.createElement('div');
+        headerSkeleton.style = `
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        `;
+        
+        const leftHeader = document.createElement('div');
+        leftHeader.style = `
+            width: 200px;
+            height: 20px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        `;
+        
+        const rightHeader = document.createElement('div');
+        rightHeader.style = `
+            width: 150px;
+            height: 20px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        `;
+        
+        headerSkeleton.appendChild(leftHeader);
+        headerSkeleton.appendChild(rightHeader);
+        skeletonWrapper.appendChild(headerSkeleton);
+
+        // Create table skeleton
+        const tableSkeleton = document.createElement('div');
+        tableSkeleton.style = `
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        `;
+
+        // Create table header skeleton
+        const theadSkeleton = document.createElement('div');
+        theadSkeleton.style = `
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 10px;
+        `;
+
+        // Add 5 header cells
+        for (let i = 0; i < 5; i++) {
+            const thSkeleton = document.createElement('div');
+            thSkeleton.style = `
+                width: 150px;
+                height: 20px;
+                margin-right: 20px;
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: shimmer 1.5s infinite;
+                border-radius: 4px;
+            `;
+            theadSkeleton.appendChild(thSkeleton);
+        }
+        tableSkeleton.appendChild(theadSkeleton);
+
+        // Create table body skeleton with 5 rows
+        for (let i = 0; i < 5; i++) {
+            const rowSkeleton = document.createElement('div');
+            rowSkeleton.style = `
+                display: flex;
+                padding: 10px;
+                border-bottom: 1px solid #e0e0e0;
+            `;
+
+            // Add 5 cells per row
+            for (let j = 0; j < 5; j++) {
+                const tdSkeleton = document.createElement('div');
+                tdSkeleton.style = `
+                    width: 150px;
+                    height: 20px;
+                    margin-right: 20px;
+                    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                    background-size: 200% 100%;
+                    animation: shimmer 1.5s infinite;
+                    border-radius: 4px;
+                `;
+                rowSkeleton.appendChild(tdSkeleton);
+            }
+            tableSkeleton.appendChild(rowSkeleton);
+        }
+
+        skeletonWrapper.appendChild(tableSkeleton);
+
+        // Add shimmer animation style
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shimmer {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        `;
+        skeletonWrapper.appendChild(style);
+
+        return skeletonWrapper;
     }
 
 }
