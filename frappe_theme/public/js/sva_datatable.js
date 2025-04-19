@@ -85,14 +85,9 @@ class SvaDataTable {
         // return this.wrapper;
     }
     async reloadTable(reset = false) {
-        // Remove existing skeleton loader if it exists
-        const existingSkeleton = document.querySelector('#skeleton-loader-overlay');
-        if (existingSkeleton) {
-            existingSkeleton.remove();
-        }
-        
-        await this.setupWrapper(this.wrapper)
-        this.showSkeletonLoader();
+        await this.setupWrapper(this.wrapper);
+        let reLoad = this.wrapper.children.length > 1;
+        this.showSkeletonLoader(reLoad);
 
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
@@ -170,7 +165,6 @@ class SvaDataTable {
                         this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
                     }
                     this.tBody = this.table.querySelector('tbody');
-                    this.hideSkeletonLoader();
                     this.setupFooter(this.wrapper);
                 } else {
                     this.handleNoPermission();
@@ -191,23 +185,35 @@ class SvaDataTable {
             this.tBody = this.table.querySelector('tbody');
         }
 
-        this.hideSkeletonLoader();
+        this.hideSkeletonLoader(reLoad);
     }
-    hideSkeletonLoader(){
+    hideSkeletonLoader(reLoad = false){
         if(this.skeletonLoader){
             this.skeletonLoader.remove();
             this.skeletonLoader = null;
-            this.header_element?.classList.remove('hidden');
-            this.table_wrapper?.classList.remove('hidden');
-            this.footer_element?.classList.remove('hidden');
+            this.table_wrapper?.querySelector('div#sva_table_wrapper')?.classList.remove('hidden');
+            if (!reLoad){
+                this.header_element?.classList.remove('hidden');
+                this.footer_element?.classList.remove('hidden');
+            }
         }
     }
-    showSkeletonLoader(){
-        this.header_element?.classList.add('hidden');
-        this.table_wrapper?.classList.add('hidden');
-        this.footer_element?.classList.add('hidden');
-        this.skeletonLoader = this.createSkeletonLoader();
-        this.wrapper.appendChild(this.skeletonLoader);
+    showSkeletonLoader(reLoad = false){
+        const existingSkeleton = this.wrapper.querySelector('#skeleton-loader-overlay');
+        if (existingSkeleton) {
+            existingSkeleton.remove();
+        }
+        this.table_wrapper?.querySelector('div#sva_table_wrapper')?.classList.add('hidden');
+        if (!reLoad){
+            this.header_element?.classList.add('hidden');
+            this.footer_element?.classList.add('hidden');
+        }
+        this.skeletonLoader = this.createSkeletonLoader(reLoad);
+        if (!reLoad){
+            this.wrapper.appendChild(this.skeletonLoader);
+        }else{
+            this.table_wrapper.appendChild(this.skeletonLoader);
+        }
     }
     async getUserWiseListSettings(){
         let res = await this.sva_db.call({
@@ -383,7 +389,7 @@ class SvaDataTable {
                     let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
                     let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
                     if (target){
-                        target.listview_settings = JSON.stringify(listview_settings ?? [])
+                        target.listviewreLoad_settings = JSON.stringify(listview_settings ?? [])
                     }else if (target_child){
                         target_child.listview_settings = JSON.stringify(listview_settings ?? [])
                     }
@@ -2050,15 +2056,15 @@ class SvaDataTable {
         }
     }
 
-    createSkeletonLoader() {
+    createSkeletonLoader(reLoad = false) {
         const overlay = document.createElement('div');
         overlay.id = 'skeleton-loader-overlay';
         overlay.style = `
             width: 100%;
             height: inherit;
-            background: white;
             z-index: 1000;
             display: flex;
+            background: transparent;
             flex-direction: column;
             margin-bottom: 20px;
         `;
@@ -2066,8 +2072,9 @@ class SvaDataTable {
         // Create header skeleton
         const headerSkeleton = document.createElement('div');
         headerSkeleton.style = `
-            display: flex;
+            display: ${reLoad ? 'none' : 'flex'};
             justify-content: space-between;
+            background: white;
             margin-bottom: 20px;
         `;
         
@@ -2100,6 +2107,7 @@ class SvaDataTable {
         tableSkeleton.style = `
             width: 100%;
             border: 1px solid #e0e0e0;
+            background: white;
             border-radius: 4px;
             flex: 1;
         `;
@@ -2116,7 +2124,7 @@ class SvaDataTable {
         for (let i = 0; i < 5; i++) {
             const thSkeleton = document.createElement('div');
             thSkeleton.style = `
-                width: 150px;
+                width: 100%;
                 height: 20px;
                 margin-right: 20px;
                 background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -2141,7 +2149,7 @@ class SvaDataTable {
             for (let j = 0; j < 5; j++) {
                 const tdSkeleton = document.createElement('div');
                 tdSkeleton.style = `
-                    width: 150px;
+                    width: 100%;
                     height: 20px;
                     margin-right: 20px;
                     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
