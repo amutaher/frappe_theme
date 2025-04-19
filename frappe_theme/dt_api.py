@@ -67,7 +67,10 @@ def doc_filters(doctype, filters=None):
     return field_dicts
 
 @frappe.whitelist()
-def setup_user_list_settings(parent_id,child_dt,user,listview_settings):
+def setup_user_list_settings(parent_id,child_dt,listview_settings):
+    user = frappe.session.user
+    if user == "Administrator":
+        return
     exists = frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})
     if exists:
         doc = frappe.get_doc("SVADT User Listview Settings",exists)
@@ -75,6 +78,16 @@ def setup_user_list_settings(parent_id,child_dt,user,listview_settings):
         doc.save(ignore_permissions=True)
     else:
         frappe.get_doc({"doctype":"SVADT User Listview Settings","parent_id":parent_id,"child_dt":child_dt,"user":user,"listview_settings":listview_settings}).insert(ignore_permissions=True)
+        
+@frappe.whitelist()
+def delete_user_list_settings(parent_id,child_dt):
+    user = frappe.session.user
+    if user == "Administrator":
+        return None
+    exists = frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})
+    if exists:
+        frappe.delete_doc("SVADT User Listview Settings",exists)
+    return True
 
 @frappe.whitelist()
 def get_user_list_settings(parent_id,child_dt):

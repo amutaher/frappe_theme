@@ -14,6 +14,7 @@
   {
    "fieldname": "user",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "User",
    "options": "User",
    "set_only_once": 1
@@ -27,6 +28,7 @@
   {
    "fieldname": "child_dt",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Child Link",
    "options": "DocType",
    "set_only_once": 1
@@ -34,6 +36,7 @@
   {
    "fieldname": "parent_id",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Parent",
    "set_only_once": 1
   }
@@ -41,7 +44,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-17 18:46:54.053053",
+ "modified": "2025-04-18 11:38:38.669352",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADT User Listview Settings",
