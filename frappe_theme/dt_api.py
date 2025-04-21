@@ -14,6 +14,23 @@ def get_direct_connection_dts(dt):
     return standard_dts + custom_dts
 
 @frappe.whitelist()
+def get_indirect_connection_local_fields(dt):
+    fields = frappe.get_meta(dt).fields
+    valid_fields = [{'value':field.fieldname,'label':field.label,'options':field.options} for field in fields if field.fieldtype in ["Link"] and field.options not in ["Workflow State",dt]]
+    return valid_fields
+
+@frappe.whitelist()
+def get_indirect_connection_foreign_fields(dt,local_field_option):
+    fields = frappe.get_all('DocField',
+        filters=[
+            ['DocField', 'parent', '=', dt],
+            ['DocField', 'options', '=', local_field_option],
+            ['DocField', 'parenttype', '=', "DocType"]
+        ],
+        fields=['label','fieldname as value'])
+    return fields
+
+@frappe.whitelist()
 def get_direct_connection_fields(dt,link_dt):
     standard_dt_fields = frappe.get_list('DocField',filters=[
         ['DocField', 'options', '=', dt],

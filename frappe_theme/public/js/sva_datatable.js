@@ -64,7 +64,6 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
-        this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
         this.wf_positive_closure = '';
         this.wf_negative_closure = '';
@@ -114,18 +113,6 @@ class SvaDataTable {
                     this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                 }
                 // ================================ Workflow End ================================
-                try {
-                    if (this.mgrant_settings != null && this.frm?.doctype == "Grant" && await this.sva_db.exists("mGrant Settings Grant Wise", this.frm?.doc.name)) {
-                        let msgw = await this.sva_db.get_doc("mGrant Settings Grant Wise", this.frm?.doc.name)
-                        if (msgw) {
-                            this.mgrant_settings = msgw
-                        }
-                    }
-                } catch (e) {
-                    this.mgrant_settings = {}
-                    console.log(e)
-                }
-
                 if (this.permissions.length && this.permissions.includes('read')) {
                     let columns = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: this.doctype });
                     if (this.header.length) {
@@ -1440,14 +1427,15 @@ class SvaDataTable {
 
                 // ========================= Workflow Logic ===================
                 if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
-                    const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
+                    let workflow_state_field = this.workflow?.workflow_state_field;
+                    const bg = this.workflow_state_bg?.find(bg => bg.name === row[workflow_state_field] && bg.style);
                     const closureStates = this.workflow?.states?.filter(s => ['Positive', 'Negative'].includes(s.custom_closure)).map(e => e.state);
-                    const isClosed = closureStates.includes(row['workflow_state']);
+                    const isClosed = closureStates.includes(row[workflow_state_field]);
                     const wfActionTd = document.createElement('td');
                     const el = document.createElement('select');
                     el.classList.add('form-select', 'rounded');
                     const titleText = this.workflow.transitions
-                        .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                        .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                         .map(e => `${e.action} by ${e.allowed}`)
                         .join("\n");
 
@@ -1458,7 +1446,7 @@ class SvaDataTable {
                     el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
                     if (isClosed) {
                         el.disabled = true;
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>`;
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>`;
                         el.style['-webkit-appearance'] = 'none';
                         el.style['-moz-appearance'] = 'none';
                         el.style['appearance'] = 'none';
@@ -1466,11 +1454,11 @@ class SvaDataTable {
                         el.style['text-align'] = 'center';
                         wfActionTd.appendChild(el);
                     } else {
-                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row['workflow_state']) ||
-                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row['workflow_state']));
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>` +
+                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
+                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
-                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                                 .map(e => e.action))]
                                 .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
                                 .join('');
@@ -1956,6 +1944,8 @@ class SvaDataTable {
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm?.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
+            } else if (this.connection?.connection_type === 'Indirect') {
+                filters.push([this.doctype, this.connection.foreign_field, '=', this.frm?.doc?.[this.connection.local_field]]);
             } else if (this.connection.link_fieldname) {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
             }
