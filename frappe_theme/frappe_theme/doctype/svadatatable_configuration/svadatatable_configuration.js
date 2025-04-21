@@ -59,7 +59,12 @@ const set_list_settings = async (frm, cdt, cdn) => {
 }
 const set_crud_permissiions = (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
-    let prev_permissions = JSON.parse(row.crud_permissions ?? '["read", "write", "create", "delete"]');
+    let prev_permissions; 
+    if (row.connection_type === 'Indirect'){
+        prev_permissions= JSON.parse(row.crud_permissions ?? '["read"]');
+    }else{
+        prev_permissions= JSON.parse(row.crud_permissions ?? '["read", "write", "create", "delete"]');
+    }
     let perms;
     if (row.connection_type === 'Indirect'){
         perms = ["read"]
