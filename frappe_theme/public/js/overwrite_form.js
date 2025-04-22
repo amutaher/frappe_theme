@@ -57,6 +57,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
     async custom_refresh(frm) {
         try {
+            this.goToCommentButton(frm);
             if (frm.doctype == "DocType") {
                 frm.add_custom_button('Set Property', () => {
                     this.set_properties(frm.doc.name);
@@ -90,7 +91,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 this.dts = window.sva_datatable_configuration?.[frm.doc.doctype];
             }
             this.setupDTTriggers(frm);
-            this.goToCommentButton(frm);
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
 
