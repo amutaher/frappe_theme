@@ -8,7 +8,9 @@
   "html_field",
   "connection_type",
   "title",
+  "local_field",
   "link_doctype",
+  "foreign_field",
   "link_fieldname",
   "referenced_link_doctype",
   "dt_reference_field",
@@ -20,7 +22,10 @@
   "listview_settings",
   "setup_list_settings",
   "crud_permissions",
-  "setup_crud_permissions"
+  "setup_crud_permissions",
+  "redirect_to_main_form",
+  "disable_edit_depends_on",
+  "disable_delete_depends_on"
  ],
  "fields": [
   {
@@ -37,10 +42,13 @@
    "label": "Setup Listview Setting"
   },
   {
+   "default": "[\"read\"]",
    "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
    "fieldname": "crud_permissions",
    "fieldtype": "JSON",
    "label": "Crud Permissions",
+   "max_height": "4rem",
+   "options": "JSON",
    "read_only": 1
   },
   {
@@ -50,12 +58,12 @@
    "label": "Setup Crud Permissions"
   },
   {
-   "depends_on": "eval:doc.connection_type ==\"Direct\"",
+   "depends_on": "eval:[\"Direct\",\"Unfiltered\",\"Indirect\"].includes(doc.connection_type)",
    "fieldname": "link_doctype",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Link DocType",
-   "mandatory_depends_on": "eval:doc.connection_type ==\"Direct\"",
+   "mandatory_depends_on": "eval:[\"Direct\",\"Unfiltered\",\"Indirect\"].includes(doc.connection_type)",
    "options": "DocType"
   },
   {
@@ -71,7 +79,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Connection Type",
-   "options": "Direct\nReferenced\nIs Custom Design",
+   "options": "Direct\nIndirect\nReferenced\nUnfiltered\nIs Custom Design",
    "reqd": 1
   },
   {
@@ -116,8 +124,9 @@
   {
    "default": "{}",
    "depends_on": "eval:doc.extend_condition == true",
+   "description": "Only Double Quote (\") is allowed in the conditions,\ne.g. [[\"dt\",\"fieldname\",\"operator\",\"value\"],[\"dt\",\"fieldname\",\"operator\",\"value\"]]",
    "fieldname": "extended_condition",
-   "fieldtype": "JSON",
+   "fieldtype": "Code",
    "label": "Extended Condition"
   },
   {
@@ -138,12 +147,46 @@
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title"
+  },
+  {
+   "default": "0",
+   "fieldname": "redirect_to_main_form",
+   "fieldtype": "Check",
+   "label": "Redirect to main form on any Action"
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Indirect\"",
+   "fieldname": "local_field",
+   "fieldtype": "Select",
+   "label": "Local Field",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Indirect\""
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Indirect\"",
+   "fieldname": "foreign_field",
+   "fieldtype": "Select",
+   "label": "Foreign Field",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Indirect\""
+  },
+  {
+   "fieldname": "disable_edit_depends_on",
+   "fieldtype": "Code",
+   "label": "Disable Edit Depends On (JS)",
+   "max_height": "3rem",
+   "options": "JS"
+  },
+  {
+   "fieldname": "disable_delete_depends_on",
+   "fieldtype": "Code",
+   "label": "Disable Delete Depends On (JS)",
+   "max_height": "3rem",
+   "options": "JS"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-19 18:59:51.075227",
+ "modified": "2025-04-22 11:36:00.592245",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",

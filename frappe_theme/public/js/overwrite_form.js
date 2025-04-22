@@ -22,37 +22,72 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             });
         }
     }
-
     setupHandlers() {
         if (!frappe.ui.form.handlers[this.doctype]) {
             frappe.ui.form.handlers[this.doctype] = {
                 refresh: [this.custom_refresh.bind(this)],
-                on_tab_change: [this._activeTab.bind(this)]
+                on_tab_change: [this._activeTab.bind(this)],
+                after_save: [this.custom_after_save.bind(this)],
+                onload_post_render: [this.custom_onload_post_render.bind(this)]
             };
             return;
         }
-
+        
         // Setup refresh handlers
         if (!frappe.ui.form.handlers[this.doctype].refresh) {
             frappe.ui.form.handlers[this.doctype].refresh = [this.custom_refresh.bind(this)];
         } else if (!frappe.ui.form.handlers[this.doctype].refresh.includes(this.custom_refresh.bind(this))) {
             frappe.ui.form.handlers[this.doctype].refresh.push(this.custom_refresh.bind(this));
         }
-
+        
         // Setup tab change handlers
         if (!frappe.ui.form.handlers[this.doctype].on_tab_change) {
             frappe.ui.form.handlers[this.doctype].on_tab_change = [this._activeTab.bind(this)];
         } else if (!frappe.ui.form.handlers[this.doctype].on_tab_change.includes(this._activeTab.bind(this))) {
             frappe.ui.form.handlers[this.doctype].on_tab_change.push(this._activeTab.bind(this));
         }
+        
+        // Setup custom after save handlers
+        if (!frappe.ui.form.handlers[this.doctype].after_save) {
+            frappe.ui.form.handlers[this.doctype].after_save = [this.custom_after_save.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].after_save.includes(this.custom_after_save.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].after_save.push(this.custom_after_save.bind(this));
+        }
+
+        // Setup custom after save handlers
+        if (!frappe.ui.form.handlers[this.doctype].onload_post_render) {
+            frappe.ui.form.handlers[this.doctype].onload_post_render = [this.custom_onload_post_render.bind(this)];
+        } else if (!frappe.ui.form.handlers[this.doctype].onload_post_render.includes(this.custom_onload_post_render.bind(this))) {
+            frappe.ui.form.handlers[this.doctype].onload_post_render.push(this.custom_onload_post_render.bind(this));
+        }
+    }
+    custom_onload_post_render(frm) {
+        this.goToCommentButton(frm);
     }
     async custom_refresh(frm) {
         try {
+            this.goToCommentButton(frm);
             if (frm.doctype == "DocType") {
                 frm.add_custom_button('Set Property', () => {
                     this.set_properties(frm.doc.name);
                 });
             }
+            let dropdown = frm?.page?.btn_secondary?.parent();
+            if (dropdown) {
+                dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
+                dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
+            }
+            frappe.db.get_single_value('My Theme', 'hide_print_icon')
+                .then(value => {
+                    if (value) {
+                        frm.page.hide_icon_group('print')
+                    } else {
+                        frm.page.show_icon_group('print')
+                    }
+                });
+
+
+            // frm.page.hide_icon_group('print')
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
                 const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
@@ -65,7 +100,6 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 this.dts = window.sva_datatable_configuration?.[frm.doc.doctype];
             }
             this.setupDTTriggers(frm);
-            this.goToCommentButton(frm);
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
 
@@ -74,7 +108,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             if (props?.length) {
                 for (const prop of props) {
                     if (prop?.value) {
-                        const [valueField,filterField] = prop.value.split("->");
+                        const [valueField, filterField] = prop.value.split("->");
                         field_events[valueField] = function (frm) {
                             this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
                             frm.set_value(prop.field_name, "");
@@ -86,6 +120,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             }
         } catch (error) {
             console.error("Error in custom_refresh:", error);
+        }
+    }
+    async custom_after_save(frm) {
+        if (frm?.sva_dt_prev_route && frm?.sva_dt_prev_route.length) {
+            frappe.set_route(frm.sva_dt_prev_route);
+            frm.sva_dt_prev_route = null;
         }
     }
     async set_properties(doctype) {
@@ -524,10 +564,10 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const buttonHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
             <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"/>
         </svg>`;
-
         frm.add_custom_button(buttonHTML, () => {
-            const commentSection = document.querySelector('.comment-box');
-            commentSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            console.log('comment button clicked')
+            let commentSection = $(frm.$wrapper).find('.form-footer');
+            commentSection?.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     }
     clearPreviousComponents() {
@@ -664,7 +704,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const instance = new SvaDataTable({
             label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
-            doctype: field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype,
+            doctype: ["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
             connection: field,
             childLinks,
@@ -677,7 +717,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             onFieldClick: this.handleFieldEvent('onFieldClick'),
             onFieldValueChange: this.handleFieldEvent('onFieldValueChange')
         });
-        this.sva_tables[field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype] = instance;
+        this.sva_tables[["Direct", "Unfiltered"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype] = instance;
         // Store cleanup function
         this.mountedComponents.set(wrapperId, () => {
             if (instance.cleanup) {

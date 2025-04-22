@@ -6,6 +6,7 @@ class mGrantTask {
         this.task_list = [];
         this.total_pages = 1;
         this.currentPage = 1;
+        this.permissions = [];
         if (frm) {
             this.show_task();
         }
@@ -18,12 +19,29 @@ class mGrantTask {
         }
         return color;
     }
+    getPermissions() {
+        return new Promise((rslv, rjct) => {
+            frappe.call({
+                method: 'frappe_theme.api.get_permissions',
+                args: { doctype: "ToDo" },
+                callback: function (response) {
+                    rslv(response.message)
+                },
+                error: (err) => {
+                    rjct(err);
+                }
+            });
+        });
+    }
     stripHtmlTags(input) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = input;
         return tempDiv.textContent || tempDiv.innerText || '';
     }
     getActionBar() {
+        // Only return action bar if user has write permissions
+        // if (!this.permissions.includes('write')) return null;
+
         let actions = [
             {
                 category: 'Set Priority',
@@ -42,14 +60,18 @@ class mGrantTask {
                         color: 'green'
                     }
                 ]
-            },
+            }
+        ];
 
-        ]
         if (!['Proposal'].includes(cur_frm.doctype)) {
             actions.push({
                 category: 'Set Status',
                 name: 'custom_task_status',
                 actions: [
+                    {
+                        name: 'Backlog',
+                        color: 'grey'
+                    },
                     {
                         name: 'Todo',
                         color: 'grey'
@@ -103,7 +125,9 @@ class mGrantTask {
         el.className = 'd-flex flex-wrap pb-2 justify-content-between align-items-center';
         let main = document.createElement('div')
         main.className = 'dropdown-task-status dropdown';
-        el.appendChild(main);
+        if (this.permissions.includes('write')) {
+            el.appendChild(main);
+        }
         main.innerHTML = ` 
                 <button class="btn btn-light dropdown-toggle" type="button" id="viewBulkDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     Set Status
@@ -111,9 +135,11 @@ class mGrantTask {
                 ${action_menu.outerHTML} 
         `
         el.innerHTML += `
-        <button id="bulkDeleteButton" class="btn mx-8" style="color: #6E7073;background-color: #FFF1E7;">
+        ${this.permissions.includes('delete') ? `
+            <button id="bulkDeleteButton" class="btn mx-8" style="color: #6E7073;background-color: #FFF1E7;">
                 <i class="fa fa-trash" style="color: #E03636;"></i>
             </button>
+        ` : ''}
         `
         return el;
     }
@@ -121,14 +147,19 @@ class mGrantTask {
         let el = document.createElement('div');
         el.style = 'overflow-y:auto;'
         el.className = 'form-grid-container form-grid';
+        
+        // Only show checkbox column if user has write or delete permissions
+        const showActions = this.permissions.includes('write') || this.permissions.includes('delete');
+        
         el.innerHTML = `
             <table style="margin: 0px !important;" class="table table-bordered">
                 <thead style="font-size: 12px;">
                     <tr>
-
-                        <th class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #F8F8F8;">
-                            <input type="checkbox" id="selectAllCheckBox">
-                        </th>
+                        ${showActions ? `
+                            <th class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #F8F8F8;">
+                                <input type="checkbox" id="selectAllCheckBox">
+                            </th>
+                        ` : ''}
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Task Name</th>
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Assigned To</th>
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Task Type</th>
@@ -142,78 +173,95 @@ class mGrantTask {
                 </thead>
                 <tbody style="background-color: #fff; font-size: 12px;">
                     ${this.task_list.length === 0
-                ? `
-                        <tr>
-                            <td colspan="9" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8; line-height: 92px;">
-                                No rows
-                            </td>
-                        </tr>
-                        `
-                : this.task_list.map(task => `
-                        <tr class="grid-row">
-                            <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff;">
-                                <input type="checkbox" class="toggleCheckbox" data-id="${task.name}">
-                            </td>
-                            <td class="col grid-static-col col-xs-3 ">${task.custom_title}</td>
-                            <td>
-                                <div class="d-flex align-items-center" style="gap: 4px">
-                                    <div  style="white-space: nowrap; width: 16px; height: 16px; background-color: ${this.getRandomColor()}; h" class="avatar  text-white rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 20px; height: 20px;">${task.custom_assigned_to ? task.custom_assigned_to[0].toUpperCase() : '-'}</div>
-                                    <span style="white-space: nowrap; font-weight: 400; letter-spacing: 0.25%; color: #6E7073;">
-                                        ${task.custom_assigned_to ?? 'No Assignee'}
-                                    </span>
-                                </div>
-                            </td>
-                            <td style="white-space: nowrap;">${task.custom_task_type}</td>
-                            ${cur_frm.doctype === 'Proposal' ? '' : `
-                            <td style="padding: 5px 8px !important;">
-                                <div class="dropdown"style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
-                                    <span title="status" id="dropStatus-${task.name}" class="small dropdown-toggle bg-light pointer badge ${task?.custom_task_status === 'Cancelled' ? 'text-danger' : task?.custom_task_status === 'In Progress' ? 'text-warning' : task?.custom_task_status === 'Done' ? 'text-success' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        ${task?.custom_task_status ?? 'Status'}
-                                    </span>
-                                    <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
-                                        <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
-                                        <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
-                                        <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
-                                        <a class="dropdown-item task-status" data-task="${task.name}" data-status="Cancelled">Cancelled</a>
-                                        <a class="dropdown-item task-status" data-task="${task.name}" data-status="Delayed">Delayed</a>
+                        ? `<tr><td colspan="${showActions ? '9' : '8'}" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8;">
+                            <div class="d-flex align-items-center" style="height: 100%; flex-direction: column; gap: 22px">
+                                <svg class="icon icon-xl" style="stroke: var(--text-light);">
+                                    <use href="#icon-small-file"></use>
+                                </svg>
+                                <p class="text-muted">You haven't created a Recored yet</p>
+                            </div>
+                        </td></tr>`
+                        : this.task_list.map(task => `
+                            <tr class="grid-row">
+                                ${showActions ? `
+                                    <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff;">
+                                        <input type="checkbox" class="toggleCheckbox" data-id="${task.name}">
+                                    </td>
+                                ` : ''}
+                                <td class="col grid-static-col col-xs-3 ">${task.custom_title}</td>
+                                <td>
+                                    <div class="d-flex align-items-center" style="gap: 4px">
+                                        <div style="white-space: nowrap; width: 16px; height: 16px; background-color: ${this.getRandomColor()};" class="avatar text-white rounded-circle d-flex justify-content-center align-items-center me-2">${task.custom_assigned_to ? task.custom_assigned_to[0].toUpperCase() : '-'}</div>
+                                        <span style="white-space: nowrap; font-weight: 400; letter-spacing: 0.25%; color: #6E7073;">
+                                            ${task.custom_assigned_to ?? 'No Assignee'}
+                                        </span>
                                     </div>
-                                </div>
-                            </td>`
-                    }
-                            <td style="padding: 5px 8px !important;">
-                                <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
-                                    <span title="Priority" id="dropPriority-${task.name}" class=" small dropdown-toggle badge bg-light pointer ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" >
-                                        ${task?.priority ?? 'Low'}
-                                    </span>
-                                    <div class="dropdown-menu" aria-labelledby="dropPriority-${task.name}">
-                                        <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Low">Low</a>
-                                        <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Medium">Medium</a>
-                                        <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="High">High</a>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="white-space: nowrap;">${task.custom_start_date ? getFormattedDate(task.custom_start_date) : '--:--'}</td>
-                            <td style="white-space: nowrap;font-size: 12px !important;" class="${(task.date && (new Date(task.date) < new Date(frappe.datetime.get_today()))) ? 'text-danger' : 'text-muted'}">${task.date ? getFormattedDate(task.date) : '--:--'}</td>
-                            <td style="font-size: 12px !important;max-width: 200px;">
-                               <p style="white-space: nowrap;overflow: hidden;text-overflow:ellipsis;" title="${this.stripHtmlTags(task.description)}">${this.stripHtmlTags(task.description)}</p>
-                            </td>
-                            <td>
-                                <div class="dropdown">
-                                    <span title="action" class="pointer d-flex justify-content-center  align-items-center " id="dropdownMenuButton-${task.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        ⋮
-                                    </span>
-                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${task.name}">
-                                        <a class="dropdown-item edit-btn" data-task="${task.name}">Edit</a>
-                                        <a class="dropdown-item delete-btn" data-task="${task.name}">Delete</a>
-                                    </div>
-                                </div>
-                            </td>
-                            </td>
-                        </tr>
-                    `).join('')}
+                                </td>
+                                <td style="white-space: nowrap;">${task.custom_task_type}</td>
+                                ${cur_frm.doctype === 'Proposal' ? '' : `
+                                    <td style="padding: 5px 8px !important;">
+                                        ${this.permissions.includes('write') ? `
+                                            <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
+                                                <span title="status" id="dropStatus-${task.name}" class="small dropdown-toggle bg-light pointer badge ${task?.custom_task_status === 'Cancelled' ? 'text-danger' : task?.custom_task_status === 'In Progress' ? 'text-warning' : task?.custom_task_status === 'Done' ? 'text-success' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    ${task?.custom_task_status ?? 'Status'}
+                                                </span>
+                                                <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Backlog">Backlog</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Cancelled">Cancelled</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Delayed">Delayed</a>
+                                                </div>
+                                            </div>
+                                        ` : `
+                                            <span class="badge ${task?.custom_task_status === 'Cancelled' ? 'text-danger' : task?.custom_task_status === 'In Progress' ? 'text-warning' : task?.custom_task_status === 'Done' ? 'text-success' : 'text-muted'}">
+                                                ${task?.custom_task_status ?? 'Status'}
+                                            </span>
+                                        `}
+                                    </td>
+                                `}
+                                <td style="padding: 5px 8px !important;">
+                                    ${this.permissions.includes('write') ? `
+                                        <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
+                                            <span title="Priority" id="dropPriority-${task.name}" class="small dropdown-toggle badge bg-light pointer ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                ${task?.priority ?? 'Low'}
+                                            </span>
+                                            <div class="dropdown-menu" aria-labelledby="dropPriority-${task.name}">
+                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Low">Low</a>
+                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Medium">Medium</a>
+                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="High">High</a>
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <span class="badge ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}">
+                                            ${task?.priority ?? 'Low'}
+                                        </span>
+                                    `}
+                                </td>
+                                <td style="white-space: nowrap;">${task.custom_start_date ? getFormattedDate(task.custom_start_date) : '--:--'}</td>
+                                <td style="white-space: nowrap;font-size: 12px !important;" class="${(task.date && (new Date(task.date) < new Date(frappe.datetime.get_today()))) ? 'text-danger' : 'text-muted'}">${task.date ? getFormattedDate(task.date) : '--:--'}</td>
+                                <td style="font-size: 12px !important;max-width: 200px;">
+                                   <p style="white-space: nowrap;overflow: hidden;text-overflow:ellipsis;" title="${this.stripHtmlTags(task.description)}">${this.stripHtmlTags(task.description)}</p>
+                                </td>
+                                ${(this.permissions.includes('write') || this.permissions.includes('delete')) ? `
+                                    <td>
+                                        <div class="dropdown">
+                                            <span title="action" class="pointer d-flex justify-content-center align-items-center" id="dropdownMenuButton-${task.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                ⋮
+                                            </span>
+                                            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-${task.name}">
+                                                ${this.permissions.includes('write') ? `<a class="dropdown-item edit-btn" data-task="${task.name}">Edit</a>` : ''}
+                                                ${this.permissions.includes('delete') ? `<a class="dropdown-item delete-btn" data-task="${task.name}">Delete</a>` : ''}
+                                            </div>
+                                        </div>
+                                    </td>
+                                ` : ''}
+                            </tr>
+                        `).join('')}
                 </tbody>
             </table>
-        `
+        `;
         return el;
     }
     createFooter() {
@@ -248,11 +296,13 @@ class mGrantTask {
         };
 
         el.innerHTML = `
-            <button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
-                <svg class="es-icon es-line icon-xs" aria-hidden="true">
-                    <use href="#es-line-add"></use>
-                </svg> Add row
-            </button>
+            ${this.permissions.includes('create') ? `
+                <button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
+                    <svg class="es-icon es-line icon-xs" aria-hidden="true">
+                        <use href="#es-line-add"></use>
+                    </svg> Add row
+                </button>
+            ` : ''}
             ${totalPages > 1 ? `
                 <nav aria-label="Page navigation">
                     <ul class="pagination">
@@ -275,7 +325,7 @@ class mGrantTask {
                 </nav>
             ` : ''}
         `;
-        
+
         return el;
     }
 
@@ -292,164 +342,194 @@ class mGrantTask {
         return el;
     }
     async show_task() {
-        let limit = 10;
-        let total_records = await frappe.db.count('ToDo', {
-            filters: {
-                reference_type: this.frm.doc.doctype,
-                reference_name: this.frm.doc.name
+        try {
+            // Get permissions first
+            this.permissions = await this.getPermissions();
+            
+            // If no read permission, show message and return early
+            if (!this.permissions.includes('read')) {
+                if (document.getElementById('task-list')) {
+                    document.getElementById('task-list').remove();
+                }
+                
+                let task_container = document.createElement('div');
+                task_container.classList.add('task-list');
+                task_container.id = 'task-list';
+                task_container.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center" style="height: 200px; flex-direction: column;">
+                        <svg class="icon icon-xl" style="stroke: var(--text-light);">
+                            <use href="#icon-lock"></use>
+                        </svg>
+                        <p class="text-muted mt-2">You don't have permission via role permission to access Tasks</p>
+                    </div>
+                `;
+                this.wrapper.appendChild(task_container);
+                return;
             }
-        }
-        );
 
-        this.total_pages = Math.ceil(total_records / limit);
-        this.currentPage = Math.max(1, Math.min(this.currentPage, this.total_pages));
-        let start = (this.currentPage - 1) * limit;
+            let limit = 10;
+            let total_records = await frappe.db.count('ToDo', {
+                filters: {
+                    reference_type: this.frm.doc.doctype,
+                    reference_name: this.frm.doc.name
+                }
+            });
 
-        this.task_list = await frappe.db.get_list('ToDo', {
-            fields: ['*'],
-            filters: {
-                reference_type: this.frm.doc.doctype,
-                reference_name: this.frm.doc.name
-            },
-            order_by: 'modified desc',
-            start: start,
-            limit: limit,
-        }); // Store reference
-        let selectedIds = [];
-        if (document.getElementById('task-list')) {
-            document.getElementById('task-list').remove();
-        }
-        let task_container = document.createElement('div');
-        task_container.classList.add('task-list');
-        task_container.id = 'task-list';
-        task_container.innerHTML = `
-            <div id="task-header"></div>
-            <div id="task-body"></div>
-            <div id="task-footer"></div>
-        `
-        task_container.querySelector('#task-body').appendChild(this.createTable());
-        task_container.querySelector('#task-footer').appendChild(this.createFooter());
-        this.wrapper.appendChild(task_container);
+            this.total_pages = Math.ceil(total_records / limit);
+            this.currentPage = Math.max(1, Math.min(this.currentPage, this.total_pages));
+            let start = (this.currentPage - 1) * limit;
 
-        const toggleVisibility = (show) => {
-            if (show) {
-                // let action_bar = this.getActionBar();
-                task_container.querySelector('#task-header').innerHTML = '';
-                task_container.querySelector('#task-header').appendChild(this.getActionBar());
+            this.task_list = await frappe.db.get_list('ToDo', {
+                fields: ['*'],
+                filters: {
+                    reference_type: this.frm.doc.doctype,
+                    reference_name: this.frm.doc.name
+                },
+                order_by: 'modified desc',
+                start: start,
+                limit: limit,
+            }); // Store reference
+            let selectedIds = [];
+            if (document.getElementById('task-list')) {
+                document.getElementById('task-list').remove();
+            }
+            let task_container = document.createElement('div');
+            task_container.classList.add('task-list');
+            task_container.id = 'task-list';
+            task_container.innerHTML = `
+                <div id="task-header"></div>
+                <div id="task-body"></div>
+                <div id="task-footer"></div>
+            `
+            task_container.querySelector('#task-body').appendChild(this.createTable());
+            task_container.querySelector('#task-footer').appendChild(this.createFooter());
+            this.wrapper.appendChild(task_container);
 
-                // Bulk Update Task Status and Priority
-                ['priority', 'custom_task_status'].forEach(type => {
-                    document.querySelectorAll(`input[name="${type}"]`).forEach(input => {
-                        input.addEventListener('click', (event) => {
-                            selectedIds.length
-                                ? this.updateTaskStatus(selectedIds, event.target.value, type)
-                                : console.error(`No tasks selected for ${type}.`);
+            const toggleVisibility = (show) => {
+                if (show) {
+                    // let action_bar = this.getActionBar();
+                    task_container.querySelector('#task-header').innerHTML = '';
+                    task_container.querySelector('#task-header').appendChild(this.getActionBar());
+
+                    // Bulk Update Task Status and Priority
+                    ['priority', 'custom_task_status'].forEach(type => {
+                        document.querySelectorAll(`input[name="${type}"]`).forEach(input => {
+                            input.addEventListener('click', (event) => {
+                                selectedIds.length
+                                    ? this.updateTaskStatus(selectedIds, event.target.value, type)
+                                    : console.error(`No tasks selected for ${type}.`);
+                            });
                         });
                     });
-                });
 
-                // bulk delete
-                $('#bulkDeleteButton').on('click', function () {
-                    frappe.confirm('Are you sure you want to delete the selected tasks?', async () => {
-                        this.task_list = this.task_list.filter(task => !selectedIds.includes(task.name))
-                        for (const taskName of selectedIds) {
-                            try {
-                                await frappe.db.delete_doc('ToDo', taskName);
-                                await new Promise(resolve => setTimeout(resolve, 100));
-                            } catch (error) {
-                                console.error(`Failed to delete ${taskName}:`, error);
+                    // bulk delete
+                    $('#bulkDeleteButton').on('click', function () {
+                        frappe.confirm('Are you sure you want to delete the selected tasks?', async () => {
+                            this.task_list = this.task_list.filter(task => !selectedIds.includes(task.name))
+                            for (const taskName of selectedIds) {
+                                try {
+                                    await frappe.db.delete_doc('ToDo', taskName);
+                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                } catch (error) {
+                                    console.error(`Failed to delete ${taskName}:`, error);
+                                }
                             }
-                        }
-                        this.show_task();
-                        frappe.show_alert({ message: __('Tasks deleted successfully'), indicator: 'green' });
-                    });
-                }.bind(this));
-            } else {
-                task_container.querySelector('#task-header').innerHTML = '';
-            }
-        };
+                            this.show_task();
+                            frappe.show_alert({ message: __('Tasks deleted successfully'), indicator: 'green' });
+                        });
+                    }.bind(this));
+                } else {
+                    task_container.querySelector('#task-header').innerHTML = '';
+                }
+            };
 
-        // Bind event for individual checkboxes
-        $(document).off('change', '.toggleCheckbox').on('change', '.toggleCheckbox', function (e) {
-            const id = $(e.currentTarget).data('id');
-            if (e.currentTarget.checked) {
-                selectedIds.push(id);
-            } else {
-                selectedIds = selectedIds.filter(x => x !== id);
-            }
-            $('#selectAllCheckBox').prop('checked', selectedIds.length === this.task_list.length);
-            toggleVisibility(selectedIds.length > 0);
-        }.bind(this));
+            // Bind event for individual checkboxes
+            $(document).off('change', '.toggleCheckbox').on('change', '.toggleCheckbox', function (e) {
+                const id = $(e.currentTarget).data('id');
+                if (e.currentTarget.checked) {
+                    selectedIds.push(id);
+                } else {
+                    selectedIds = selectedIds.filter(x => x !== id);
+                }
+                $('#selectAllCheckBox').prop('checked', selectedIds.length === this.task_list.length);
+                toggleVisibility(selectedIds.length > 0);
+            }.bind(this));
 
-        // Bind event for "Select All" checkbox
-        $(document).off('change', '#selectAllCheckBox').on('change', '#selectAllCheckBox', function (e) {
-            const isChecked = $(e.currentTarget).prop('checked');
-            $('.toggleCheckbox').prop('checked', isChecked);
-            selectedIds = isChecked ? this.task_list?.map(x => x.name) : [];
-            toggleVisibility(selectedIds.length > 0);
-        }.bind(this));
+            // Bind event for "Select All" checkbox
+            $(document).off('change', '#selectAllCheckBox').on('change', '#selectAllCheckBox', function (e) {
+                const isChecked = $(e.currentTarget).prop('checked');
+                $('.toggleCheckbox').prop('checked', isChecked);
+                selectedIds = isChecked ? this.task_list?.map(x => x.name) : [];
+                toggleVisibility(selectedIds.length > 0);
+            }.bind(this));
 
-        // New Task
-        $('#createTask').on('click', function () {
-            this.form(null, 'New Task', this.frm);
-        }.bind(this));
+            // New Task
+            $('#createTask').on('click', function () {
+                this.form(null, 'New Task', this.frm);
+            }.bind(this));
 
-        $('.delete-btn').on('click', function (e) {
-            const taskName = $(e.currentTarget).data('task');
-            frappe.confirm('Are you sure you want to delete this task?', () => {
-                this.deleteTask(taskName);
+            $('.delete-btn').on('click', function (e) {
+                const taskName = $(e.currentTarget).data('task');
+                frappe.confirm('Are you sure you want to delete this task?', () => {
+                    this.deleteTask(taskName);
+                });
+            }.bind(this));
+            // Edit Task
+            $('.task-status').on('click', function (e) {
+                const taskName = $(e.currentTarget).data('task');
+                const newStatus = $(e.currentTarget).data('status');
+                this.updateTaskStatus([taskName], newStatus, 'custom_task_status'); // Correct
+            }.bind(this));
+            // Update Task Priority
+            $('.task-priority').on('click', function (e) {
+                const taskName = $(e.currentTarget).data('task');
+                const newPriority = $(e.currentTarget).data('priority');
+                this.updateTaskStatus([taskName], newPriority, 'priority'); // Fixed `this.updateTaskStatus`
+            }.bind(this));
+            // New Task
+            $('.edit-btn').on('click', function (e) {
+                const taskName = $(e.currentTarget).data('task');
+                let data = this.task_list.filter(task => task.name === taskName);
+                if (data.length) {
+                    this.form(data[0], 'Edit Task'); // Pass valid object to `form()`
+                } else {
+                    console.error(`Task ${taskName} not found.`);
+                }
+            }.bind(this));
+            // pageination
+            // Unbind existing event listeners before binding new ones
+            $(document).off('click', '.page-link').on('click', '.page-link', (e) => {
+                let page = Number($(e.target).text());
+                if (!isNaN(page)) {
+                    this.show_task();
+                    this.createFooter();
+                    this.currentPage = page;
+                }
             });
-        }.bind(this));
-        // Edit Task
-        $('.task-status').on('click', function (e) {
-            const taskName = $(e.currentTarget).data('task');
-            const newStatus = $(e.currentTarget).data('status');
-            this.updateTaskStatus([taskName], newStatus, 'custom_task_status'); // Correct
-        }.bind(this));
-        // Update Task Priority
-        $('.task-priority').on('click', function (e) {
-            const taskName = $(e.currentTarget).data('task');
-            const newPriority = $(e.currentTarget).data('priority');
-            this.updateTaskStatus([taskName], newPriority, 'priority'); // Fixed `this.updateTaskStatus`
-        }.bind(this));
-        // New Task
-        $('.edit-btn').on('click', function (e) {
-            const taskName = $(e.currentTarget).data('task');
-            let data = this.task_list.filter(task => task.name === taskName);
-            if (data.length) {
-                this.form(data[0], 'Edit Task'); // Pass valid object to `form()`
-            } else {
-                console.error(`Task ${taskName} not found.`);
-            }
-        }.bind(this));
-        // pageination
-        // Unbind existing event listeners before binding new ones
-        $(document).off('click', '.page-link').on('click', '.page-link', (e) => {
-            let page = Number($(e.target).text());
-            if (!isNaN(page)) {
-                this.show_task();
-                this.createFooter();
-                this.currentPage = page;
-            }
-        });
 
-        $(document).off('click', '.prev-page').on('click', '.prev-page', (e) => {
-            if (this.currentPage > 1) {
-                this.show_task();
-                this.createFooter();
-                this.currentPage = (this.currentPage - 1)
-            }
-        });
+            $(document).off('click', '.prev-page').on('click', '.prev-page', (e) => {
+                if (this.currentPage > 1) {
+                    this.show_task();
+                    this.createFooter();
+                    this.currentPage = (this.currentPage - 1)
+                }
+            });
 
-        $(document).off('click', '.next-page').on('click', '.next-page', (e) => {
-            if (this.currentPage < this.total_pages) {
-                this.show_task();
-                this.createFooter();
-                this.currentPage = (this.currentPage + 1)
-            }
-        });
+            $(document).off('click', '.next-page').on('click', '.next-page', (e) => {
+                if (this.currentPage < this.total_pages) {
+                    this.show_task();
+                    this.createFooter();
+                    this.currentPage = (this.currentPage + 1)
+                }
+            });
 
-
+        } catch (error) {
+            console.error('Error in show_task:', error);
+            frappe.show_alert({ 
+                message: __('Error loading tasks. Please check your permissions.'), 
+                indicator: 'red' 
+            });
+        }
     }
 
     // Update Task Status
