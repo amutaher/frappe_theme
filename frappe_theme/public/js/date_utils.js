@@ -63,4 +63,13 @@ function formatCurrencyWithSuffix(amount) {
     return formatCurrency(amount, currencyCode);
 }
 
+function custom_eval(expr,doc) {
+    if (expr.startsWith('eval:')) {
+        expr = expr.slice(5);
+    }
+    let result = new Function('doc', `return ${expr};`)(doc);
+    return result;
+}
+
 frappe.utils.format_currency = formatCurrencyWithSuffix;
+frappe.utils.custom_eval = custom_eval;
