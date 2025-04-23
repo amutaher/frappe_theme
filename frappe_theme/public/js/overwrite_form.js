@@ -90,9 +90,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             // frm.page.hide_icon_group('print')
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
-                const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
-                if (!exists) return;
-                this.dts = await sva_db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+                const { message } = await sva_db.call({ method: 'frappe_theme.dt_api.get_sva_dt_settings', doctype: frm.doc.doctype });
+                if (!message) return;
+                this.dts = message;
                 window.sva_datatable_configuration = {
                     [frm.doc.doctype]: this.dts
                 };
