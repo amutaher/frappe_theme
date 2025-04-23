@@ -1,6 +1,6 @@
 ### Frappe Theme
 
-A custom app to customize color theme of frappe desk and web
+A custom app to customize color theme of frappe desk and web along with adding custom element inside the forms and workspaces
 
 ### Installation
 
@@ -31,4 +31,19 @@ Pre-commit is configured to use the following tools for checking and formatting 
 ### License
 
 mit
-# frappe_theme
+# frappe_theme (All the below features can be achieved through the configurations only):
+## Heatmaps in the workspace
+![image](https://github.com/user-attachments/assets/ac26b819-3df2-4697-a74d-3dfae57e6f90)
+
+## Custom table of any doctype in the workspace
+![image](https://github.com/user-attachments/assets/d3b65bbf-bbbe-4fae-a5f8-a19556e5c3b6)
+
+## Number cards inside the tabs of doctype forms
+![image](https://github.com/user-attachments/assets/264fbc43-cc95-479d-80a8-d58cffda10b4)
+
+## Custom table of linked doctypes inside the tabs of doctype forms
+![image](https://github.com/user-attachments/assets/b27bdb58-0e4d-489a-93ef-ec434098eca4)
+
+## Change the colors of given elements
+![image](https://github.com/user-attachments/assets/f56fca43-229a-4246-9fdb-b0e534df6f8b)
+
