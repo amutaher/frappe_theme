@@ -944,7 +944,7 @@ class SvaDataTable {
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
-                    f.fields = tableFields;
+                    f.fields = tableFields.map((f) => {return {...f, read_only: 1}});
                     f.cannot_add_rows = 1;
                     f.cannot_delete_rows = 1;
                     if (doc[f.fieldname].length) {
