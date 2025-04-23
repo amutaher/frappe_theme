@@ -1,15 +1,16 @@
 class ListSettings {
-	constructor({ doctype, meta, settings, dialog_primary_action }) {
+	constructor({ doctype, meta, settings, dialog_primary_action,sva_dt={} }) {
 		if (!doctype) {
 			frappe.throw("DocType required");
 		}
 		this.doctype = doctype;
 		this.meta = meta;
 		this.settings = settings;
+		this.sva_dt = sva_dt;
 		this.dialog = null;
+		this.reset_layout = false;
 		this.dialog_primary_action = dialog_primary_action;
-		this.listview_settings =
-			this.settings && this.settings.listview_settings ? JSON.parse(this.settings.listview_settings) : [];
+		this.listview_settings = this.settings && this.settings.listview_settings ? JSON.parse(this.settings.listview_settings) : [];
 		if (typeof this.listview_settings === 'string') {
 			this.listview_settings = JSON.parse(this.listview_settings)
 		}
@@ -50,7 +51,7 @@ class ListSettings {
 	make() {
 		let me = this;
 		me.dialog = new frappe.ui.Dialog({
-			title: __("{0} Settings", [__(me.doctype)]),
+			title: __("{0} List Settings", [__(me.doctype)]),
 			fields: [
 				{
 					label: __("Fields"),
@@ -70,13 +71,24 @@ class ListSettings {
 					fieldtype: "HTML"
 				},
 			],
-		});
+	});
 		me.dialog.set_values(me.settings);
 		me.dialog.set_primary_action(__("Save"), () => {
-			this.dialog_primary_action(me.listview_settings)
+			this.dialog_primary_action(me.listview_settings,me.reset_layout)
 			me.dialog.hide();
 		});
-
+		if (me?.sva_dt?.user_has_list_settings){
+			me.dialog.set_secondary_action_label(__("Reset Fields"))
+			me.dialog.set_secondary_action(() => {
+				me.listview_settings = JSON.parse(me?.sva_dt?.connection?.listview_settings || '[]')
+				frappe.run_serially([
+					this.setup_fields(),
+					this.show_dialog()
+				])
+				me.reset_layout = true;
+				me.dialog.get_secondary_btn().remove()
+			});
+		}
 	}
 
 	refresh() {
