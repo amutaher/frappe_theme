@@ -25,7 +25,7 @@
 <style scoped>
 .skeleton-card {
     width: 100%;
-    min-height: 200px;
+    min-height: 344px;
     background-color: #ffffff;
     border: 1px solid #e0e0e0;
     border-radius: 10px;
@@ -63,7 +63,7 @@
 .skeleton-graph-container {
     display: flex;
     gap: 16px;
-    height: 200px;
+    height: 270px;
 }
 
 .skeleton-y-axis {
