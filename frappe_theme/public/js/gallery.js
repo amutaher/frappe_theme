@@ -718,7 +718,7 @@ class GalleryComponent {
             bodyWrapper.innerHTML = this.renderListView();
         }
         bodyWrapper.style.height = '75vh';
-        bodyWrapper.style.minHeight = '500px';
+        // bodyWrapper.style.minHeight = '500px';
         bodyWrapper.style.overflow = 'auto';
         this.attachGalleryItemEventListeners(); // Attach event listeners to gallery items
     }
