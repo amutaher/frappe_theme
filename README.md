@@ -38,12 +38,12 @@ mit
 ## Custom table of any doctype in the workspace
 ![image](https://github.com/user-attachments/assets/d3b65bbf-bbbe-4fae-a5f8-a19556e5c3b6)
 
-## Number cards inside the tabs of doctype forms
-![image](https://github.com/user-attachments/assets/264fbc43-cc95-479d-80a8-d58cffda10b4)
+## Number Cards/Charts inside the tabs of the doctype forms
+![image](https://github.com/user-attachments/assets/93181000-ad65-4a90-84ab-d4ad694ab06c)
 
 ## Custom table of linked doctypes inside the tabs of doctype forms
 ![image](https://github.com/user-attachments/assets/b27bdb58-0e4d-489a-93ef-ec434098eca4)
 
-## Change the colors of given elements
+## Change the colors of the given elements
 ![image](https://github.com/user-attachments/assets/f56fca43-229a-4246-9fdb-b0e534df6f8b)
 

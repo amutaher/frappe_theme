@@ -27,8 +27,12 @@ const props = defineProps({
 // const emit = defineEmits(['action-clicked']);
 
 const handleAction = async (action) => {
-	loading.value = true;
-	await getCount();
+	if(action == 'refresh'){
+		loading.value = true;
+		await getCount();
+	}else if(action == 'edit'){
+		frappe.set_route('Form', props.card?.details?.doctype,props.card?.details?.label);
+	}
 	// emit('action-clicked', action);
 };
 
