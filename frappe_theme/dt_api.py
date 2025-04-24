@@ -118,3 +118,213 @@ def get_user_list_settings(parent_id,child_dt):
     elif frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user}):
         listview_settings = frappe.get_doc("SVADT User Listview Settings",frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})).listview_settings
     return listview_settings
+
+@frappe.whitelist()
+def get_sva_dt_settings(doctype):
+    if not frappe.db.exists("SVADatatable Configuration", doctype):
+        return None
+
+    settings = frappe.get_doc("SVADatatable Configuration", doctype)
+    settings = settings.as_dict()
+    # number cards
+    updated_cards = number_card_settings(settings)
+    settings['number_cards'] = updated_cards
+
+    # charts
+    updated_charts = chart_settings(settings)
+    settings['charts'] = updated_charts
+    return settings
+
+def number_card_settings(settings):
+    # Filter only visible number cards
+    visible_cards = [card for card in settings.number_cards if card.is_visible]
+    updated_cards = []
+
+    for card in visible_cards:
+        if frappe.db.exists('Number Card', card.number_card):
+            card_details = frappe.get_doc('Number Card', card.number_card)
+            card['details'] = card_details
+
+            if card_details.type == 'Report' and card_details.report_name:
+                if frappe.db.exists('Report', card_details.report_name):
+                    report_doc = frappe.get_doc('Report', card_details.report_name)
+                    card['report'] = report_doc
+            elif card_details.type == 'Document Type':
+                card['report'] = None
+
+        updated_cards.append(card)
+
+    # Update the settings with the updated cards
+    return updated_cards
+
+def chart_settings(settings):
+
+    visible_charts = [chart for chart in settings.charts if chart.is_visible]
+    updated_charts = []
+    for chart in visible_charts:
+        if frappe.db.exists('Dashboard Chart', chart.chart_label):
+            chart_details = frappe.get_doc('Dashboard Chart', chart.chart_label)
+            chart['details'] = chart_details
+            updated_charts.append(chart)
+        if chart.details.chart_type == 'Report':
+            if frappe.db.exists('Report', chart.details.report_name):
+                report_doc = frappe.get_doc('Report', chart.details.report_name)
+                chart['report'] = report_doc
+            else:
+                chart['report'] = None
+    return updated_charts
+
+@frappe.whitelist()
+def get_number_card_count(type, details,report=None, doctype=None, docname=None):
+    details = json.loads(details)
+    report = json.loads(report)
+
+    if type == 'Report':
+        if report.get('query'):
+            query = ""
+            conditions = "WHERE 1=1"
+            field_type = None
+            for f in report.get('columns'):
+                if f.get('fieldtype') == 'Link' and f.get('options') == doctype:
+                    conditions += f" AND t.{f.get('fieldname')} = '{docname}'"
+            field_name = details.get('report_field')
+            field_type = f.get('fieldtype')
+            if details.get('report_function')=='Sum':
+                query = f"SELECT SUM(t.{field_name}) AS count FROM ({report.get('query')}) AS t {conditions}"
+            elif details.get('report_function')=='Average':
+                query = f"SELECT AVG(t.{field_name}) AS count FROM ({report.get('query')}) AS t {conditions}"
+            elif details.get('report_function')=='Minimum':
+                query = f"SELECT MIN(t.{field_name}) AS count FROM ({report.get('query')}) AS t {conditions}"
+            elif details.get('report_function')=='Maximum':
+                query = f"SELECT MAX(t.{field_name}) AS count FROM ({report.get('query')}) AS t {conditions}"
+            
+            count = frappe.db.sql(query, as_dict=True)
+            return {
+                'count': count[0].get('count'),
+                'message': 'Report',
+                'field_type': field_type
+            }
+        else:
+            return {
+                'count': 0,
+                'message': 'Report',
+                'field_type': None,
+            }
+    elif type == 'Document Type':
+        filters = json.loads(details.get('filters_json'))
+        # Clean up filters by removing null and false values
+        for i, filter_condition in enumerate(filters):
+            if isinstance(filter_condition[3], list):
+                filter_condition[3] = [x for x in filter_condition[3] if x is not None]
+                if not filter_condition[3]:  # If array becomes empty after removing null
+                    filters.pop(i)  # Remove the entire filter condition
+            # Remove false from the end of filter conditions
+            if len(filter_condition) > 4 and filter_condition[4] is False:
+                filter_condition.pop(4)
+        if doctype and docname:
+            meta = frappe.get_meta(details.get('document_type'))
+            if meta.fields:
+                direct_link_field = next((x for x in meta.fields if x.fieldtype == 'Link' and x.options == doctype and x.fieldname not in ['amended_form']), None)
+                if direct_link_field:
+                    filters.append([details.get('document_type'),direct_link_field.get('fieldname'), '=', docname])
+                
+                reference_dt_field = next((x for x in meta.fields if x.fieldtype == 'Link' and x.options == 'DocType'), None)
+                if reference_dt_field:
+                    reference_dn_field = next((x for x in meta.fields if x.fieldtype == 'Dynamic Link' and x.options == reference_dt_field.get('fieldname')), None)
+                    if reference_dn_field:
+                        filters.append([details.get('document_type'),reference_dt_field.get('fieldname'), '=', doctype])
+                        filters.append([details.get('document_type'),reference_dn_field.get('fieldname'), '=', docname])
+        if details.get('function') == 'Count':
+            count = frappe.db.count(details.get('document_type'), filters=filters)
+        elif details.get('function') == 'Sum':
+            count = frappe.db.get_value(details.get('document_type'), filters, f"SUM({details.get('aggregate_function_based_on')})")
+        elif details.get('function') == 'Average':
+            count = frappe.db.get_value(details.get('document_type'), filters, f"AVG({details.get('aggregate_function_based_on')})")
+        elif details.get('function') == 'Minimum':
+            count = frappe.db.get_value(details.get('document_type'), filters, f"MIN({details.get('aggregate_function_based_on')})")
+        elif details.get('function') == 'Maximum':
+            count = frappe.db.get_value(details.get('document_type'), filters, f"MAX({details.get('aggregate_function_based_on')})")
+        return {
+            'count': count,
+            'message': details,
+            'field_type': None,
+        }
+    
+@frappe.whitelist()
+def get_chart_data(type, details,report=None, doctype=None, docname=None):
+    details = json.loads(details)
+    report = json.loads(report)
+
+    if type == 'Report':
+        if report.get('query'):
+            query = ""
+            conditions = "WHERE 1=1"
+            for f in report.get('columns'):
+                if f.get('fieldtype') == 'Link' and f.get('options') == doctype:
+                    conditions += f" AND t.{f.get('fieldname')} = '{docname}'"
+            field_name = details.get('x_field')
+            y_field = details.get('y_axis')[0].get('y_field')
+            query = f"SELECT t.{y_field} AS count, t.{field_name} AS label FROM ({report.get('query')}) AS t {conditions}"
+            data = frappe.db.sql(query, as_dict=True)
+            colors = []
+            if details.get('custom_options'):
+                custom_options = json.loads(details.get('custom_options'))
+                colors = [x for x in custom_options]
+            else:
+                colors = [x.get('color') for x in details.get('y_axis')]
+            
+            return {
+                'data': {
+                    'labels': [x.get('label') for x in data],
+                    'datasets': [{'data': [x.get('count') for x in data],#0,4,2,3,1,5,4,3
+                    'backgroundColor':colors}]
+                },
+                'message': details
+            }
+        else:
+            return {
+                'data': {
+                    'labels': [],
+                    'datasets': [{'data': []}]
+                },
+                'message': 'Report'
+            }
+    elif type == 'Document Type':
+        filters = json.loads(details.get('filters_json'))
+        # Clean up filters by removing null and false values
+        for i, filter_condition in enumerate(filters):
+            if isinstance(filter_condition[3], list):
+                filter_condition[3] = [x for x in filter_condition[3] if x is not None]
+                if not filter_condition[3]:  # If array becomes empty after removing null
+                    filters.pop(i)  # Remove the entire filter condition
+            # Remove false from the end of filter conditions
+            if len(filter_condition) > 4 and filter_condition[4] is False:
+                filter_condition.pop(4)
+        if doctype and docname:
+            meta = frappe.get_meta(details.get('document_type'))
+            if meta.fields:
+                direct_link_field = next((x for x in meta.fields if x.fieldtype == 'Link' and x.options == doctype and x.fieldname not in ['amended_form']), None)
+                if direct_link_field:
+                    filters.append([details.get('document_type'),direct_link_field.get('fieldname'), '=', docname])
+                
+                reference_dt_field = next((x for x in meta.fields if x.fieldtype == 'Link' and x.options == 'DocType'), None)
+                if reference_dt_field:
+                    reference_dn_field = next((x for x in meta.fields if x.fieldtype == 'Dynamic Link' and x.options == reference_dt_field.get('fieldname')), None)
+                    if reference_dn_field:
+                        filters.append([details.get('document_type'),reference_dt_field.get('fieldname'), '=', doctype])
+                        filters.append([details.get('document_type'),reference_dn_field.get('fieldname'), '=', docname])
+        data = frappe.db.get_list(details.get('document_type'), filters=filters)
+        colors = []
+        if details.get('custom_options'):
+            custom_options = json.loads(details.get('custom_options'))
+            colors = [x for x in custom_options]
+        else:
+            colors = [x.get('color') for x in details.get('y_axis')]
+        return {
+            'data': {
+                'labels': [x.get('label') for x in data],
+                'datasets': [{'data': [x.get('count') for x in data],
+                'backgroundColor':colors}]
+            },
+            'message': 'Document Type',
+        }
