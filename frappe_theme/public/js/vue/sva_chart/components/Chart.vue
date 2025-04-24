@@ -2,7 +2,7 @@
 	<transition name="fade">
 		<div v-if="showChart">
 			<Skeleton v-if="loading" />
-			<div v-else class="card mb-2" style="padding: 8px 8px 8px 12px;">
+			<div v-else class="card mb-2" style="padding: 8px 8px 8px 12px; min-height: 344px;">
 				<div class="d-flex justify-content-between align-items-center">
 					{{ chart.details.chart_name }}
 					<div class="dropdown" v-if="actions.length">
@@ -20,8 +20,8 @@
 					</div>
 				</div>
 				<div class="w-100 pt-2" v-if="data.labels.length">
-					<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
-					<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
+					<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" :height="300" />
+					<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" :height="300" />
 					<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
 					<Doughnut v-if="chart?.details?.type === 'Donut'" :data="data" :options="options" />
 				</div>
@@ -99,9 +99,12 @@ const props = defineProps({
 // const emit = defineEmits(['action-clicked']);
 
 const handleAction = async (action) => {
-	loading.value = true;
-	await getCount();
-	// emit('action-clicked', action);
+	if(action == 'refresh'){
+		loading.value = true;
+		await getCount();
+	}else if(action == 'edit'){
+		frappe.set_route('Form', props.chart?.details?.doctype,props.chart?.details?.name);
+	}
 };
 
 const getCount = async () => {
@@ -167,7 +170,7 @@ h4 {
 	opacity: 0;
 }
 .frappe-theme-no-data{
-	height: 200px;
+	height: 297px;
 	color: #6c757d;
 	background-color: #f8f9fa;
 	margin-top: 10px;
