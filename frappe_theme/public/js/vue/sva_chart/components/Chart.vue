@@ -19,7 +19,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="" v-if="data.labels.length">
+				<div class="w-100 pt-2" v-if="data.labels.length">
 					<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
 					<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
 					<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
@@ -43,7 +43,10 @@ import {
   Legend,
   BarElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
 } from 'chart.js'
 import { Bar ,Line,Pie,Doughnut} from 'vue-chartjs'
 
@@ -54,7 +57,10 @@ ChartJS.register(
   Legend,
   BarElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
 )
 
 const loading = ref(true);
@@ -64,7 +70,13 @@ const data = ref({
 	datasets: [{ data: [] }]
 });
 const options = ref({
-	responsive: false
+	responsive: true,
+	maintainAspectRatio: false,
+	plugins: {
+		legend: {
+			position: 'bottom'
+		}
+	}
 });
 
 const props = defineProps({
@@ -100,7 +112,6 @@ const getCount = async () => {
 		type = 'Report';
 		details = props.chart.details;
 		report = props.chart.report;
-		console.log(details,'details',report,'report');
 	}else{
 		type = 'Document Type';
 		details = props.chart.details;
@@ -108,7 +119,7 @@ const getCount = async () => {
 	try {
 		loading.value = true;
 		let res = await frappe.call({
-			method: 'frappe_theme.dt_api.get_chart_count',
+			method: 'frappe_theme.dt_api.get_chart_data',
 			args: {
 				type: type,
 				details: details,
