@@ -83,7 +83,7 @@ onMounted(async () => {
 			<Skeleton v-if="loading" />
 			<div v-else class="card mb-2" style="padding: 8px 8px 8px 12px;">
 				<div class="d-flex justify-content-between">
-					<p class="text-truncate" style="font-size: 11px;" :title="card.card_label">{{ card.card_label?.toUpperCase() }}</p>
+					<p class="text-truncate" style="font-size: 11px; width: 90%;" :title="card.card_label">{{ card.card_label?.toUpperCase() }}</p>
 					<div class="dropdown" v-if="actions.length">
 						<span title="action" class="pointer d-flex justify-content-center align-items-center" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 							...
@@ -112,6 +112,7 @@ h4 {
 
 .pointer {
 	cursor: pointer;
+	line-height: 8px;
 }
 
 .fade-enter-active,
