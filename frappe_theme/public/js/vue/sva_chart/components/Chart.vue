@@ -19,11 +19,15 @@
 						</div>
 					</div>
 				</div>
-				<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
-				<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
-				<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
-				<Doughnut v-if="chart?.details?.type === 'Donut'" :data="data" :options="options" />
-
+				<div class="" v-if="data.labels.length">
+					<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
+					<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
+					<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
+					<Doughnut v-if="chart?.details?.type === 'Donut'" :data="data" :options="options" />
+				</div>
+				<div class="frappe-theme-no-data" v-else>
+					No data
+				</div>
 			</div>
 		</div>
 	</transition>
@@ -54,14 +58,13 @@ ChartJS.register(
 )
 
 const loading = ref(true);
-const count = ref(0);
 const showChart = ref(false);
 const data = ref({
-	labels: ['January', 'February', 'March'],
-	datasets: [{ data: [40, 20, 12] }]
+	labels: [],
+	datasets: [{ data: [] }]
 });
 const options = ref({
-	responsive: true
+	responsive: false
 });
 
 const props = defineProps({
@@ -92,9 +95,12 @@ const handleAction = async (action) => {
 const getCount = async () => {
 	let type = 'Report';
 	let details = {};
+	let report = {};
 	if(props.chart.report) {
 		type = 'Report';
 		details = props.chart.details;
+		report = props.chart.report;
+		console.log(details,'details',report,'report');
 	}else{
 		type = 'Document Type';
 		details = props.chart.details;
@@ -106,12 +112,13 @@ const getCount = async () => {
 			args: {
 				type: type,
 				details: details,
+				report: report,
 				doctype: cur_frm.doc.doctype,
 				docname:cur_frm.doc.name
 			}
 		})
 		if(res.message){
-			count.value = res.message.count;
+			data.value = res.message.data;
 			setTimeout(() => {
 				loading.value = false;
 			}, 500);
@@ -147,5 +154,14 @@ h4 {
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
+}
+.frappe-theme-no-data{
+	height: 200px;
+	color: #6c757d;
+	background-color: #f8f9fa;
+	margin-top: 10px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 </style>

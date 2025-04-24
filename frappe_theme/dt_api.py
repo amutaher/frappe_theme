@@ -250,19 +250,25 @@ def get_number_card_count(type, details,report=None, doctype=None, docname=None)
             'field_type': None,
         }
 @frappe.whitelist()
-def get_chart_count(type, details, doctype=None, docname=None):
+def get_chart_count(type, details,report=None, doctype=None, docname=None):
     details = json.loads(details)
 
     if type == 'Report':
         if details.get('query'):
-            count = frappe.db.sql(details.get('query'), as_dict=True)
+            data = frappe.db.sql(details.get('query'), as_dict=True)
             return {
-                'count': len(count),
+                'data': {
+                    'labels': [x.get('label') for x in data],
+                    'datasets': [{'data': [x.get('count') for x in data]}]
+                },
                 'message': details
             }
         else:
             return {
-                'count': 0,
+                'data': {
+                    'labels': [],
+                    'datasets': [{'data': []}]
+                },
                 'message': 'Report'
             }
     elif type == 'Document Type':
@@ -289,8 +295,11 @@ def get_chart_count(type, details, doctype=None, docname=None):
                     if reference_dn_field:
                         filters.append([details.get('document_type'),reference_dt_field.get('fieldname'), '=', doctype])
                         filters.append([details.get('document_type'),reference_dn_field.get('fieldname'), '=', docname])
-        count = frappe.db.count(details.get('document_type'), filters=filters)
+        data = frappe.db.get_list(details.get('document_type'), filters=filters)
         return {
-            'count': count,
+            'data': {
+                'labels': [x.get('label') for x in data],
+                'datasets': [{'data': [x.get('count') for x in data]}]
+            },
             'message': 'Document Type',
         }

@@ -267,10 +267,6 @@ class SVADashboardManager {
                 gap: 1rem;
             }
 
-            .sva-dashboard-cards {
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            }
-
             .sva-dashboard-charts {
                 grid-template-columns: 1fr;
             }
@@ -280,6 +276,7 @@ class SVADashboardManager {
                     grid-template-columns: repeat(2, 1fr);
                 }
             }
+           
         `;
         document.head.appendChild(styleSheet);
     }
