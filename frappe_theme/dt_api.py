@@ -249,20 +249,44 @@ def get_number_card_count(type, details,report=None, doctype=None, docname=None)
             'message': details,
             'field_type': None,
         }
+    
 @frappe.whitelist()
-def get_chart_count(type, details, doctype=None, docname=None):
+def get_chart_data(type, details,report=None, doctype=None, docname=None):
     details = json.loads(details)
+    report = json.loads(report)
 
     if type == 'Report':
-        if details.get('query'):
-            count = frappe.db.sql(details.get('query'), as_dict=True)
+        if report.get('query'):
+            query = ""
+            conditions = "WHERE 1=1"
+            for f in report.get('columns'):
+                if f.get('fieldtype') == 'Link' and f.get('options') == doctype:
+                    conditions += f" AND t.{f.get('fieldname')} = '{docname}'"
+            field_name = details.get('x_field')
+            y_field = details.get('y_axis')[0].get('y_field')
+            query = f"SELECT t.{y_field} AS count, t.{field_name} AS label FROM ({report.get('query')}) AS t {conditions}"
+            data = frappe.db.sql(query, as_dict=True)
+            colors = []
+            if details.get('custom_options'):
+                custom_options = json.loads(details.get('custom_options'))
+                colors = [x for x in custom_options]
+            else:
+                colors = [x.get('color') for x in details.get('y_axis')]
+            
             return {
-                'count': len(count),
+                'data': {
+                    'labels': [x.get('label') for x in data],
+                    'datasets': [{'data': [x.get('count') for x in data],#0,4,2,3,1,5,4,3
+                    'backgroundColor':colors}]
+                },
                 'message': details
             }
         else:
             return {
-                'count': 0,
+                'data': {
+                    'labels': [],
+                    'datasets': [{'data': []}]
+                },
                 'message': 'Report'
             }
     elif type == 'Document Type':
@@ -289,8 +313,18 @@ def get_chart_count(type, details, doctype=None, docname=None):
                     if reference_dn_field:
                         filters.append([details.get('document_type'),reference_dt_field.get('fieldname'), '=', doctype])
                         filters.append([details.get('document_type'),reference_dn_field.get('fieldname'), '=', docname])
-        count = frappe.db.count(details.get('document_type'), filters=filters)
+        data = frappe.db.get_list(details.get('document_type'), filters=filters)
+        colors = []
+        if details.get('custom_options'):
+            custom_options = json.loads(details.get('custom_options'))
+            colors = [x for x in custom_options]
+        else:
+            colors = [x.get('color') for x in details.get('y_axis')]
         return {
-            'count': count,
+            'data': {
+                'labels': [x.get('label') for x in data],
+                'datasets': [{'data': [x.get('count') for x in data],
+                'backgroundColor':colors}]
+            },
             'message': 'Document Type',
         }

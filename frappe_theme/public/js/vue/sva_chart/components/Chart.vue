@@ -19,11 +19,15 @@
 						</div>
 					</div>
 				</div>
-				<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
-				<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
-				<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
-				<Doughnut v-if="chart?.details?.type === 'Donut'" :data="data" :options="options" />
-
+				<div class="w-100 pt-2" v-if="data.labels.length">
+					<Bar v-if="chart?.details?.type === 'Bar'" :data="data" :options="options" />
+					<Line v-if="chart?.details?.type === 'Line'" :data="data" :options="options" />
+					<Pie v-if="chart?.details?.type === 'Pie'" :data="data" :options="options" />
+					<Doughnut v-if="chart?.details?.type === 'Donut'" :data="data" :options="options" />
+				</div>
+				<div class="frappe-theme-no-data" v-else>
+					No data
+				</div>
 			</div>
 		</div>
 	</transition>
@@ -39,7 +43,10 @@ import {
   Legend,
   BarElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
 } from 'chart.js'
 import { Bar ,Line,Pie,Doughnut} from 'vue-chartjs'
 
@@ -50,18 +57,26 @@ ChartJS.register(
   Legend,
   BarElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
 )
 
 const loading = ref(true);
-const count = ref(0);
 const showChart = ref(false);
 const data = ref({
-	labels: ['January', 'February', 'March'],
-	datasets: [{ data: [40, 20, 12] }]
+	labels: [],
+	datasets: [{ data: [] }]
 });
 const options = ref({
-	responsive: true
+	responsive: true,
+	maintainAspectRatio: false,
+	plugins: {
+		legend: {
+			position: 'bottom'
+		}
+	}
 });
 
 const props = defineProps({
@@ -92,9 +107,11 @@ const handleAction = async (action) => {
 const getCount = async () => {
 	let type = 'Report';
 	let details = {};
+	let report = {};
 	if(props.chart.report) {
 		type = 'Report';
 		details = props.chart.details;
+		report = props.chart.report;
 	}else{
 		type = 'Document Type';
 		details = props.chart.details;
@@ -102,16 +119,17 @@ const getCount = async () => {
 	try {
 		loading.value = true;
 		let res = await frappe.call({
-			method: 'frappe_theme.dt_api.get_chart_count',
+			method: 'frappe_theme.dt_api.get_chart_data',
 			args: {
 				type: type,
 				details: details,
+				report: report,
 				doctype: cur_frm.doc.doctype,
 				docname:cur_frm.doc.name
 			}
 		})
 		if(res.message){
-			count.value = res.message.count;
+			data.value = res.message.data;
 			setTimeout(() => {
 				loading.value = false;
 			}, 500);
@@ -147,5 +165,14 @@ h4 {
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
+}
+.frappe-theme-no-data{
+	height: 200px;
+	color: #6c757d;
+	background-color: #f8f9fa;
+	margin-top: 10px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 </style>
