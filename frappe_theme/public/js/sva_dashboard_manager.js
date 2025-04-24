@@ -266,16 +266,6 @@ class SVADashboardManager {
                 display: grid;
                 gap: 1rem;
             }
-
-            .sva-dashboard-charts {
-                grid-template-columns: 1fr;
-            }
-
-            @media (min-width: 768px) {
-                .sva-dashboard-charts {
-                    grid-template-columns: repeat(2, 1fr);
-                }
-            }
            
         `;
         document.head.appendChild(styleSheet);
