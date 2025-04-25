@@ -23,7 +23,9 @@
   "setup_list_settings",
   "crud_permissions",
   "setup_crud_permissions",
-  "redirect_to_main_form"
+  "redirect_to_main_form",
+  "disable_edit_depends_on",
+  "disable_delete_depends_on"
  ],
  "fields": [
   {
@@ -40,10 +42,13 @@
    "label": "Setup Listview Setting"
   },
   {
+   "default": "[\"read\"]",
    "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
    "fieldname": "crud_permissions",
    "fieldtype": "JSON",
    "label": "Crud Permissions",
+   "max_height": "4rem",
+   "options": "JSON",
    "read_only": 1
   },
   {
@@ -162,12 +167,26 @@
    "fieldtype": "Select",
    "label": "Foreign Field",
    "mandatory_depends_on": "eval:doc.connection_type == \"Indirect\""
+  },
+  {
+   "fieldname": "disable_edit_depends_on",
+   "fieldtype": "Code",
+   "label": "Disable Edit Depends On (JS)",
+   "max_height": "3rem",
+   "options": "JS"
+  },
+  {
+   "fieldname": "disable_delete_depends_on",
+   "fieldtype": "Code",
+   "label": "Disable Delete Depends On (JS)",
+   "max_height": "3rem",
+   "options": "JS"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-04-21 09:32:22.875157",
+ "modified": "2025-04-22 11:36:00.592245",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",

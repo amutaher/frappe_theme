@@ -323,9 +323,9 @@ class SvaDataTable {
         list_view_settings.id = 'list_view_settings';
         list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
         list_view_settings.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${this.user_has_list_settings ? (frappe.boot?.my_theme?.button_background_color || '#2196F3') : 'currentColor'}" class="bi bi-gear" viewBox="0 0 16 16">
-            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: ${this.user_has_list_settings ? (frappe.boot?.my_theme?.button_background_color || '#2196F3') : 'currentColor'}">
+            <path fill="none" stroke="currentColor" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
         </svg>`;
         list_view_settings.onclick = async () => {
             list_view_settings.disabled = true;
@@ -345,44 +345,49 @@ class SvaDataTable {
             settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
             sva_dt: this,
             dialog_primary_action: async (listview_settings, reset = false) => {
-                if (!reset) {
-                    if (frappe.session.user == "Administrator") {
-                        await this.sva_db.call({
-                            method: 'frappe.client.set_value',
-                            doctype: this.connection.doctype,
-                            name: this.connection.name,
-                            fieldname: 'listview_settings',
-                            value: JSON.stringify(listview_settings ?? []),
-                        });
+                try {
+                    if (!reset) {
+                        if (frappe.session.user == "Administrator") {
+                            await this.sva_db.call({
+                                method: 'frappe.client.set_value',
+                                doctype: this.connection.doctype,
+                                name: this.connection.name,
+                                fieldname: 'listview_settings',
+                                value: JSON.stringify(listview_settings ?? []),
+                            });
+                        } else {
+                            await this.sva_db.call({
+                                method: 'frappe_theme.dt_api.setup_user_list_settings',
+                                parent_id: this.connection.parent,
+                                child_dt: this.doctype,
+                                listview_settings: JSON.stringify(listview_settings ?? []),
+                            });
+                            this.user_has_list_settings = true;
+                        }
                     } else {
                         await this.sva_db.call({
-                            method: 'frappe_theme.dt_api.setup_user_list_settings',
+                            method: 'frappe_theme.dt_api.delete_user_list_settings',
                             parent_id: this.connection.parent,
-                            child_dt: this.doctype,
-                            listview_settings: JSON.stringify(listview_settings ?? []),
+                            child_dt: this.doctype
                         });
-                        this.user_has_list_settings = true;
+                        this.user_has_list_settings = false;
                     }
-                } else {
-                    await this.sva_db.call({
-                        method: 'frappe_theme.dt_api.delete_user_list_settings',
-                        parent_id: this.connection.parent,
-                        child_dt: this.doctype
-                    });
-                    this.user_has_list_settings = false;
-                }
-                this.header = listview_settings;
-                if (window.sva_datatable_configuration?.[this.connection.parent]) {
-                    let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
-                    let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
-                    if (target) {
-                        target.listviewreLoad_settings = JSON.stringify(listview_settings ?? [])
-                    } else if (target_child) {
-                        target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+                } catch (error) {
+                    console.error('Error in setupListviewSettings', error);
+                }finally{
+                    this.header = listview_settings;
+                    if (window.sva_datatable_configuration?.[this.connection.parent]) {
+                        let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
+                        let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
+                        if (target) {
+                            target.listview_settings = JSON.stringify(listview_settings ?? [])
+                        } else if (target_child) {
+                            target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                        }
                     }
+                    this.reloadTable(true);
                 }
-                this.reloadTable(true);
-                frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
             }
         });
     }
@@ -939,7 +944,7 @@ class SvaDataTable {
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
-                    f.fields = tableFields;
+                    f.fields = tableFields.map((f) => {return {...f, read_only: 1}});
                     f.cannot_add_rows = 1;
                     f.cannot_delete_rows = 1;
                     if (doc[f.fieldname].length) {
@@ -1171,23 +1176,23 @@ class SvaDataTable {
         this.columns.forEach(column => {
             const th = document.createElement('th');
             let col = this.header.find(h => h.fieldname === column.fieldname);
-            if (col.width) {
-                th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+            if (col?.width) {
+                th.style = `min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
             }
             th.textContent = column.label || column.name;
 
             if (column.sortable) {
                 this.createSortingIcon(th, column); // Create the sorting dropdown
-                if (col.width) {
-                    th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;cursor:pointer;`;
+                if (col?.width) {
+                    th.style = `min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;cursor:pointer;`;
                 } else {
                     th.style = `cursor:pointer;`;
                 }
             }
 
             if (this.options.freezeColumnsAtLeft && this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
-                if (col.width) {
-                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'};min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+                if (col?.width) {
+                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'};min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
                 } else {
                     th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'}`;
                 }
@@ -1205,19 +1210,15 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
+
+        // ========================= Action Column ======================
+        // if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
-            // if (frappe.user_roles.includes("Administrator")) {
             action_th.appendChild(this.createSettingsButton());
             tr.appendChild(action_th);
-            // } else {
-            //     if (this.conf_perms.length || this.childLinks?.length) {
-            //         tr.appendChild(action_th);
-            //         action_th.textContent = 'Actions'
-            //     }
-            // }
-        }
+        // }
+        // ========================= Action Column End ======================
         thead.appendChild(tr);
         return thead;
     }
@@ -1280,7 +1281,8 @@ class SvaDataTable {
 
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
-            if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
+            let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
+            if (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
@@ -1307,7 +1309,8 @@ class SvaDataTable {
                     });
                 }
             }
-            if (this.permissions.includes('delete') && this.conf_perms.includes('delete')) {
+            let is_deletable = this.connection?.disable_delete_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_delete_depends_on, row) : true;
+            if (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
@@ -1446,7 +1449,9 @@ class SvaDataTable {
                     el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
                     if (isClosed) {
                         el.disabled = true;
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>`;
+                        el.classList.add('ellipsis');
+                        el.setAttribute('title', row[workflow_state_field]);
+                        el.innerHTML = `<option value="" style="color:black" selected disabled">${row[workflow_state_field]}</option>`;
                         el.style['-webkit-appearance'] = 'none';
                         el.style['-moz-appearance'] = 'none';
                         el.style['appearance'] = 'none';
@@ -1456,7 +1461,7 @@ class SvaDataTable {
                     } else {
                         el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>` +
+                        el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
                                 .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                                 .map(e => e.action))]
@@ -1789,8 +1794,8 @@ class SvaDataTable {
                     td.title = row[column.fieldname] || "";
                 }
             }
-            if (col.width) {
-                $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (col?.width) {
+                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
                 $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
@@ -1816,22 +1821,22 @@ class SvaDataTable {
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', cursor: 'pointer', color: 'blue' });
                 }
             } else {
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
             if (columnField.fieldtype === 'Currency') {
                 td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 }
@@ -1843,8 +1848,8 @@ class SvaDataTable {
                 } else {
                     td.innerHTML = '';
                 }
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1861,8 +1866,8 @@ class SvaDataTable {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                 }) || 0;
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 }
@@ -1870,8 +1875,8 @@ class SvaDataTable {
             }
             if (['Date'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1887,8 +1892,8 @@ class SvaDataTable {
                         });
                     });
                 });
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1903,16 +1908,16 @@ class SvaDataTable {
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
                 return;
             }
             td.textContent = row[column.fieldname] || "";
-            if (col.width) {
-                $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (col?.width) {
+                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
                 $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
@@ -1922,12 +1927,12 @@ class SvaDataTable {
     async getDocList() {
         try {
             let filters = []
-            if (this.connection?.extended_condition && this.connection?.extended_condition) {
+            if (this.connection?.extend_condition && this.connection?.extended_condition) {
                 try {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
                         cond = cond?.map(e => {
-                            if (e.length > 3 && e[3] && e[3]?.toLowerCase() == 'today') {
+                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && e[3]?.toLowerCase() == 'today') {
                                 e[3] = new Date().toISOString().split('T')[0];
                             }
                             return e
@@ -1938,7 +1943,6 @@ class SvaDataTable {
                     console.log("Exception: while parsing extended_condition", error);
                 }
             }
-
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm?.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm?.doc.name]);
