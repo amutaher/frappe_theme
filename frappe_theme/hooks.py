@@ -97,10 +97,9 @@ web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "frappe_theme.utils.jinja_methods",
-# 	"filters": "frappe_theme.utils.jinja_filters"
-# }
+jinja = {
+	"methods": "frappe_theme.utils.jinja_methods"
+}
 
 # Installation
 # ------------
