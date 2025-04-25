@@ -2,8 +2,8 @@ class Heatmap {
     constructor(opts) {
         this.reportName = opts.report || '';
         this.wrapper = opts.wrapper;
-        this.stateGeoJsonUrl = '/assets/frappe_theme/json/states.json';
-        this.districtGeoJsonUrl = '/assets/frappe_theme/json/districts.json';
+        this.stateGeoJsonUrl = '/assets/frappe_theme/boundaries/state_boundries.json';
+        this.districtGeoJsonUrl = '/assets/frappe_theme/boundaries/districts_boundaries.json';
         this.defaultView = opts.default_view || 'State';
         this.blockHeight = opts.block_height || 280;
 
@@ -443,7 +443,7 @@ class Heatmap {
                     onEachFeature: (feature, layer) => {
                         layer.on({
                             mouseover: (e) => {
-                                const stateName = feature.properties.ST_NM;
+                                const stateName = feature.properties.name;
                                 const stateId = feature.properties.id;
                                 const data = this.stateData?.[stateId] || { count: 0, data: {} };
                                 
@@ -479,7 +479,7 @@ class Heatmap {
         this.stateLayer.clearLayers();
         this.map.removeLayer(this.stateLayer);
         this.showDistrictLoader();
-        this.loadDistricts(state.ST_NM);
+        this.loadDistricts(state.name);
     }
 
     showDistrictLoader() {
@@ -510,6 +510,7 @@ class Heatmap {
         if (this.defaultView == "State") {
             this.resetButton.show();
             this.refreshButton.hide();
+            this.districtGeoJsonUrl = frappe.utils.get_district_json_route(stateName)
         } else {
             this.resetButton.hide();
             this.refreshButton.show();
@@ -519,17 +520,6 @@ class Heatmap {
             .then(data => {
                 if (this.districtLayer) this.map.removeLayer(this.districtLayer);
                 if (this.stateLayer) this.map.removeLayer(this.stateLayer);
-                let filtered = {
-                    type: 'FeatureCollection',
-                    features: []
-                };
-                if (!stateName) {
-                    filtered.features = data.features.filter(f => f.properties.DISTRICT)
-                } else {
-                    filtered.features = data.features.filter(f => f.properties.DISTRICT && f.properties.ST_NM === stateName)
-                }
-
-                // Process district data for easier lookup
                 this.districtData = {};
                 if (this.reportData?.result) {
                     this.reportData.result.forEach(row => {
@@ -545,12 +535,9 @@ class Heatmap {
                         }
                     });
                 }
-
-                // After processing district data, update legend
                 const range = this.calculateDataRange(this.districtData);
                 this.createLegend(range);
-
-                this.districtLayer = L.geoJSON(filtered, {
+                this.districtLayer = L.geoJSON(data, {
                     style: {
                         color: '#F2F2F3',
                         weight: 1,
@@ -559,9 +546,9 @@ class Heatmap {
                     onEachFeature: (feature, layer) => {
                         layer.on({
                             mouseover: (e) => {
-                                const districtID = feature.properties?.censuscode;
-                                const districtName = feature.properties?.DISTRICT
-                                    ? String(feature.properties.DISTRICT).toUpperCase()
+                                const districtID = feature.properties?.dt_code;
+                                const districtName = feature.properties?.name
+                                    ? String(feature.properties.name).toUpperCase()
                                     : 'Unknown District';
                                 const data = this.districtData[districtID] || { count: 0, data: {} };
                                 
@@ -577,7 +564,7 @@ class Heatmap {
                         });
 
                         // Set initial color based on data
-                        const districtID = feature.properties?.censuscode;
+                        const districtID = feature.properties?.dt_code;
                         const data = this.districtData[districtID];
                         if (data) {
                             layer.setStyle({
@@ -701,7 +688,7 @@ class Heatmap {
                             value = frappe.utils.shorten_number(value, frappe.sys_defaults.country);
                         }
                     }
-                    return value ? `<br/>${field.label}: ${value}` : '';
+                    return value ? `<br/>${field?.label}: ${value}` : '';
                 })
                 .join('');
         }
@@ -709,10 +696,9 @@ class Heatmap {
         return `
             <div>
                 <strong>${name}</strong><br/>
-                ${column.label || "Count"}: ${column.fieldtype == "Currency" ? frappe.utils.format_currency(data?.count || 0) : frappe.utils.shorten_number(data?.count || 0, frappe.sys_defaults.country)}
+                ${column?.label || "Count"}: ${column.fieldtype == "Currency" ? frappe.utils.format_currency(data?.count || 0) : frappe.utils.shorten_number(data?.count || 0, frappe.sys_defaults.country)}
                 ${additionalFields}
             </div>
         `;
     }
 }
-

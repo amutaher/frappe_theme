@@ -70,6 +70,13 @@ function custom_eval(expr,doc) {
     let result = new Function('doc', `return ${expr};`)(doc);
     return result;
 }
-
+function getDistrictRoute(state_name){
+    let base_route = '/assets/frappe_theme/boundaries/district/'
+    state_name = state_name?.replace("&","and");
+    let state = state_name?.toLowerCase()?.split(" ")?.join("-");
+    const final_route = `${base_route}${state}.json`
+    return final_route;
+};
 frappe.utils.format_currency = formatCurrencyWithSuffix;
 frappe.utils.custom_eval = custom_eval;
+frappe.utils.get_district_json_route = getDistrictRoute;
