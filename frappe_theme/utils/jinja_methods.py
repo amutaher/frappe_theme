@@ -23,3 +23,29 @@ def format_currency(value):
         formatted_value = str(value)
 
     return formatted_value
+
+
+def approver_details(dt, dn):
+    try:
+        if not dt or not dn:
+            return ""
+        if frappe.db.exists("Workflow Action", {"reference_doctype": dt, "reference_name": dn,"status":"Completed"}):
+            wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, pluck="completed_by",ignore_permissions=True)
+            if wa:
+                user_details = frappe.get_list("SVA User", filters={"email": wa[0]},fields=["name","first_name","last_name","email"],ignore_permissions=True)
+                details = {}
+                if user_details[0].last_name:
+                    details['full_name'] = user_details[0].first_name + " " + user_details[0].last_name
+                else:
+                    details['full_name'] = user_details[0].first_name
+                details['email'] = user_details[0].email
+                return details
+
+            else:
+                return ""
+        else:
+            return ""
+    except Exception as e:
+        frappe.log_error('error in approver details',frappe.get_traceback())
+        return ""
+
