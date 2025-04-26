@@ -95,15 +95,34 @@ class Heatmap {
 
         this.mapContainer.append(this.titleContainer);
 
+        // Add fullscreen button
+        this.fullscreenButton = $('<button class="btn btn-secondary btn-sm" title="Toggle Fullscreen">')
+            .html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-fullscreen" viewBox="0 0 16 16">
+                    <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5M.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5"/>
+                </svg>`)
+            .css({
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                zIndex: 1000,
+                padding: '4px 6px',
+                backgroundColor: '#fff',
+                border: 'none',
+                cursor: 'pointer'
+            })
+            .on('click', () => this.toggleFullscreen());
+
+        this.mapContainer.append(this.fullscreenButton);
+
         this.resetButton = $('<button class="btn btn-secondary btn-sm" title="Reset to Country View">')
-            .html(`<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1">
+            .html(`<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1">
                     <circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16">
                     </polyline><line x1="16" y1="12" x2="8" y2="12"></line>
                 </svg>`)
             .css({
                 position: 'absolute',
                 top: '10px',
-                right: '10px',
+                right: '75px',
                 zIndex: 1000,
                 padding: '4px 6px',
                 backgroundColor: '#fff',
@@ -119,7 +138,7 @@ class Heatmap {
             .css({
                 position: 'absolute',
                 top: '10px',
-                right: '10px',
+                right: '45px',
                 zIndex: 1000,
                 padding: '4px 6px',
                 backgroundColor: '#fff',
@@ -403,7 +422,6 @@ class Heatmap {
             return this.lowNumberCode;
         }
 
-        const breaks = this.calculateBreaks(range.min, range.max);
         const percentage = (value - range.min) / (range.max - range.min);
         
         // Convert hex colors to RGB for interpolation
@@ -700,5 +718,66 @@ class Heatmap {
                 ${additionalFields}
             </div>
         `;
+    }
+
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            this.mapContainer[0].requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+            this.fullscreenButton.html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-fullscreen-exit" viewBox="0 0 16 16">
+                    <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5m5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5M0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5m10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0z"/>
+                </svg>`);
+            this.titleContainer.css({
+                'padding-left': '20px'
+            });
+            
+            // Adjust map size
+            if (this.map) {
+                this.map.invalidateSize();
+                setTimeout(() => {
+                    if (this.stateLayer) {
+                        this.map.fitBounds(this.stateLayer.getBounds());
+                    } else if (this.districtLayer) {
+                        this.map.fitBounds(this.districtLayer.getBounds());
+                    }
+                }, 100);
+            }
+
+            // Reset popup to original size
+            this.fixedPopupContainer.css({
+                'padding': '8px 15px',   // Original padding
+                'font-size': '1em',      // Original font size
+                'min-width': 'auto'      // Original width
+            });
+        } else {
+            document.exitFullscreen();
+            this.fullscreenButton.html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-fullscreen" viewBox="0 0 16 16">
+                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5M.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5"/>
+            </svg>`);
+            
+            // Reset styles
+            this.mapContainer.css({
+                'position': 'relative',
+                'width': '100%',
+                'height': `${this.blockHeight}px`,
+                'z-index': 'auto'
+            });
+            this.titleContainer.css({
+                'padding-left': '0px'
+            });
+            
+            // Adjust map size
+            if (this.map) {
+                this.map.invalidateSize();
+                setTimeout(() => {
+                    if (this.stateLayer) {
+                        this.map.fitBounds(this.stateLayer.getBounds());
+                    } else if (this.districtLayer) {
+                        this.map.fitBounds(this.districtLayer.getBounds());
+                    }
+                }, 100);
+            }
+        }
     }
 }
