@@ -474,7 +474,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             try {
                 if (signal.aborted) break;
 
-                if (frm.doc.__islocal) {
+                if (frm.is_new()) {
                     await this.renderLocalFormMessage(field, frm);
                 } else {
                     await this.renderSavedFormContent(field, frm, dts, signal);
@@ -492,11 +492,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             const message = __(
                 `Save ${__(frm.doctype)} to add ${__(field?.connection_type === "Is Custom Design" ?
                     field?.template :
-                    (field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype))} items`
+                    (["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype))} items`
             );
             element.innerHTML = `
-                <div id="form-not-saved" class="flex flex-col items-center justify-center gap-3 p-3 border border-gray-600 rounded my-3">
-                    <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png' alt="Not Saved"/>
+                <div style="height: 150px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded my-3">
+                    <svg class="icon icon-xl" style="stroke: var(--text-light);">
+					    <use href="#icon-small-file"></use>
+				    </svg>
                     ${message}
                 </div>`;
         }

@@ -83,7 +83,7 @@ class SVADashboardManager {
             const initializationPromises = [];
 
             // Initialize number cards
-            if (this.numberCards?.length) {
+            if (this.numberCards?.length && !this.frm.is_new()) {
                 initializationPromises.push(
                     frappe.require("sva_card.bundle.js").then(() => {
                         frappe.sva_card = new frappe.ui.SvaCard({
@@ -94,9 +94,17 @@ class SVADashboardManager {
                         });
                     })
                 );
+            }else if(this.numberCards?.length){
+                this.containers.cards.innerHTML = `
+                <div style="height: 66px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded mb-2">
+                    <svg class="icon icon-xl" style="stroke: var(--text-light);">
+					    <use href="#icon-small-file"></use>
+				    </svg>
+                </div>
+                `;
             }
             // Initialize charts
-            if (this.charts?.length) {
+            if (this.charts?.length && !this.frm.is_new()) {
                 initializationPromises.push(
                     frappe.require("sva_chart.bundle.js").then(() => {
                         frappe.sva_chart = new frappe.ui.SvaChart({
@@ -107,6 +115,13 @@ class SVADashboardManager {
                         });
                     })
                 );
+            }else if(this.charts?.length){
+                this.containers.charts.innerHTML = `
+                <div style="height: 370px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded mb-2">
+                    <svg class="icon icon-xl" style="stroke: var(--text-light);">
+					    <use href="#icon-small-file"></use>
+				    </svg>
+                </div>`
             }
 
             await Promise.all(initializationPromises);
