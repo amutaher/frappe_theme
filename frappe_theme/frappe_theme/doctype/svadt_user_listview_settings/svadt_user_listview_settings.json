@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2025-04-17 15:55:31.344952",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "parent_id",
+  "child_dt",
+  "listview_settings"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "listview_settings",
+   "fieldtype": "Code",
+   "label": "Listview Settings",
+   "read_only": 1
+  },
+  {
+   "fieldname": "child_dt",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Child Link",
+   "options": "DocType",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "parent_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Parent",
+   "set_only_once": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-04-18 11:38:38.669352",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVADT User Listview Settings",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "if_owner": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Desk User",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "read_only": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

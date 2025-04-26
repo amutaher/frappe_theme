@@ -1,8 +1,9 @@
 class CustomFilterArea {
-	constructor({ wrapper, doctype,on_change }) {
+	constructor({ wrapper, doctype,on_change,dt_filter_fields = [] }) {
         this.wrapper = wrapper;
         this.doctype = doctype;
         this.on_change = on_change;
+		this.dt_filter_fields = dt_filter_fields;
         
 		this.filter_component = $('<div class="filter-section flex">').appendTo(
 			this.wrapper
@@ -45,6 +46,7 @@ class CustomFilterArea {
 			doctype: this.doctype,
 			filter_button: this.filter_button,
 			filter_x_button: this.filter_x_button,
+			dt_filter_fields: this.dt_filter_fields,
 			default_filters: [],
 			on_change: () => this.on_change(this.get()),
 		});

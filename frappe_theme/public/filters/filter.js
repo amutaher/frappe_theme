@@ -4,12 +4,12 @@ class CustomFilter {
 		if (this.value === null || this.value === undefined) {
 			this.value = "";
 		}
-
+		this.dt_filter_fields = opts.dt_filter_fields || []
 		this.utils = frappe.ui.filter_utils;
+		this.get_filter_fields();
 		this.set_conditions();
 		this.set_conditions_from_config();
 		this.make();
-		this.get_filter_fields()
 		this.fields = {};
 	}
 
@@ -101,14 +101,19 @@ class CustomFilter {
 		this.setup();
 	}
 
-	async get_filter_fields(){
-		let res = await frappe.call({
-			method: "frappe_theme.dt_api.doc_filters",
-			args: {
-				doctype:this.parent_doctype
-			},
-		});
-		this.fields = res.message;
+	get_filter_fields(){
+		// let res = await frappe.call({
+		// 	method: "frappe_theme.dt_api.doc_filters",
+		// 	args: {
+		// 		doctype:this.parent_doctype
+		// 	},
+		// });
+		let {sva_dt,header} = this.dt_filter_fields;
+		if (sva_dt?.columns?.length && header?.length){
+			this.fields = {[this.parent_doctype]: sva_dt?.columns?.filter(column => header?.includes(column.fieldname) && !["name","creation","modified",'modified_by','owner'].includes(column.fieldname))};
+		}else{
+			this.fields = {[this.parent_doctype]:[]};
+		}
 	}
 
 	async make_select() {
@@ -160,10 +165,8 @@ class CustomFilter {
 	}
 
 	async setup() {
-		await this.get_filter_fields();
 		await this.make_select();
 		const fieldname = this.fieldname || "name";
-		// set the field
 		return this.set_values(this.doctype, fieldname, this.condition, this.value);
 	}
 

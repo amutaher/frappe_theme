@@ -73,7 +73,7 @@ class mGrantTask {
                         color: 'grey'
                     },
                     {
-                        name: 'Todo',
+                        name: 'To Do',
                         color: 'grey'
                     },
                     {
@@ -207,7 +207,7 @@ class mGrantTask {
                                                 </span>
                                                 <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Backlog">Backlog</a>
-                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="To Do">To Do</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Cancelled">Cancelled</a>
