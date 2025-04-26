@@ -117,7 +117,7 @@ class SVADashboardManager {
                 );
             }else if(this.charts?.length){
                 this.containers.charts.innerHTML = `
-                <div style="height: 370px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded mb-2">
+                <div style="height: 344px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded mb-2">
                     <svg class="icon icon-xl" style="stroke: var(--text-light);">
 					    <use href="#icon-small-file"></use>
 				    </svg>
