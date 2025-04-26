@@ -262,6 +262,20 @@ class SvaDataTable {
             align-items:center;
             gap:5px;
         `;
+        let refresh_button = document.createElement('button');
+        refresh_button.id = 'refresh_button';
+        refresh_button.classList.add('text-muted', 'btn', 'btn-default','icon-btn');
+        refresh_button.innerHTML = `
+            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                <use class="" href="#es-line-reload"></use>
+            </svg>
+        `;
+        refresh_button.onclick = () => {
+            this.reloadTable(true);
+        }
+        if (!list_filter.querySelector('button#refresh_button')) {
+            list_filter.appendChild(refresh_button);
+        }
         new CustomFilterArea({
             wrapper: list_filter,
             doctype: this.doctype,
@@ -1449,7 +1463,9 @@ class SvaDataTable {
                     el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
                     if (isClosed) {
                         el.disabled = true;
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>`;
+                        el.classList.add('ellipsis');
+                        el.setAttribute('title', row[workflow_state_field]);
+                        el.innerHTML = `<option value="" style="color:black" selected disabled">${row[workflow_state_field]}</option>`;
                         el.style['-webkit-appearance'] = 'none';
                         el.style['-moz-appearance'] = 'none';
                         el.style['appearance'] = 'none';
@@ -1459,7 +1475,7 @@ class SvaDataTable {
                     } else {
                         el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row[workflow_state_field]}</option>` +
+                        el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
                                 .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                                 .map(e => e.action))]
