@@ -262,6 +262,20 @@ class SvaDataTable {
             align-items:center;
             gap:5px;
         `;
+        let refresh_button = document.createElement('button');
+        refresh_button.id = 'refresh_button';
+        refresh_button.classList.add('text-muted', 'btn', 'btn-default','icon-btn');
+        refresh_button.innerHTML = `
+            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                <use class="" href="#es-line-reload"></use>
+            </svg>
+        `;
+        refresh_button.onclick = () => {
+            this.reloadTable(true);
+        }
+        if (!list_filter.querySelector('button#refresh_button')) {
+            list_filter.appendChild(refresh_button);
+        }
         new CustomFilterArea({
             wrapper: list_filter,
             doctype: this.doctype,
