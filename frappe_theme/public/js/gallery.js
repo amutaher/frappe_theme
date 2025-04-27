@@ -556,6 +556,8 @@ class GalleryComponent {
                             });
                         }
                     } else {
+                        values['file_url'] = values.file
+                        delete values.file
                         let updated_file = await frappe.db.set_value('File', fileId, values);
                         if (updated_file?.message) {
                             self.gallery_files = self.gallery_files.map(file =>
@@ -716,7 +718,7 @@ class GalleryComponent {
             bodyWrapper.innerHTML = this.renderListView();
         }
         bodyWrapper.style.height = '75vh';
-        bodyWrapper.style.minHeight = '500px';
+        // bodyWrapper.style.minHeight = '500px';
         bodyWrapper.style.overflow = 'auto';
         this.attachGalleryItemEventListeners(); // Attach event listeners to gallery items
     }

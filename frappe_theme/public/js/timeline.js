@@ -419,6 +419,9 @@ class TimelineGenerator {
         paginationContainer.appendChild(this.nextButton);
 
         this.wrapper.appendChild(paginationContainer);
+
+        // Initialize button states
+        this.updatePaginationButtons();
     }
 
     async changePage(direction) {
@@ -549,12 +552,21 @@ class TimelineGenerator {
                 dt: this.frm.doctype,
                 dn: this.frm.docname,
                 start: (this.page - 1) * this.pageSize,
-                page_length: this.pageSize,
+                page_length: this.pageSize + 1, // Fetch one extra record to check if next page exists
                 filters: JSON.stringify(filters),
             },
         }).then((response) => {
             const versions = response.message || [];
-            this.hasMore = versions.length === this.pageSize;
+            // Check if we got more records than pageSize to determine if next page exists
+            this.hasMore = versions.length > this.pageSize;
+
+            // If we got extra record, remove it from display
+            if (this.hasMore) {
+                versions.pop();
+            }
+
+            // Update pagination button states
+            this.updatePaginationButtons();
 
             if (!append) {
                 this.timeline_wrapper.innerHTML = '';
@@ -638,7 +650,7 @@ class TimelineGenerator {
 
                                 const d = new frappe.ui.Dialog({
                                     title: __(`${doctype}: ${docname}`),
-                                    fields: meta.fields.filter(df => !df.hidden).map(df => ({
+                                    fields: meta.fields.filter(df => !["HTML","Table","Table Multiselect","Button","Color"].includes(df.fieldtype)).map(df => ({
                                         ...df,
                                         read_only: 1
                                     }))
@@ -681,6 +693,15 @@ class TimelineGenerator {
                 `;
             }
         });
+    }
+
+    updatePaginationButtons() {
+        if (this.prevButton && this.nextButton) {
+            this.prevButton.disabled = this.page === 1;
+            this.prevButton.style.opacity = this.page === 1 ? '0.5' : '1';
+            this.nextButton.disabled = !this.hasMore;
+            this.nextButton.style.opacity = !this.hasMore ? '0.5' : '1';
+        }
     }
 
     //  Filter UI
@@ -873,21 +894,21 @@ class TimelineGenerator {
             // Add placeholder option
             const placeholderOption = document.createElement('option');
             placeholderOption.value = '';
-            placeholderOption.textContent = 'All Documents';
+            placeholderOption.textContent = __('All Documents');
             placeholderOption.selected = true;
             this.doctypeSelect.appendChild(placeholderOption);
 
             // Add current doctype option
             const currentOption = document.createElement('option');
             currentOption.value = this.frm.doc.doctype;
-            currentOption.textContent = this.frm.doc.doctype;
+            currentOption.textContent = __(this.frm.doc.doctype);
             this.doctypeSelect.appendChild(currentOption);
 
             // Add other doctype options
             doctypes.forEach(dt => {
                 const option = document.createElement('option');
                 option.value = dt;
-                option.textContent = dt;
+                option.textContent = __(dt);
                 this.doctypeSelect.appendChild(option);
             });
         } catch (error) {
