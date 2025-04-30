@@ -190,7 +190,6 @@ class LinkedUser {
     async render_user() {
         try {
             this.permissions = await this.getPermissions();
-            console.log(this.permissions,'this.permissions')
             // Check if user has at least read permission
             if (!this.permissions.includes('read')) {
                 const noPermissionDiv = document.createElement('div');
