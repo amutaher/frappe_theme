@@ -3,17 +3,30 @@ class NotesManager {
         this.frm = frm;
         this.wrapper = this.setupWrapper(wrapper);
         this.noteList = [];
+        this.permissions = [];
         this.initialize();
         return this.wrapper;
     }
-
+    get_permissions(doctype) {
+        return new Promise((rslv, rjct) => {
+            frappe.call({
+                method: 'frappe_theme.api.get_permissions',
+                args: { doctype: doctype },
+                callback: function (response) {
+                    rslv(response.message)
+                },
+                error: (err) => {
+                    rjct(err);
+                }
+            });
+        });
+    }
     setupWrapper(wrapper) {
         // remove all children of wrapper
         wrapper.innerHTML = '';
         // while (wrapper.firstChild) {
         //     wrapper.removeChild(wrapper.firstChild);
         // }
-
         const notesWrapper = document.createElement('div');
         notesWrapper.id = 'notes-wrapper';
 
@@ -44,16 +57,45 @@ class NotesManager {
     }
 
     async initialize() {
-        this.showLoading(true);
         try {
+            this.permissions = await this.get_permissions("Notes");
+            
+            // Check if user has at least read permission
+            if (!this.permissions.includes('read')) {
+                const noPermissionDiv = document.createElement('div');
+                noPermissionDiv.style.cssText = `
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    font-size: 20px;
+                    text-align: center;
+                    padding: 50px;
+                    color: var(--gray-600);
+                `;
+                noPermissionDiv.textContent = "You do not have permission through role permission to access this resource.";
+                this.notes_wrapper.appendChild(noPermissionDiv);
+                return;
+            }
+
+            this.showLoading(true);
             await this.fetchNotes();
             this.renderLayout();
             this.setupEventListeners();
         } catch (error) {
             console.error('Error initializing NotesManager:', error);
             const errorDiv = document.createElement('div');
-            errorDiv.classList.add('note_message');
-            errorDiv.textContent = 'Error loading notes. Please refresh the page.';
+            errorDiv.style.cssText = `
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 20px;
+                text-align: center;
+                padding: 50px;
+                color: var(--gray-600);
+            `;
+            errorDiv.textContent = `Failed to initialize notes: ${error.message || error}`;
             this.notes_wrapper.appendChild(errorDiv);
         } finally {
             this.showLoading(false);
@@ -326,33 +368,43 @@ class NotesManager {
         noteTitle.textContent = note.title;
         noteHeader.appendChild(noteTitle);
 
-        const actionMenu = document.createElement('div');
-        actionMenu.classList.add('action-menu');
+        // Only show action menu if user has write or delete permission
+        if (this.permissions.includes('write') || this.permissions.includes('delete')) {
+            const actionMenu = document.createElement('div');
+            actionMenu.classList.add('action-menu');
 
-        const actionButton = document.createElement('button');
-        actionButton.id = 'action_icon';
-        actionButton.setAttribute('note_id', note.name);
-        actionButton.textContent = '⋮'; // Or use an icon
-        actionMenu.appendChild(actionButton);
+            const actionButton = document.createElement('button');
+            actionButton.id = 'action_icon';
+            actionButton.setAttribute('note_id', note.name);
+            actionButton.textContent = '⋮';
+            actionMenu.appendChild(actionButton);
 
-        const actionMenuContent = document.createElement('div');
-        actionMenuContent.classList.add('action-menu-content');
-        actionMenuContent.style.display = 'none';
+            const actionMenuContent = document.createElement('div');
+            actionMenuContent.classList.add('action-menu-content');
+            actionMenuContent.style.display = 'none';
 
-        const editLink = document.createElement('a');
-        editLink.href = '#';
-        editLink.classList.add('edit_note');
-        editLink.textContent = 'Edit';
-        actionMenuContent.appendChild(editLink);
+            // Only show edit option if user has write permission
+            if (this.permissions.includes('write')) {
+                const editLink = document.createElement('a');
+                editLink.href = '#';
+                editLink.classList.add('edit_note');
+                editLink.textContent = 'Edit';
+                actionMenuContent.appendChild(editLink);
+            }
 
-        const deleteLink = document.createElement('a');
-        deleteLink.href = '#';
-        deleteLink.classList.add('delete_note');
-        deleteLink.textContent = 'Delete';
-        actionMenuContent.appendChild(deleteLink);
+            // Only show delete option if user has delete permission
+            if (this.permissions.includes('delete')) {
+                const deleteLink = document.createElement('a');
+                deleteLink.href = '#';
+                deleteLink.classList.add('delete_note');
+                deleteLink.textContent = 'Delete';
+                actionMenuContent.appendChild(deleteLink);
+            }
 
-        actionMenu.appendChild(actionMenuContent);
-        noteHeader.appendChild(actionMenu);
+            actionMenu.appendChild(actionMenuContent);
+            noteHeader.appendChild(actionMenu);
+        }
+
         noteItem.appendChild(noteHeader);
 
         const noteContent = document.createElement('div');
@@ -424,38 +476,44 @@ class NotesManager {
     }
 
     setupEventListeners() {
-        // Action menu listeners
-        this.wrapper.querySelectorAll('#action_icon').forEach(button => {
-            button.addEventListener('click', (event) => {
-                event.stopPropagation();
-                const dropdown = button.nextElementSibling;
-                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        // Only attach action menu listeners if user has write or delete permission
+        if (this.permissions.includes('write') || this.permissions.includes('delete')) {
+            this.wrapper.querySelectorAll('#action_icon').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const dropdown = button.nextElementSibling;
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                });
             });
-        });
+        }
 
-        // Edit note listeners
-        this.wrapper.querySelectorAll('.edit_note').forEach(link => {
-            link.addEventListener('click', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const noteName = link.closest('.note-item')
-                    .querySelector('#action_icon')
-                    .getAttribute('note_id');
-                await this.handleEditNote(noteName);
+        // Only attach edit listeners if user has write permission
+        if (this.permissions.includes('write')) {
+            this.wrapper.querySelectorAll('.edit_note').forEach(link => {
+                link.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const noteName = link.closest('.note-item')
+                        .querySelector('#action_icon')
+                        .getAttribute('note_id');
+                    await this.handleEditNote(noteName);
+                });
             });
-        });
+        }
 
-        // Delete note listeners
-        this.wrapper.querySelectorAll('.delete_note').forEach(link => {
-            link.addEventListener('click', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const noteName = link.closest('.action-menu')
-                    .querySelector('#action_icon')
-                    .getAttribute('note_id');
-                await this.handleDeleteNote(noteName);
+        // Only attach delete listeners if user has delete permission
+        if (this.permissions.includes('delete')) {
+            this.wrapper.querySelectorAll('.delete_note').forEach(link => {
+                link.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const noteName = link.closest('.action-menu')
+                        .querySelector('#action_icon')
+                        .getAttribute('note_id');
+                    await this.handleDeleteNote(noteName);
+                });
             });
-        });
+        }
 
         // Close dropdowns when clicking outside
         document.addEventListener('click', (event) => {
@@ -627,6 +685,11 @@ class NotesManager {
     }
 
     async createNoteForm() {
+        // Only show form if user has create permission
+        if (!this.permissions.includes('create')) {
+            return;
+        }
+
         try {
             const { message: meta } = await frappe.call({
                 method: 'frappe_theme.api.get_meta',
