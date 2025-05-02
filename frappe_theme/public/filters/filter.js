@@ -120,6 +120,7 @@ class CustomFilter {
 		this.fieldselect = new CustomFieldSelect({
 			parent: this.filter_edit_area.find(".fieldname-select-area"),
 			doctype: this.parent_doctype,
+			dt_filter_fields: this.dt_filter_fields,
 			parent_doctype: this._parent_doctype,
 			filter_fields: this.filter_fields,
 			input_class: "input-xs",
