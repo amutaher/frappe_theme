@@ -45,7 +45,7 @@ def get_meta_fields(doctype):
     return fields_dict
 
 @frappe.whitelist()
-def get_permissions(doctype,_type):
+def get_permissions(doctype,_type='Direct'):
     permissions = []
     if _type == 'Report':
         re_prms = frappe.db.get_value('SVADatatable Configuration Child',{'link_report':'Test Grant Financial'},['crud_permissions'])
