@@ -41,8 +41,8 @@ class NumberCard():
             for f in report.get('columns'):
                 if f.get('fieldtype') == 'Link' and f.get('options') == doctype:
                     conditions += f" AND t.{f.get('fieldname')} = '{docname}'"
+                    field_type = f.get('fieldtype')  # Set field_type within the loop
             field_name = details.get('report_field')
-            field_type = f.get('fieldtype')
             if details.get('report_function')=='Sum':
                 query = f"SELECT SUM(t.{field_name}) AS count FROM ({report.get('query')}) AS t {conditions}"
             elif details.get('report_function')=='Average':

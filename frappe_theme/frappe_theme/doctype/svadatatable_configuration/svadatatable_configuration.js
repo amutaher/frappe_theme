@@ -2,8 +2,15 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("SVADatatable Configuration", {
-    // refresh: function(frm) {
-    // },
+    refresh: function(frm) {
+        frm.set_query('parent_doctype', function() {
+            return {
+              filters: {
+                istable: 0  // assuming you have a field named 'territory' on the form
+              }
+            };
+        });
+    },
     update_sequences: function (frm) {
         if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
             frm.trigger('update_card_sequence');
