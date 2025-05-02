@@ -704,7 +704,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         frm.set_df_property(field.html_field, 'options', wrapper);
 
         const instance = new SvaDataTable({
-            label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
+            label: field?.title || frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
             doctype: ["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
