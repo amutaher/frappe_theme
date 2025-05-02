@@ -23,7 +23,7 @@ class mGrantTask {
         return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
-                args: { doctype: "ToDo" },
+                args: { doctype: "ToDo", _type: "Task" },
                 callback: function (response) {
                     rslv(response.message)
                 },

@@ -263,7 +263,16 @@ def get_chart_data(type, details,report=None, doctype=None, docname=None):
                 if f.get('fieldtype') == 'Link' and f.get('options') == doctype:
                     conditions += f" AND t.{f.get('fieldname')} = '{docname}'"
             field_name = details.get('x_field')
-            y_field = details.get('y_axis')[0].get('y_field')
+            y_axis = details.get('y_axis', [])
+            y_field = y_axis[0].get('y_field') if y_axis else None
+            if not y_field:
+                return {
+                    'data': {
+                        'labels': [],
+                        'datasets': [{'data': []}]
+                    },
+                    'message': 'Invalid chart configuration'
+                }
             query = f"SELECT t.{y_field} AS count, t.{field_name} AS label FROM ({report.get('query')}) AS t {conditions}"
             data = frappe.db.sql(query, as_dict=True)
             colors = []
@@ -328,3 +337,127 @@ def get_chart_data(type, details,report=None, doctype=None, docname=None):
             },
             'message': 'Document Type',
         }
+
+@frappe.whitelist()
+def link_report_list(doctype):
+    other_report_list = frappe.get_all('Report',
+        filters=[
+            ['Report Filter','options','=',doctype],
+            ['Report','report_type','=','Query Report']
+        ],
+        pluck='name')
+    return other_report_list
+
+@frappe.whitelist()
+def get_meta_fields(doctype,_type):
+    
+    if _type == 'Report':
+        report = frappe.get_doc('Report',doctype)   
+        return report.columns
+    else:
+        meta_fields = frappe.get_meta(doctype).fields
+        property_setters = frappe.get_all('Property Setter', 
+                                        filters={'doc_type': doctype}, 
+                                        fields=['field_name', 'property', 'value'],ignore_permissions=True)
+        # Convert meta_fields into mutable dictionaries if necessary
+        fields_dict = [f.as_dict() for f in meta_fields if f.fieldtype not in ['Tab Break']]
+        # Apply property setter values to the meta fields
+        for field in fields_dict:
+            for ps in property_setters:
+                if field.get('fieldname') == ps.field_name:
+                    # Dynamically set the field property
+                    field[ps.property] = ps.value
+        
+        return fields_dict
+
+from frappe.desk.query_report import get_script
+from frappe.utils.safe_exec import read_sql
+@frappe.whitelist()
+def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List"):
+    if _type == 'Report': 
+        doc_filters = get_report_filters(doctype)
+        # convert filters to sql conditions
+        conditions = ""
+        for f in doc_filters:
+            if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
+                conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
+        if filters:
+            conditions = conditions +' AND '+ filters_to_sql_conditions(filters)
+        if limit_page_length and limit_start:
+            conditions += f" LIMIT {limit_start}, {limit_page_length}"
+        # return conditions
+        data = frappe.get_doc('Report',doctype)
+        query = data.get('query')
+        final_sql = f"SELECT * FROM ({query}) AS t WHERE 1=1 {conditions}"
+        result = read_sql(final_sql, as_dict=1)
+        return result
+    else:
+        if filters is not None and not isinstance(filters, (dict, list)):
+            filters = {}
+        return frappe.get_list(doctype, filters=filters, fields=fields, 
+                               limit_page_length=limit_page_length, 
+                               order_by=order_by, limit_start=limit_start)
+
+def filters_to_sql_conditions(filters, table_alias="t"):
+    conditions = []
+
+    for f in filters:
+        if len(f) < 4:
+            continue
+
+        doctype, field, operator, value = f[:4]
+        field_name = f"{table_alias}.{field}"
+
+        if operator.lower() == "between" and isinstance(value, (list, tuple)) and len(value) == 2:
+            condition = f"{field_name} BETWEEN '{value[0]}' AND '{value[1]}'"
+        elif operator.lower() == "like":
+            condition = f"{field_name} LIKE '{value}'"
+        elif operator.lower() == "in" and isinstance(value, (list, tuple)):
+            in_values = ", ".join(f"'{v}'" for v in value)
+            condition = f"{field_name} IN ({in_values})"
+        elif operator.lower() == "not in" and isinstance(value, (list, tuple)):
+            not_in_values = ", ".join(f"'{v}'" for v in value)
+            condition = f"{field_name} NOT IN ({not_in_values})"
+        elif operator.lower() == "is":
+            val = str(value).lower()
+            if val == "set":
+                condition = f"{field_name} IS NOT NULL"
+            elif val == "not set":
+                condition = f"{field_name} IS NULL"
+        else:
+            condition = f"{field_name} {operator} '{value}'"
+
+        conditions.append(condition)
+
+    return " AND ".join(conditions)
+
+@frappe.whitelist()
+def get_report_filters(doctype):
+    if doctype:
+        filters = get_script(doctype)
+        return filters.get('filters')
+    else:
+        return []
+
+@frappe.whitelist()
+def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List"):
+    if _type == 'Report': 
+        doc_filters = get_report_filters(doctype)
+        # convert filters to sql conditions
+        conditions = ""
+        for f in doc_filters:
+            if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
+                conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
+        if filters:
+            conditions = conditions +' AND '+ filters_to_sql_conditions(filters)
+        # return conditions
+        data = frappe.get_doc('Report',doctype)
+        query = data.get('query')
+        final_sql = f"SELECT COUNT(*) AS count FROM ({query}) AS t WHERE 1=1 {conditions}"
+        result = read_sql(final_sql, as_dict=1)
+        return result[0].get('count')
+    else:
+        if filters is not None and not isinstance(filters, (dict, list)):
+            filters = {}
+        cleaned_filters = [item[:-1] if item and item[-1] is False else item for item in filters]
+        return frappe.db.count(doctype, filters=cleaned_filters)
