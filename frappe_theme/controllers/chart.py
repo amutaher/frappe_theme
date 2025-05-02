@@ -1,5 +1,5 @@
 import frappe
-class Chart(Document):
+class Chart():
     def chart_settings(settings):
         visible_charts = [chart for chart in settings.charts if chart.is_visible]
         updated_charts = []
@@ -21,9 +21,9 @@ class Chart(Document):
         report = json.loads(report)
 
         if type == 'Report':
-            return self.chart_report(details,report, doctype, docname)
+            return Chart.chart_report(details,report, doctype, docname)
         elif type == 'Document Type':
-            return self.chart_doc_type(details,doctype, docname)
+            return Chart.chart_doc_type(details,doctype, docname)
             
     def chart_doc_type(details,doctype=None, docname=None):
         filters = json.loads(details.get('filters_json'))

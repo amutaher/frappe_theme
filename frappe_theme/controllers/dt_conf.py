@@ -4,7 +4,7 @@ from frappe.utils.safe_exec import read_sql
 from frappe_theme.controllers.number_card import NumberCard
 from frappe_theme.controllers.chart import Chart
 
-class DTConf(Document):
+class DTConf():
     # datatable settings
     def get_direct_connection_dts(dt):
         standard_dts = frappe.get_list('DocField',filters=[
@@ -92,19 +92,19 @@ class DTConf(Document):
 
     def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List"):
         if _type == 'Report': 
-            return self.report_list(doctype,doc,ref_doctype, filters, limit_page_length,limit_start)
+            return DTConf.report_list(doctype,doc,ref_doctype, filters, limit_page_length,limit_start)
         else:
-            return self.doc_type_list(doctype,filters, fields, limit_page_length, order_by, limit_start)
+            return DTConf.doc_type_list(doctype,filters, fields, limit_page_length, order_by, limit_start)
 
     def report_list(doctype,doc=None,ref_doctype=None, filters=None, limit_page_length=None,limit_start=None):
-        doc_filters = self.get_report_filters(doctype)
+        doc_filters = DTConf.get_report_filters(doctype)
             # convert filters to sql conditions
         conditions = ""
         for f in doc_filters:
             if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
                 conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
         if filters:
-            conditions = conditions +' AND '+ self.filters_to_sql_conditions(filters)
+            conditions = conditions +' AND '+ DTConf.filters_to_sql_conditions(filters)
         if limit_page_length and limit_start:
             conditions += f" LIMIT {limit_start}, {limit_page_length}"
         # return conditions
@@ -123,14 +123,14 @@ class DTConf(Document):
         
     def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List"):
         if _type == 'Report': 
-            doc_filters = self.get_report_filters(doctype)
+            doc_filters = DTConf.get_report_filters(doctype)
             # convert filters to sql conditions
             conditions = ""
             for f in doc_filters:
                 if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
                     conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
             if filters:
-                conditions = conditions +' AND '+ self.filters_to_sql_conditions(filters)
+                conditions = conditions +' AND '+ DTConf.filters_to_sql_conditions(filters)
             # return conditions
             data = frappe.get_doc('Report',doctype)
             query = data.get('query')
@@ -185,14 +185,14 @@ class DTConf(Document):
         field_dicts[doctype] = []
         
         for field in dtmeta.fields:
-            field_dict = self.process_field(field)
+            field_dict = DTConf.process_field(field)
             if field_dict.get('fieldtype') in ["Table", "Table MultiSelect"]:
                 continue
                 # child_meta = frappe.get_meta(field_dict.get('options'))
                 # if len(child_meta.fields) > 0:
                 #     field_dicts[field_dict.get('options')] = []
                 #     for child_field in child_meta.fields:
-                #         child_field_dict = self.process_field(child_field)
+                #         child_field_dict = DTConf.process_field(child_field)
                 #         field_dicts[field_dict.get('options')].append(child_field_dict)
                 # continue
             field_dicts[doctype].append(field_dict)

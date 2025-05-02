@@ -1,6 +1,6 @@
 import frappe
 import json
-class NumberCard(Document):
+class NumberCard():
     def number_card_settings(settings):
         # Filter only visible number cards
         visible_cards = [card for card in settings.number_cards if card.is_visible]
@@ -28,9 +28,9 @@ class NumberCard(Document):
         report = json.loads(report)
 
         if type == 'Report':
-            return self.card_type_report(details,report, doctype, docname)
+            return NumberCard.card_type_report(details,report, doctype, docname)
         elif type == 'Document Type':
-            return self.card_type_docype(details, doctype, docname)
+            return NumberCard.card_type_docype(details, doctype, docname)
     
     
     def card_type_report(details,report=None, doctype=None, docname=None):
