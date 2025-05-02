@@ -1,5 +1,5 @@
 import frappe
-
+import jwt
 def format_currency(value):
     value = float(value)
     currency_type = frappe.get_doc("System Settings").currency
@@ -51,4 +51,21 @@ def approver_details(dt, dn):
     except Exception as e:
         frappe.log_error('error in approver details',frappe.get_traceback())
         return ""
+
+@frappe.whitelist()
+def incode_url(url):
+    secret = frappe.conf.get("jwt_secret")
+    token = jwt.encode({'url':url}, secret, algorithm="HS256")
+    decode_url(token)
+
+
+def decode_url(token):
+    secret = frappe.conf.get("jwt_secret")
+    decoded = jwt.decode(token, secret, algorithms=["HS256"])
+    path = decoded.get('url')
+
+    base_url = frappe.get_conf().get('hostname')
+    redirect_url = f"{base_url}/{path}"
+    frappe.local.response["type"] = "redirect"
+    frappe.local.response["location"] = redirect_url
 
