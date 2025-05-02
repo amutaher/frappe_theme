@@ -1,10 +1,11 @@
 class ListSettings {
-	constructor({ doctype, meta, settings, dialog_primary_action,sva_dt={} }) {
+	constructor({ doctype, meta, connection_type,settings, dialog_primary_action,sva_dt={} }) {
 		if (!doctype) {
 			frappe.throw("DocType required");
 		}
 		this.doctype = doctype;
 		this.meta = meta;
+		this.connection_type = connection_type;
 		this.settings = settings;
 		this.sva_dt = sva_dt;
 		this.dialog = null;
@@ -36,6 +37,9 @@ class ListSettings {
 				checked: false
 			},
 		];
+		if (this.connection_type == "Report"){
+			this.additional_fields = [];
+		}
 		// this.subject_field = null;
 
 		frappe.run_serially([
@@ -263,7 +267,7 @@ class ListSettings {
 							fieldname: value,
 						});
 					} else {
-						let field = this.meta.fields.find(f => f.fieldname === value);
+						let field = this.meta.find(f => f.fieldname === value);
 						if (field) {
 							me.listview_settings.push({
 								label: __(field.label, null, me.doctype),
@@ -304,7 +308,7 @@ class ListSettings {
 	set_list_view_fields(meta) {
 		let me = this;
 		// me.set_subject_field();
-		meta.fields.forEach((field) => {
+		meta.forEach((field) => {
 			if (
 				field.in_list_view &&
 				!frappe.model.no_value_type.includes(field.fieldtype)
@@ -339,7 +343,7 @@ class ListSettings {
 				field.checked = fields.includes(field.value);
 			}
 		});
-		meta.fields.forEach((field) => {
+		meta.forEach((field) => {
 			if (field.fieldtype == "Button" || (!frappe.model.no_value_type.includes(field.fieldtype))) {
 				multiselect_fields.push({
 					label: __(field.label, null, field.doctype),
