@@ -56,6 +56,8 @@ class DTConf():
 
     # config for sva datatable
     def get_sva_dt_settings(doctype):
+        if doctype == 'SVADatatable Configuration':
+            return None
         if not frappe.db.exists("SVADatatable Configuration", doctype):
             return None
 
