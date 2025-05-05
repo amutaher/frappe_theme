@@ -58,7 +58,7 @@ def link_report_list(doctype):
     return DTConf.link_report_list(doctype)
 
 @frappe.whitelist()
-def get_meta_fields(doctype,_type):
+def get_meta_fields(doctype,_type="Direct"):
     return DTConf.get_meta_fields(doctype,_type)
 
 @frappe.whitelist()
