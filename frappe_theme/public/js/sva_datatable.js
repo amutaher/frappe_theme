@@ -88,7 +88,14 @@ class SvaDataTable {
         await this.setupWrapper(this.wrapper);
         let reLoad = this.wrapper.children.length > 1;
         this.showSkeletonLoader(reLoad);
-
+        if (this.frm?.['dt_events']?.[this.doctype]?.['before_load']) {
+            let change = this.frm['dt_events'][this.doctype]['before_load']
+            if (this.isAsync(change)) {
+                await change(this);
+            } else {
+                change(this);
+            }
+        }
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype || this.link_report);
@@ -174,6 +181,14 @@ class SvaDataTable {
         }
 
         this.hideSkeletonLoader(reLoad);
+        if (this.frm?.['dt_events']?.[this.doctype]?.['after_load']) {
+            let change = this.frm['dt_events'][this.doctype]['after_load']
+            if (this.isAsync(change)) {
+                await change(this);
+            } else {
+                change(this);
+            }
+        }
     }
     hideSkeletonLoader(reLoad = false) {
         if (this.skeletonLoader) {
