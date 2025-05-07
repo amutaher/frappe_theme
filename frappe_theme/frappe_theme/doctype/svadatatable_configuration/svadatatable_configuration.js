@@ -2,8 +2,15 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("SVADatatable Configuration", {
-    // refresh: function(frm) {
-    // },
+    refresh: function(frm) {
+        frm.set_query('parent_doctype', function() {
+            return {
+              filters: {
+                istable: 0  // assuming you have a field named 'territory' on the form
+              }
+            };
+        });
+    },
     update_sequences: function (frm) {
         if (frm.doc.mapper_type === 'Number Card' || frm.doc.mapper_type === 'Both') {
             frm.trigger('update_card_sequence');
@@ -43,13 +50,17 @@ frappe.ui.form.on("SVADatatable Configuration", {
 });
 const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
-    let dtmeta = await frappe.call({
-        method: 'frappe_theme.api.get_meta',
-        args: { doctype: ["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
+    let dtmeta = await frappe.call({ 
+        method: 'frappe_theme.dt_api.get_meta_fields', 
+        args: { 
+            doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
+            _type: row.connection_type
+        }
     });
     new ListSettings({
-        doctype: ["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype,
+        doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
         meta: dtmeta.message,
+        connection_type: row.connection_type,
         settings: row,
         dialog_primary_action: async (listview_settings) => {
             frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_settings));
@@ -162,6 +173,15 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 frm.cur_grid.grid_form.fields_dict.referenced_link_doctype.set_data(dt_options);
             }
         }
+        if (row.connection_type === 'Report'){
+            let reports = await frappe.call('frappe_theme.dt_api.link_report_list', { doctype: frm.doc.parent_doctype });
+            frm.cur_grid.grid_form.fields_dict.link_report.get_query = () => {
+                return {
+                    filters: { 'name': ['in', reports.message] },
+                    limit_page_length: 10000
+                }
+            }
+        }
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
@@ -225,6 +245,15 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                         ['DocType', 'istable', '=', 0]
                     ],
                     limit_page_length: 100
+                }
+            }
+        }
+        if (row.connection_type === 'Report'){
+            let reports = await frappe.call('frappe_theme.dt_api.link_report_list', { doctype: frm.doc.parent_doctype });
+            frm.cur_grid.grid_form.fields_dict.link_report.get_query = () => {
+                return {
+                    filters: { 'name': ['in', reports.message] },
+                    limit_page_length: 10000
                 }
             }
         }
