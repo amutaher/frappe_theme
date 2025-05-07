@@ -117,9 +117,11 @@ class CustomFieldSelect{
 		}
 		
 		let name_field = std_filters.find(f => (f.fieldname == 'name'))
+		let {sva_dt} = me.dt_filter_fields;
 		let _std_filters = std_filters.filter(f => ['creation','modified'].includes(f.fieldname))
-		
-		
+		if(sva_dt.connection.connection_type == 'Report'){
+			_std_filters = []
+		}
 		var main_table_fields = [name_field, ...me.fields[me.doctype], ..._std_filters];
 		$.each(main_table_fields, function (i, df) {
 			me.add_field_option(df);

@@ -28,7 +28,7 @@ app_include_js = [
     f"/assets/frappe_theme/filters/filter.js?ver={time.time()}",
     f"/assets/frappe_theme/filters/field_select.js?ver={time.time()}",
     f"/assets/frappe_theme/filters/sva_sort_selector.js?ver={time.time()}",
-    "https://cdn.jsdelivr.net/npm/chart.js",
+    # "https://cdn.jsdelivr.net/npm/chart.js",
     f"/assets/frappe_theme/js/overwrite_form.js?ver={time.time()}",
     f"/assets/frappe_theme/js/sva_dashboard_manager.js?ver={time.time()}",
     f"/assets/frappe_theme/js/note.js?ver={time.time()}",
@@ -37,13 +37,13 @@ app_include_js = [
     f"/assets/frappe_theme/js/timeline.js?ver={time.time()}",
 
     # f"/assets/frappe_theme/js/common_filter.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/chart.js?ver={time.time()}",
+    # f"/assets/frappe_theme/js/chart.js?ver={time.time()}",
     f"/assets/frappe_theme/js/list_settings.js?ver={time.time()}",
     f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}",
     f"/assets/frappe_theme/js/loader-element.js?ver={time.time()}",
     f"/assets/frappe_theme/js/mobile_view.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/date_utils.js?ver={time.time()}",
-    f"/assets/frappe_theme/js/number_card.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/utils.js?ver={time.time()}",
+    # f"/assets/frappe_theme/js/number_card.js?ver={time.time()}",
     f"/assets/frappe_theme/js/custom_import.js?ver={time.time()}",
     f"/assets/frappe_theme/js/sva_datatable.js?ver={time.time()}",
     f"/assets/frappe_theme/js/workspace.js?ver={time.time()}",
@@ -52,7 +52,7 @@ app_include_js = [
 ]
 extend_bootinfo = f"frappe_theme.boot.boot_theme"
 # include js, css files in header of web template
-# web_include_css = "/assets/frappe_theme/css/frappe_theme.css"
+web_include_css = "/assets/frappe_theme/css/frappe_theme.css"
 web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 
 # include custom scss in every website theme (without file extension ".scss")
@@ -97,10 +97,9 @@ web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "frappe_theme.utils.jinja_methods",
-# 	"filters": "frappe_theme.utils.jinja_filters"
-# }
+jinja = {
+	"methods": "frappe_theme.utils.jinja_methods"
+}
 
 # Installation
 # ------------

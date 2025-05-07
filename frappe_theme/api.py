@@ -45,20 +45,24 @@ def get_meta_fields(doctype):
     return fields_dict
 
 @frappe.whitelist()
-def get_permissions(doctype):
+def get_permissions(doctype,_type='Direct'):
     permissions = []
-    if frappe.has_permission(doctype,'read'):
-        permissions.append('read')
-    if frappe.has_permission(doctype,'write'):
-        permissions.append('write')
-    if frappe.has_permission(doctype,'create'):
-        permissions.append('create')
-    if frappe.has_permission(doctype,'delete'):
-        permissions.append('delete')
-    if frappe.has_permission(doctype,'submit'):
-        permissions.append('submit')
-    if frappe.has_permission(doctype,'cancel'):
-        permissions.append('cancel')
+    if _type == 'Report':
+        re_prms = frappe.db.get_value('SVADatatable Configuration Child',{'link_report':'Test Grant Financial'},['crud_permissions'])
+        permissions = re_prms
+    else:
+        if frappe.has_permission(doctype,'read'):
+            permissions.append('read')
+        if frappe.has_permission(doctype,'write'):
+            permissions.append('write')
+        if frappe.has_permission(doctype,'create'):
+            permissions.append('create')
+        if frappe.has_permission(doctype,'delete'):
+            permissions.append('delete')
+        if frappe.has_permission(doctype,'submit'):
+            permissions.append('submit')
+        if frappe.has_permission(doctype,'cancel'):
+            permissions.append('cancel')
     return permissions
 
 @frappe.whitelist() 
@@ -245,7 +249,6 @@ def get_versions(dt,dn,page_length,start,filters = None):
                 )
             ) jt
             WHERE {where_clause}
-            # WHERE ver.ref_doctype = '{dt}' AND ver.docname = '{dn}'
         )
         SELECT
             e.custom_actual_doctype,
@@ -256,7 +259,13 @@ def get_versions(dt,dn,page_length,start,filters = None):
             e.docname,
             JSON_ARRAYAGG(
                 JSON_ARRAY(
-                    COALESCE(tf.label, ctf.label, e.field_name),
+                    COALESCE(
+                        (SELECT tf.label FROM `tabDocField` tf WHERE e.field_name = tf.fieldname AND tf.parent = e.ref_doctype LIMIT 1),
+                        (SELECT tf.label FROM `tabDocField` tf WHERE e.field_name = tf.fieldname AND tf.parent = e.custom_actual_doctype LIMIT 1),
+                        (SELECT ctf.label FROM `tabCustom Field` ctf WHERE e.field_name = ctf.fieldname AND ctf.dt = e.ref_doctype LIMIT 1),
+                        (SELECT ctf.label FROM `tabCustom Field` ctf WHERE e.field_name = ctf.fieldname AND ctf.dt = e.custom_actual_doctype LIMIT 1),
+                        e.field_name
+                    ),
                     COALESCE(
                         CASE
                             WHEN e.old_value = 'null' OR e.old_value = '' THEN '(blank)'
@@ -273,8 +282,6 @@ def get_versions(dt,dn,page_length,start,filters = None):
                 )
             ) AS changed
         FROM extracted e
-        LEFT JOIN `tabDocField` AS tf ON (e.field_name = tf.fieldname AND tf.parent IN (e.ref_doctype, e.custom_actual_doctype))
-        LEFT JOIN `tabCustom Field` AS ctf ON (e.field_name = ctf.fieldname AND ctf.dt IN (e.ref_doctype, e.custom_actual_doctype))
         LEFT JOIN `tabUser` AS usr ON e.owner = usr.name
         {search_param_cond}
         GROUP BY e.name

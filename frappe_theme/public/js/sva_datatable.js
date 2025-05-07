@@ -26,7 +26,7 @@ class SvaDataTable {
     constructor({
         label = "",
         wrapper, columns = [], rows = [], limit = 10,
-        childLinks = [], connection, options={
+        childLinks = [], connection, options = {
             serialNumberColumn: true,
             editable: false,
         },
@@ -52,6 +52,7 @@ class SvaDataTable {
         this.currentSort = this?.options?.defaultSort || null; // Track sort state
         this.frm = frm;
         this.doctype = doctype;
+        this.link_report = connection?.link_report || null;
         this.childTableFieldName = cdtfname;
         this.connection = connection;
         this.conf_perms = JSON.parse(this.connection?.crud_permissions ?? '[]');
@@ -64,7 +65,6 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
-        this.mgrant_settings = frappe.boot.mgrant_settings || null;
         this.workflow = []
         this.wf_positive_closure = '';
         this.wf_negative_closure = '';
@@ -85,21 +85,23 @@ class SvaDataTable {
         // return this.wrapper;
     }
     async reloadTable(reset = false) {
-        // Remove existing skeleton loader if it exists
-        const existingSkeleton = document.querySelector('#skeleton-loader-overlay');
-        if (existingSkeleton) {
-            existingSkeleton.remove();
+        await this.setupWrapper(this.wrapper);
+        let reLoad = this.wrapper.children.length > 1;
+        this.showSkeletonLoader(reLoad);
+        if (this.frm?.['dt_events']?.[this.doctype]?.['before_load']) {
+            let change = this.frm['dt_events'][this.doctype]['before_load']
+            if (this.isAsync(change)) {
+                await change(this);
+            } else {
+                change(this);
+            }
         }
-        
-        await this.setupWrapper(this.wrapper)
-        this.showSkeletonLoader();
-
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
-                this.permissions = await this.get_permissions(this.doctype);
-                if (frappe.session.user != "Administrator"){
+                this.permissions = await this.get_permissions(this.doctype || this.link_report);
+                if (frappe.session.user != "Administrator") {
                     let user_wise_list_settings = await this.getUserWiseListSettings();
-                    if (user_wise_list_settings){
+                    if (user_wise_list_settings) {
                         this.header = JSON.parse(user_wise_list_settings || '[]');
                         this.user_has_list_settings = true;
                     }
@@ -119,20 +121,8 @@ class SvaDataTable {
                     this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                 }
                 // ================================ Workflow End ================================
-                try {
-                    if (this.mgrant_settings != null && this.frm?.doctype == "Grant" && await this.sva_db.exists("mGrant Settings Grant Wise", this.frm?.doc.name)) {
-                        let msgw = await this.sva_db.get_doc("mGrant Settings Grant Wise", this.frm?.doc.name)
-                        if (msgw) {
-                            this.mgrant_settings = msgw
-                        }
-                    }
-                } catch (e) {
-                    this.mgrant_settings = {}
-                    console.log(e)
-                }
-
                 if (this.permissions.length && this.permissions.includes('read')) {
-                    let columns = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: this.doctype });
+                    let columns = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype|| this.link_report, _type: this.connection.connection_type });
                     if (this.header.length) {
                         this.columns = [];
                         let ft = {
@@ -170,7 +160,6 @@ class SvaDataTable {
                         this.wrapper.querySelector('#table_wrapper').replaceWith(this.table_wrapper);
                     }
                     this.tBody = this.table.querySelector('tbody');
-                    this.hideSkeletonLoader();
                     this.setupFooter(this.wrapper);
                 } else {
                     this.handleNoPermission();
@@ -191,33 +180,53 @@ class SvaDataTable {
             this.tBody = this.table.querySelector('tbody');
         }
 
-        this.hideSkeletonLoader();
-    }
-    hideSkeletonLoader(){
-        if(this.skeletonLoader){
-            this.skeletonLoader.remove();
-            this.skeletonLoader = null;
-            this.header_element?.classList.remove('hidden');
-            this.table_wrapper?.classList.remove('hidden');
-            this.footer_element?.classList.remove('hidden');
+        this.hideSkeletonLoader(reLoad);
+        if (this.frm?.['dt_events']?.[this.doctype]?.['after_load']) {
+            let change = this.frm['dt_events'][this.doctype]['after_load']
+            if (this.isAsync(change)) {
+                await change(this);
+            } else {
+                change(this);
+            }
         }
     }
-    showSkeletonLoader(){
-        this.header_element?.classList.add('hidden');
-        this.table_wrapper?.classList.add('hidden');
-        this.footer_element?.classList.add('hidden');
-        this.skeletonLoader = this.createSkeletonLoader();
-        this.wrapper.appendChild(this.skeletonLoader);
+    hideSkeletonLoader(reLoad = false) {
+        if (this.skeletonLoader) {
+            this.skeletonLoader.remove();
+            this.skeletonLoader = null;
+            this.table_wrapper?.querySelector('div#sva_table_wrapper')?.classList.remove('hidden');
+            if (!reLoad) {
+                this.header_element?.classList.remove('hidden');
+                this.footer_element?.classList.remove('hidden');
+            }
+        }
     }
-    async getUserWiseListSettings(){
+    showSkeletonLoader(reLoad = false) {
+        const existingSkeleton = this.wrapper.querySelector('#skeleton-loader-overlay');
+        if (existingSkeleton) {
+            existingSkeleton.remove();
+        }
+        this.table_wrapper?.querySelector('div#sva_table_wrapper')?.classList.add('hidden');
+        if (!reLoad) {
+            this.header_element?.classList.add('hidden');
+            this.footer_element?.classList.add('hidden');
+        }
+        this.skeletonLoader = this.createSkeletonLoader(reLoad);
+        if (!reLoad) {
+            this.wrapper.appendChild(this.skeletonLoader);
+        } else {
+            this.table_wrapper.appendChild(this.skeletonLoader);
+        }
+    }
+    async getUserWiseListSettings() {
         let res = await this.sva_db.call({
-            method:"frappe_theme.dt_api.get_user_list_settings",
+            method: "frappe_theme.dt_api.get_user_list_settings",
             parent_id: this.connection.parent,
-            child_dt:this.doctype
+            child_dt: this.doctype || this.link_report
         })
         return res.message;
     }
-    setupHeader() {
+    async setupHeader() {
         let row = document.createElement('div');
         this.header_element = row;
         row.id = 'header-element';
@@ -269,10 +278,29 @@ class SvaDataTable {
             align-items:center;
             gap:5px;
         `;
+        let refresh_button = document.createElement('button');
+        refresh_button.id = 'refresh_button';
+        refresh_button.classList.add('text-muted', 'btn', 'btn-default','icon-btn');
+        refresh_button.innerHTML = `
+            <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
+                <use class="" href="#es-line-reload"></use>
+            </svg>
+        `;
+        refresh_button.onclick = () => {
+            this.reloadTable(true);
+        }
+        if (!list_filter.querySelector('button#refresh_button')) {
+            list_filter.appendChild(refresh_button);
+        }
+        let report_filters = [];
+        if (this.connection.connection_type == 'Report') {
+            let {message} = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_report_filters', doctype: this.link_report })
+            report_filters = message;
+        }
         new CustomFilterArea({
             wrapper: list_filter,
-            doctype: this.doctype,
-            dt_filter_fields: this.header?.map(field => field.fieldname),
+            doctype: this.doctype || this.link_report,
+            dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? {...this,columns:this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters} :this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) :this.header.map(field => field.fieldname)  },
             on_change: (filters) => {
                 if (filters.length == 0) {
                     if (this.additional_list_filters.length) {
@@ -285,23 +313,25 @@ class SvaDataTable {
                 }
             }
         })
-        this.sort_selector = new SVASortSelector({
-			parent: $(list_filter),
-			doctype: this.doctype,
-            sorting_fields:this.header,
-			args: {
-				sort_by: this.sort_by,
-				sort_order: this.sort_order,
-			},
-			onchange: (sort_by,sort_order) => {
-                if (this.sort_by != sort_by || this.sort_order != sort_order){
+        if (this.connection.connection_type != 'Report') {
+            this.sort_selector = new SVASortSelector({
+                parent: $(list_filter),
+                doctype: this.doctype,
+            sorting_fields: this.header,
+            args: {
+                sort_by: this.sort_by,
+                sort_order: this.sort_order,
+            },
+            onchange: (sort_by, sort_order) => {
+                if (this.sort_by != sort_by || this.sort_order != sort_order) {
                     this.sort_by = sort_by || "modified";
                     this.sort_order = sort_order || "desc";
                     this.reloadTable(true);
                 }
 
             },
-		});
+        });
+        }
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
@@ -321,7 +351,7 @@ class SvaDataTable {
     async setupWrapper(wrapper) {
         wrapper.style = `max-width:${this.options?.style?.width || '100%'}; width:${this.options?.style?.width || '100%'};margin:0px !important;`;
         if (!wrapper.querySelector('div#header-element')) {
-            wrapper.appendChild(this.setupHeader())
+            wrapper.appendChild(await this.setupHeader())
         }
         return wrapper;
     }
@@ -330,9 +360,9 @@ class SvaDataTable {
         list_view_settings.id = 'list_view_settings';
         list_view_settings.classList.add('btn', 'btn-secondary', 'btn-sm');
         list_view_settings.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${this.user_has_list_settings ? (frappe.boot?.my_theme?.button_background_color || '#2196F3') : 'currentColor'}" class="bi bi-gear" viewBox="0 0 16 16">
-            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: ${this.user_has_list_settings ? (frappe.boot?.my_theme?.button_background_color || '#2196F3') : 'currentColor'}">
+            <path fill="none" stroke="currentColor" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
         </svg>`;
         list_view_settings.onclick = async () => {
             list_view_settings.disabled = true;
@@ -342,54 +372,57 @@ class SvaDataTable {
         return list_view_settings;
     }
     async setupListviewSettings() {
-        let dtmeta = await this.sva_db.call({
-            method: 'frappe_theme.api.get_meta', 
-            doctype: this.doctype
-        });
+        let dtmeta = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype|| this.link_report, _type: this.connection.connection_type });
         new ListSettings({
-            doctype: this.doctype,
+            doctype: this.doctype || this.link_report,
             meta: dtmeta.message,
+            connection_type: this.connection.connection_type,
             settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
-            sva_dt:this,
-            dialog_primary_action: async (listview_settings,reset=false) => {
-                if(!reset){
-                    if(frappe.session.user == "Administrator"){
+            sva_dt: this,
+            dialog_primary_action: async (listview_settings, reset = false) => {
+                try {
+                    if (!reset) {
+                        if (frappe.session.user == "Administrator") {
+                            await this.sva_db.call({
+                                method: 'frappe.client.set_value',
+                                doctype: this.connection.doctype,
+                                name: this.connection.name,
+                                fieldname: 'listview_settings',
+                                value: JSON.stringify(listview_settings ?? []),
+                            });
+                        } else {
+                            await this.sva_db.call({
+                                method: 'frappe_theme.dt_api.setup_user_list_settings',
+                                parent_id: this.connection.parent,
+                                child_dt: this.doctype || this.link_report,
+                                listview_settings: JSON.stringify(listview_settings ?? []),
+                            });
+                            this.user_has_list_settings = true;
+                        }
+                    } else {
                         await this.sva_db.call({
-                            method:'frappe.client.set_value',
-                            doctype: this.connection.doctype,
-                            name: this.connection.name,
-                            fieldname: 'listview_settings',
-                            value: JSON.stringify(listview_settings ?? []),
-                        });
-                    }else{
-                        await this.sva_db.call({
-                            method:'frappe_theme.dt_api.setup_user_list_settings',
+                            method: 'frappe_theme.dt_api.delete_user_list_settings',
                             parent_id: this.connection.parent,
-                            child_dt:this.doctype,
-                            listview_settings: JSON.stringify(listview_settings ?? []),
+                            child_dt: this.doctype
                         });
-                        this.user_has_list_settings = true;
+                        this.user_has_list_settings = false;
                     }
-                }else{
-                    await this.sva_db.call({
-                        method:'frappe_theme.dt_api.delete_user_list_settings',
-                        parent_id: this.connection.parent,
-                        child_dt:this.doctype
-                    });
-                    this.user_has_list_settings = false;
-                }
-                this.header = listview_settings;
-                if(window.sva_datatable_configuration?.[this.connection.parent]){
-                    let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
-                    let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
-                    if (target){
-                        target.listview_settings = JSON.stringify(listview_settings ?? [])
-                    }else if (target_child){
-                        target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+                } catch (error) {
+                    console.error('Error in setupListviewSettings', error);
+                }finally{
+                    this.header = listview_settings;
+                    if (window.sva_datatable_configuration?.[this.connection.parent]) {
+                        let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
+                        let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
+                        if (target) {
+                            target.listview_settings = JSON.stringify(listview_settings ?? [])
+                        } else if (target_child) {
+                            target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                        }
                     }
+                    this.reloadTable(true);
                 }
-                this.reloadTable(true);
-                frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
             }
         });
     }
@@ -426,7 +459,7 @@ class SvaDataTable {
                 vertical-align: middle;
             }
         `;
-        if(!tableWrapper.querySelector('style')){
+        if (!tableWrapper.querySelector('style')) {
             tableWrapper.appendChild(style);
         }
         return tableWrapper;
@@ -463,7 +496,7 @@ class SvaDataTable {
                                 params[this.connection.link_fieldname] = this.frm?.doc.name;
                             }
                             let route = frappe.get_route()
-                            frappe.new_doc(this.doctype, params).then(() => {
+                            frappe.new_doc(this.doctype || this.connection.report_ref_dt, params).then(() => {
                                 cur_frm['sva_dt_prev_route'] = route;
                             });
                         } else {
@@ -488,7 +521,7 @@ class SvaDataTable {
 
         let paginationList = document.createElement('ul');
         paginationList.classList.add('pagination', 'justify-content-center');
-        
+
         // First button
         let firstBtnItem = document.createElement('li');
         firstBtnItem.id = 'firstBtnItem';
@@ -506,7 +539,7 @@ class SvaDataTable {
         });
         firstBtnItem.appendChild(firstBtn);
         paginationList.appendChild(firstBtnItem);
-        
+
         // Previous button
         let prevBtnItem = document.createElement('li');
         prevBtnItem.id = 'prevBtnItem';
@@ -573,31 +606,31 @@ class SvaDataTable {
     updatePageButtons() {
         // Clear existing page buttons (except first, prev, next, last)
         this.pageButtonsContainer.querySelectorAll('.page-item:not(#firstBtnItem):not(#prevBtnItem):not(#nextBtnItem):not(#lastBtnItem)').forEach(el => el.remove());
-        
+
         // Update button states
         let totalPages = Math.ceil(this.total / this.limit);
-        
+
         // First button state
         if (this.page === 1) {
             this.pageButtonsContainer.querySelector("#firstBtnItem")?.classList.add('disabled');
         } else {
             this.pageButtonsContainer.querySelector("#firstBtnItem")?.classList.remove('disabled');
         }
-        
+
         // Previous button state
         if (this.page === 1) {
             this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.add('disabled');
         } else {
             this.pageButtonsContainer.querySelector("#prevBtnItem")?.classList.remove('disabled');
         }
-        
+
         // Next button state
         if (this.page === totalPages) {
             this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.add('disabled');
         } else {
             this.pageButtonsContainer.querySelector("#nextBtnItem")?.classList.remove('disabled');
         }
-        
+
         // Last button state
         if (this.page === totalPages) {
             this.pageButtonsContainer.querySelector("#lastBtnItem")?.classList.add('disabled');
@@ -635,7 +668,7 @@ class SvaDataTable {
         pagesToShow.forEach((pageNum) => {
             let pageItem = document.createElement('li');
             pageItem.classList.add('page-item');
-            
+
             if (pageNum === '...') {
                 pageItem.classList.add('disabled');
                 let ellipsis = document.createElement('span');
@@ -659,7 +692,7 @@ class SvaDataTable {
                 });
                 pageItem.appendChild(pageBtn);
             }
-            
+
             // Insert before the Next button
             this.pageButtonsContainer.insertBefore(pageItem, this.pageButtonsContainer.querySelector('#nextBtnItem'));
         });
@@ -668,7 +701,7 @@ class SvaDataTable {
         return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
-                args: { doctype: doctype },
+                args: { doctype: doctype,_type: this.connection.connection_type },
                 callback: function (response) {
                     rslv(response.message)
                 },
@@ -680,7 +713,7 @@ class SvaDataTable {
     }
     isAsync = (fn) => fn?.constructor?.name === "AsyncFunction";
     async createFormDialog(doctype, name = undefined, mode = 'create', additional_action = null) {
-        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: this.doctype });
+        let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: this.doctype });
         let fields = res?.message;
         if (window?.SVADialog?.[this.doctype]) {
             window?.SVADialog?.[this.doctype](mode, fields);
@@ -715,7 +748,7 @@ class SvaDataTable {
                         }
                     }
                     if (f.fieldtype === "Table") {
-                        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
+                        let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
                             if (tf.fieldtype === 'Link') {
@@ -778,7 +811,7 @@ class SvaDataTable {
                             }
                         } else if (f.hidden) {
                             f.fieldtype = 'Data'
-                        }else if (doc[f.fieldname]){
+                        } else if (doc[f.fieldname]) {
                             f.default = doc[f.fieldname];
                         }
                         continue;
@@ -896,7 +929,7 @@ class SvaDataTable {
                         };
                     }
                     if (f.fieldtype === "Table") {
-                        let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
+                        let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                         let tableFields = res?.message;
                         for (let tf of tableFields) {
                             if (tf.fieldtype === 'Link') {
@@ -944,9 +977,9 @@ class SvaDataTable {
                     continue;
                 }
                 if (f.fieldtype === "Table") {
-                    let res = await this.sva_db.call({method:'frappe_theme.api.get_meta_fields', doctype: f.options });
+                    let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
-                    f.fields = tableFields;
+                    f.fields = tableFields.map((f) => {return {...f, read_only: 1}});
                     f.cannot_add_rows = 1;
                     f.cannot_delete_rows = 1;
                     if (doc[f.fieldname].length) {
@@ -1116,7 +1149,7 @@ class SvaDataTable {
             if (this.isAsync(change)) {
                 await change(this, mode, has_aditional_action);
             } else {
-                change(this, mode,has_aditional_action);
+                change(this, mode, has_aditional_action);
             }
         }
     }
@@ -1178,23 +1211,23 @@ class SvaDataTable {
         this.columns.forEach(column => {
             const th = document.createElement('th');
             let col = this.header.find(h => h.fieldname === column.fieldname);
-            if (col.width) {
-                th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+            if (col?.width) {
+                th.style = `min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
             }
             th.textContent = column.label || column.name;
 
             if (column.sortable) {
                 this.createSortingIcon(th, column); // Create the sorting dropdown
-                if (col.width) {
-                    th.style = `min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;cursor:pointer;`;
+                if (col?.width) {
+                    th.style = `min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;cursor:pointer;`;
                 } else {
                     th.style = `cursor:pointer;`;
                 }
             }
 
             if (this.options.freezeColumnsAtLeft && this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
-                if (col.width) {
-                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'};min-width:${Number(col.width) * 50}px !important;max-width:${Number(col.width) * 50}px !important;width:${Number(col.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
+                if (col?.width) {
+                    th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'};min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
                 } else {
                     th.style = `position:sticky; left:${left}px; z-index:2; background-color:#F3F3F3;cursor:${column.sortable ? 'pointer' : 'default'}`;
                 }
@@ -1212,19 +1245,15 @@ class SvaDataTable {
             tr.appendChild(addColumn);
         }
         // ========================= Workflow End ======================
-        if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
+
+        // ========================= Action Column ======================
+        // if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
             const action_th = document.createElement('th');
             action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
-            // if (frappe.user_roles.includes("Administrator")) {
             action_th.appendChild(this.createSettingsButton());
             tr.appendChild(action_th);
-            // } else {
-            //     if (this.conf_perms.length || this.childLinks?.length) {
-            //         tr.appendChild(action_th);
-            //         action_th.textContent = 'Actions'
-            //     }
-            // }
-        }
+        // }
+        // ========================= Action Column End ======================
         thead.appendChild(tr);
         return thead;
     }
@@ -1251,9 +1280,15 @@ class SvaDataTable {
 
         const dropdownBtn = document.createElement('span');
         dropdownBtn.classList.add('h4');
-        dropdownBtn.style.cursor = 'pointer';
-        dropdownBtn.setAttribute('data-toggle', 'dropdown');
         dropdownBtn.innerHTML = "&#8942;";
+        if (this.connection.connection_type != 'Report') {
+            dropdownBtn.style.cursor = 'pointer';
+            dropdownBtn.setAttribute('data-toggle', 'dropdown');
+        }else{
+            dropdownBtn.style.cursor = 'not-allowed';
+            dropdownBtn.setAttribute('disabled', 'disabled');
+            dropdownBtn.setAttribute('title', 'This action is not allowed for reports');
+        }
 
         const dropdownMenu = document.createElement('div');
         dropdownMenu.classList.add('dropdown-menu');
@@ -1287,9 +1322,10 @@ class SvaDataTable {
 
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
-            if (this.permissions.includes('write') && this.conf_perms.includes('write')) {
+            let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
+            if (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
-                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
+                    if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
                             if (this.connection?.redirect_to_main_form) {
                                 let route = frappe.get_route()
@@ -1314,9 +1350,10 @@ class SvaDataTable {
                     });
                 }
             }
-            if (this.permissions.includes('delete') && this.conf_perms.includes('delete')) {
+            let is_deletable = this.connection?.disable_delete_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_delete_depends_on, row) : true;
+            if (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
-                    if (![this.wf_positive_closure,this.wf_negative_closure].includes(row['workflow_state'])) {
+                    if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
@@ -1339,7 +1376,9 @@ class SvaDataTable {
         }
 
         dropdown.appendChild(dropdownBtn);
-        document.body.appendChild(dropdownMenu);
+        if (this.connection.connection_type != 'Report') {
+            document.body.appendChild(dropdownMenu);
+        }
 
         const toggleDropdown = (event) => {
             event.stopPropagation();
@@ -1361,7 +1400,7 @@ class SvaDataTable {
     }
 
     createTableBody() {
-        if (this.rows.length === 0) {
+        if (this.rows?.length === 0) {
             return this.createNoDataFoundPage();
         }
 
@@ -1402,8 +1441,8 @@ class SvaDataTable {
 
                     serialTd.innerHTML = `<p style="cursor: pointer; text-decoration:underline;">${serialNumber}</p>`;
                     serialTd.querySelector('p').addEventListener('click', () => {
-                        let route = frappe.get_route();
-                        frappe.set_route('Form', this.doctype, row.name).then(() => {
+                    let route = frappe.get_route();
+                        frappe.set_route('Form', this.connection.connection_type == 'Report' ? this.connection.report_ref_dt : this.doctype, row.name).then(() => {
                             cur_frm.add_custom_button('Back', () => {
                                 frappe.set_route(route);
                             });
@@ -1434,14 +1473,15 @@ class SvaDataTable {
 
                 // ========================= Workflow Logic ===================
                 if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
-                    const bg = this.workflow_state_bg?.find(bg => bg.name === row['workflow_state'] && bg.style);
+                    let workflow_state_field = this.workflow?.workflow_state_field;
+                    const bg = this.workflow_state_bg?.find(bg => bg.name === row[workflow_state_field] && bg.style);
                     const closureStates = this.workflow?.states?.filter(s => ['Positive', 'Negative'].includes(s.custom_closure)).map(e => e.state);
-                    const isClosed = closureStates.includes(row['workflow_state']);
+                    const isClosed = closureStates.includes(row[workflow_state_field]);
                     const wfActionTd = document.createElement('td');
                     const el = document.createElement('select');
                     el.classList.add('form-select', 'rounded');
                     const titleText = this.workflow.transitions
-                        .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                        .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                         .map(e => `${e.action} by ${e.allowed}`)
                         .join("\n");
 
@@ -1452,7 +1492,9 @@ class SvaDataTable {
                     el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
                     if (isClosed) {
                         el.disabled = true;
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>`;
+                        el.classList.add('ellipsis');
+                        el.setAttribute('title', row[workflow_state_field]);
+                        el.innerHTML = `<option value="" style="color:black" selected disabled">${row[workflow_state_field]}</option>`;
                         el.style['-webkit-appearance'] = 'none';
                         el.style['-moz-appearance'] = 'none';
                         el.style['appearance'] = 'none';
@@ -1460,11 +1502,11 @@ class SvaDataTable {
                         el.style['text-align'] = 'center';
                         wfActionTd.appendChild(el);
                     } else {
-                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row['workflow_state']) ||
-                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row['workflow_state']));
-                        el.innerHTML = `<option value="" style="color:black" selected disabled>${row['workflow_state']}</option>` +
+                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
+                            !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
+                        el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
-                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row['workflow_state'])
+                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
                                 .map(e => e.action))]
                                 .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
                                 .join('');
@@ -1508,6 +1550,7 @@ class SvaDataTable {
                     actionTd.style.right = '0px';
                     actionTd.style.backgroundColor = '#fff';
                     actionTd.appendChild(this.createActionColumn(row, primaryKey));
+                    
                     tr.appendChild(actionTd);
                 }
 
@@ -1544,7 +1587,7 @@ class SvaDataTable {
                 change(me, selected_state_info, docname, prevState);
             }
         }
-        
+
         const bg = me.workflow_state_bg?.find(bg => bg.name === selected_state_info.next_state && bg?.style);
         let meta = await this.sva_db.call({
             method: 'frappe_theme.api.get_meta',
@@ -1564,7 +1607,7 @@ class SvaDataTable {
             ...(fields ? fields : []),
         ];
         if (!this.skip_workflow_confirmation) {
-            workflowFormValue = await new Promise(async(resolve, reject) => {
+            workflowFormValue = await new Promise(async (resolve, reject) => {
                 dialog = new frappe.ui.Dialog({
                     title: "Confirm",
                     size: this.getDialogSize(popupFields),
@@ -1795,8 +1838,8 @@ class SvaDataTable {
                     td.title = row[column.fieldname] || "";
                 }
             }
-            if (col.width) {
-                $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (col?.width) {
+                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
                 $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
@@ -1822,22 +1865,22 @@ class SvaDataTable {
                 td.addEventListener('click', async () => {
                     await this.childTableDialog(doctype, link_field, row?.name, row);
                 })
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', cursor: 'pointer', color: 'blue' });
                 }
             } else {
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
             if (columnField.fieldtype === 'Currency') {
                 td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 }
@@ -1849,8 +1892,8 @@ class SvaDataTable {
                 } else {
                     td.innerHTML = '';
                 }
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1867,8 +1910,8 @@ class SvaDataTable {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                 }) || 0;
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                 }
@@ -1876,8 +1919,8 @@ class SvaDataTable {
             }
             if (['Date'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1893,8 +1936,8 @@ class SvaDataTable {
                         });
                     });
                 });
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
@@ -1909,16 +1952,16 @@ class SvaDataTable {
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
                 td.appendChild(btn)
-                if (col.width) {
-                    $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
                 return;
             }
             td.textContent = row[column.fieldname] || "";
-            if (col.width) {
-                $(td).css({ width: `${Number(col.width) * 50}px`, minWidth: `${Number(col.width) * 50}px`, maxWidth: `${Number(col.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (col?.width) {
+                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
                 $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
@@ -1928,12 +1971,12 @@ class SvaDataTable {
     async getDocList() {
         try {
             let filters = []
-            if (this.connection?.extended_condition && this.connection?.extended_condition) {
+            if (this.connection?.extend_condition && this.connection?.extended_condition) {
                 try {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
-                        cond = cond?.map(e=>{
-                            if(e.length > 3 && e[3] && e[3]?.toLowerCase() == 'today'){
+                        cond = cond?.map(e => {
+                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && e[3]?.toLowerCase() == 'today') {
                                 e[3] = new Date().toISOString().split('T')[0];
                             }
                             return e
@@ -1944,17 +1987,29 @@ class SvaDataTable {
                     console.log("Exception: while parsing extended_condition", error);
                 }
             }
-
             if (this.connection?.connection_type === 'Referenced') {
                 filters.push([this.doctype, this.connection.dt_reference_field, '=', this.frm?.doc.doctype]);
                 filters.push([this.doctype, this.connection.dn_reference_field, '=', this.frm?.doc.name]);
             } else if (this.connection?.connection_type === 'Direct') {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
+            } else if (this.connection?.connection_type === 'Indirect') {
+                filters.push([this.doctype, this.connection.foreign_field, '=', this.frm?.doc?.[this.connection.local_field]]);
             } else if (this.connection.link_fieldname) {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
             }
-            this.total = await frappe.db.count(this.doctype, { filters: [...filters, ...this.additional_list_filters] });
-            
+           
+            // this.total = await frappe.db.count(this.doctype, { filters: [...filters, ...this.additional_list_filters] });
+            let {message} = await this.sva_db.call({
+                method: "frappe_theme.dt_api.get_dt_count",
+                doctype: this.doctype || this.link_report,
+                doc: this.frm?.doc?.name,
+                ref_doctype: this.frm?.doc?.doctype,
+                filters: [...filters, ...this.additional_list_filters],
+                _type: this.connection.connection_type
+            });
+            if(message){
+                this.total = message;
+            }
             // Update pagination after getting total count
             if (this.total > this.limit) {
                 if (!this.wrapper.querySelector('div#footer-element')?.querySelector('div#pagination-element')) {
@@ -1970,13 +2025,16 @@ class SvaDataTable {
                 }
             }
             let res = await this.sva_db.call({
-                method: "frappe.client.get_list",
-                doctype: this.doctype,
+                method: "frappe_theme.dt_api.get_dt_list",
+                doctype: this.doctype || this.link_report,
+                doc: this.frm?.doc?.name,
+                ref_doctype: this.frm?.doc?.doctype,
                 filters: [...filters, ...this.additional_list_filters],
                 fields: this.fields || ['*'],
                 limit_page_length: this.limit,
                 order_by: `${this.sort_by} ${this.sort_order}`,
-                limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0
+                limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0,
+                _type: this.connection.connection_type
             });
             return res.message;
         } catch (error) {
@@ -2050,15 +2108,15 @@ class SvaDataTable {
         }
     }
 
-    createSkeletonLoader() {
+    createSkeletonLoader(reLoad = false) {
         const overlay = document.createElement('div');
         overlay.id = 'skeleton-loader-overlay';
         overlay.style = `
             width: 100%;
             height: inherit;
-            background: white;
             z-index: 1000;
             display: flex;
+            background: transparent;
             flex-direction: column;
             margin-bottom: 20px;
         `;
@@ -2066,11 +2124,12 @@ class SvaDataTable {
         // Create header skeleton
         const headerSkeleton = document.createElement('div');
         headerSkeleton.style = `
-            display: flex;
+            display: ${reLoad ? 'none' : 'flex'};
             justify-content: space-between;
+            background: white;
             margin-bottom: 20px;
         `;
-        
+
         const leftHeader = document.createElement('div');
         leftHeader.style = `
             width: 200px;
@@ -2080,7 +2139,7 @@ class SvaDataTable {
             animation: shimmer 1.5s infinite;
             border-radius: 4px;
         `;
-        
+
         const rightHeader = document.createElement('div');
         rightHeader.style = `
             width: 150px;
@@ -2090,7 +2149,7 @@ class SvaDataTable {
             animation: shimmer 1.5s infinite;
             border-radius: 4px;
         `;
-        
+
         headerSkeleton.appendChild(leftHeader);
         headerSkeleton.appendChild(rightHeader);
         overlay.appendChild(headerSkeleton);
@@ -2100,6 +2159,7 @@ class SvaDataTable {
         tableSkeleton.style = `
             width: 100%;
             border: 1px solid #e0e0e0;
+            background: white;
             border-radius: 4px;
             flex: 1;
         `;
@@ -2116,7 +2176,7 @@ class SvaDataTable {
         for (let i = 0; i < 5; i++) {
             const thSkeleton = document.createElement('div');
             thSkeleton.style = `
-                width: 150px;
+                width: 100%;
                 height: 20px;
                 margin-right: 20px;
                 background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -2141,7 +2201,7 @@ class SvaDataTable {
             for (let j = 0; j < 5; j++) {
                 const tdSkeleton = document.createElement('div');
                 tdSkeleton.style = `
-                    width: 150px;
+                    width: 100%;
                     height: 20px;
                     margin-right: 20px;
                     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);

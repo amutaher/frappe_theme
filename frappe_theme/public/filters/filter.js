@@ -6,6 +6,7 @@ class CustomFilter {
 		}
 		this.dt_filter_fields = opts.dt_filter_fields || []
 		this.utils = frappe.ui.filter_utils;
+		this.get_filter_fields();
 		this.set_conditions();
 		this.set_conditions_from_config();
 		this.make();
@@ -100,17 +101,18 @@ class CustomFilter {
 		this.setup();
 	}
 
-	async get_filter_fields(){
-		let res = await frappe.call({
-			method: "frappe_theme.dt_api.doc_filters",
-			args: {
-				doctype:this.parent_doctype
-			},
-		});
-		if (this.dt_filter_fields.length){
-			this.fields = {[this.parent_doctype]:res.message?.[this.parent_doctype]?.filter(f => this.dt_filter_fields.includes(f.fieldname))};
+	get_filter_fields(){
+		// let res = await frappe.call({
+		// 	method: "frappe_theme.dt_api.doc_filters",
+		// 	args: {
+		// 		doctype:this.parent_doctype
+		// 	},
+		// });
+		let {sva_dt,header} = this.dt_filter_fields;
+		if (sva_dt?.columns?.length && header?.length){
+			this.fields = {[this.parent_doctype]: sva_dt?.columns?.filter(column => header?.includes(column.fieldname) && !["name","creation","modified",'modified_by','owner'].includes(column.fieldname))};
 		}else{
-			this.fields = res.message;
+			this.fields = {[this.parent_doctype]:[]};
 		}
 	}
 
@@ -118,6 +120,7 @@ class CustomFilter {
 		this.fieldselect = new CustomFieldSelect({
 			parent: this.filter_edit_area.find(".fieldname-select-area"),
 			doctype: this.parent_doctype,
+			dt_filter_fields: this.dt_filter_fields,
 			parent_doctype: this._parent_doctype,
 			filter_fields: this.filter_fields,
 			input_class: "input-xs",
@@ -163,10 +166,8 @@ class CustomFilter {
 	}
 
 	async setup() {
-		await this.get_filter_fields();
 		await this.make_select();
 		const fieldname = this.fieldname || "name";
-		// set the field
 		return this.set_values(this.doctype, fieldname, this.condition, this.value);
 	}
 

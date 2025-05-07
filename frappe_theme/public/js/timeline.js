@@ -650,7 +650,7 @@ class TimelineGenerator {
 
                                 const d = new frappe.ui.Dialog({
                                     title: __(`${doctype}: ${docname}`),
-                                    fields: meta.fields.filter(df => !df.hidden).map(df => ({
+                                    fields: meta.fields.filter(df => !["HTML","Table","Table Multiselect","Button","Color"].includes(df.fieldtype)).map(df => ({
                                         ...df,
                                         read_only: 1
                                     }))

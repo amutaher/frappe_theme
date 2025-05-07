@@ -1,103 +1,74 @@
 import frappe
 import json
 from hashlib import md5
+from frappe_theme.controllers.dt_conf import DTConf
+from frappe_theme.controllers.number_card import NumberCard
+from frappe_theme.controllers.chart import Chart
 
 @frappe.whitelist()
 def get_direct_connection_dts(dt):
-    standard_dts = frappe.get_list('DocField',filters=[
-        ['DocField', 'options', '=', dt],
-        ['DocField', 'parenttype', '=', "DocType"]
-    ],pluck='parent',ignore_permissions=True)
-    custom_dts = frappe.get_list('Custom Field',filters=[
-        ['Custom Field', 'options', '=', dt],
-    ],pluck='dt',ignore_permissions=True)
-    return standard_dts + custom_dts
+    return DTConf.get_direct_connection_dts(dt)
+
+@frappe.whitelist()
+def get_indirect_connection_local_fields(dt):
+    return DTConf.get_indirect_connection_local_fields(dt)
+
+@frappe.whitelist()
+def get_indirect_connection_foreign_fields(dt,local_field_option):
+    return DTConf.get_indirect_connection_foreign_fields(dt,local_field_option)
 
 @frappe.whitelist()
 def get_direct_connection_fields(dt,link_dt):
-    standard_dt_fields = frappe.get_list('DocField',filters=[
-        ['DocField', 'options', '=', dt],
-        ['DocField', 'parenttype', '=', "DocType"],
-        ['DocField', 'parent', '=', link_dt]
-    ],fields=['label','fieldname'],ignore_permissions=True)
-    custom_dt_fields = frappe.get_list('Custom Field',filters=[
-        ['Custom Field', 'options', '=', dt],
-        ['Custom Field', 'dt', '=', link_dt]
-    ],fields=['label','fieldname'],ignore_permissions=True)
-    return standard_dt_fields + custom_dt_fields
+    return DTConf.get_direct_connection_fields(dt,link_dt)
 
 @frappe.whitelist()
 def get_workflow_with_dt(dt):
-    exists = frappe.db.exists('Workflow', {'document_type': dt})
-    if exists:
-        frappe.set_user('Administrator')
-        wf_doc = frappe.get_doc('Workflow', exists)
-        frappe.set_user(frappe.session.user)
-        return wf_doc.as_dict()
-    else:
-        frappe.throw('No workflow found for this doctype')
+    return DTConf.get_workflow_with_dt(dt)
 
 @frappe.whitelist()
 def doc_filters(doctype, filters=None):
-    dtmeta = frappe.get_meta(doctype)
-    field_dicts = {}
-    field_dicts[doctype] = []
-    
-    def process_field(field):
-        field_dict = {}
-        for key, value in field.__dict__.items():
-            if key == 'link_filters' and isinstance(value, list):
-                field_dict[key] = json.dumps(value)
-            else:
-                field_dict[key] = value
-        return field_dict
-    
-    for field in dtmeta.fields:
-        field_dict = process_field(field)
-        if field_dict.get('fieldtype') in ["Table", "Table MultiSelect"]:
-            continue
-            # child_meta = frappe.get_meta(field_dict.get('options'))
-            # if len(child_meta.fields) > 0:
-            #     field_dicts[field_dict.get('options')] = []
-            #     for child_field in child_meta.fields:
-            #         child_field_dict = process_field(child_field)
-            #         field_dicts[field_dict.get('options')].append(child_field_dict)
-            # continue
-        field_dicts[doctype].append(field_dict)
-    return field_dicts
+    return DTConf.doc_filters(doctype, filters)
 
 @frappe.whitelist()
 def setup_user_list_settings(parent_id,child_dt,listview_settings):
-    user = frappe.session.user
-    if user == "Administrator":
-        return
-    exists = frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})
-    if exists:
-        doc = frappe.get_doc("SVADT User Listview Settings",exists)
-        doc.listview_settings = listview_settings
-        doc.save(ignore_permissions=True)
-    else:
-        frappe.get_doc({"doctype":"SVADT User Listview Settings","parent_id":parent_id,"child_dt":child_dt,"user":user,"listview_settings":listview_settings}).insert(ignore_permissions=True)
-        
+    return DTConf.setup_user_list_settings(parent_id,child_dt,listview_settings)
+
 @frappe.whitelist()
 def delete_user_list_settings(parent_id,child_dt):
-    user = frappe.session.user
-    if user == "Administrator":
-        return None
-    exists = frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})
-    if exists:
-        frappe.delete_doc("SVADT User Listview Settings",exists)
-    return True
+    return DTConf.delete_user_list_settings(parent_id,child_dt)
 
 @frappe.whitelist()
 def get_user_list_settings(parent_id,child_dt):
-    user = frappe.session.user
-    if user == "Administrator":
-        return None
-    setting_id = md5(f"{parent_id}-{child_dt}-{user}".encode('utf-8')).hexdigest()
-    listview_settings = None
-    if frappe.cache.exists(setting_id):
-        listview_settings = frappe.cache.get_value(setting_id)
-    elif frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user}):
-        listview_settings = frappe.get_doc("SVADT User Listview Settings",frappe.db.exists("SVADT User Listview Settings",{"parent_id":parent_id,"child_dt":child_dt,"user":user})).listview_settings
-    return listview_settings
+    return DTConf.get_user_list_settings(parent_id,child_dt)
+
+@frappe.whitelist()
+def get_sva_dt_settings(doctype):
+    return DTConf.get_sva_dt_settings(doctype)
+
+@frappe.whitelist()
+def get_number_card_count(type, details,report=None, doctype=None, docname=None):
+    return NumberCard.get_number_card_count(type, details,report, doctype, docname)
+    
+@frappe.whitelist()
+def get_chart_data(type, details,report=None, doctype=None, docname=None):
+    return Chart.get_chart_data(type, details,report, doctype, docname)
+
+@frappe.whitelist()
+def link_report_list(doctype):
+    return DTConf.link_report_list(doctype)
+
+@frappe.whitelist()
+def get_meta_fields(doctype,_type="Direct"):
+    return DTConf.get_meta_fields(doctype,_type)
+
+@frappe.whitelist()
+def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List"):
+    return DTConf.get_dt_list(doctype,doc,ref_doctype, filters, fields, limit_page_length, order_by, limit_start, _type)
+    
+@frappe.whitelist()
+def get_report_filters(doctype):
+    return DTConf.get_report_filters(doctype)
+
+@frappe.whitelist()
+def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List"):
+    return DTConf.get_dt_count(doctype,doc,ref_doctype, filters, _type)
