@@ -44,7 +44,7 @@ class SVADashboardManager {
         if (this.numberCards.length || this.charts.length) {
             this.initializeComponents().catch(this.handleError.bind(this));
         }
-        return this.wrapper;
+        return {wrapper: this.wrapper, ref: this};
     }
 
     // Utility method for debouncing
