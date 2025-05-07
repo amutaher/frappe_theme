@@ -456,6 +456,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 charts: type === 'chart' ? [item] : [],
                 signal
             });
+            if(item.parentfield == "number_cards"){
+                frm.sva_cards[item.number_card] = ref;
+            }
+            if(item.parentfield == "charts"){
+                frm.sva_charts[item.chart] = ref;
+            }
             wrapper._dashboard = _wrapper;
         };
 
