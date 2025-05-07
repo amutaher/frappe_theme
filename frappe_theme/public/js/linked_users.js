@@ -36,7 +36,7 @@ class LinkedUser {
         let el = document.createElement('div');
         el.style = 'overflow-y:auto;'
         el.className = 'form-grid-container form-grid';
-        
+
         const canWrite = this.permissions.includes('write');
         const canDelete = this.permissions.includes('delete');
 
@@ -57,14 +57,14 @@ class LinkedUser {
                 </thead>
                 <tbody style="background-color: #fff; font-size: 12px;">
                     ${this.user_list.length === 0
-                        ? `
+                ? `
                             <tr>
                                 <td colspan="9" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8; line-height: 92px;">
                                     You haven't created a record yet
                                 </td>
                             </tr>
                             `
-                        : this.user_list.map((user, index) => `
+                : this.user_list.map((user, index) => `
                             <tr class="grid-row">
                                 <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff;">
                                    <!-- <input type="checkbox" class="toggleCheckbox" data-id="${user.name}"> -->
@@ -83,7 +83,7 @@ class LinkedUser {
                                             <a class="dropdown-item user-status" data-user="${user.name}" data-status="Active">Active</a>
                                             <a class="dropdown-item user-status" data-user="${user.name}" data-status="Inactive">Inactive</a>
                                         </div>`
-                                    : `<span class="${user?.status == 'Active' ? 'text-success' : 'text-danger'} small">${user.status}</span>`}
+                        : `<span class="${user?.status == 'Active' ? 'text-success' : 'text-danger'} small">${user.status}</span>`}
                                     </div>
                                 </td>
                                 ${(canWrite || canDelete) ? `
@@ -451,14 +451,18 @@ class LinkedUser {
             title: title,
             fields: fields,
             primary_action_label: primaryActionLabel,
-            primary_action: function (values) {
+            primary_action: async function (values) {
                 let regex = /^[6-9]\d{9}$/;
                 if (values.mobile_number && !regex.test(values.mobile_number)) {
                     frappe.msgprint('Please enter valid mobile number');
                     return;
                 }
                 if (action === 'New User') {
-                    // Create New User logic
+
+                    if (await frappe.db.exists("SVA User", { 'email': values.email })) {
+                        frappe.throw(__('This email address is already in use.'));
+                    }
+
                     frappe.db.insert({
                         doctype: "SVA User",
                         ...values
