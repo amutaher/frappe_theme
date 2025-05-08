@@ -1,6 +1,4 @@
 import frappe
-import json
-from hashlib import md5
 from frappe_theme.controllers.dt_conf import DTConf
 from frappe_theme.controllers.number_card import NumberCard
 from frappe_theme.controllers.chart import Chart

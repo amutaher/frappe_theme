@@ -3,6 +3,8 @@ from frappe.desk.query_report import get_script
 from frappe.utils.safe_exec import read_sql
 from frappe_theme.controllers.number_card import NumberCard
 from frappe_theme.controllers.chart import Chart
+import json
+from hashlib import md5
 
 class DTConf():
     # datatable settings
