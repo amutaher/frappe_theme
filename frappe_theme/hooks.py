@@ -21,6 +21,7 @@ app_include_css = [
 app_include_js = [
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/extended_chart.js?ver={time.time()}",
     f"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
     f"/assets/frappe_theme/js/heatmap.js?ver={time.time()}",
     f"/assets/frappe_theme/filters/filter_area.js?ver={time.time()}",
