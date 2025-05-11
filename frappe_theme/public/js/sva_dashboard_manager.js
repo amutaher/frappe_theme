@@ -16,6 +16,7 @@ class SVADashboardManager {
         const config = { ...SVADashboardManager.DEFAULT_OPTIONS, ...options };
         // Core properties
         this.wrapper = wrapper;
+        this.refresh = null;
         this.frm = frm;
         this.numberCards = config.numberCards;
         this.charts = config.charts;
@@ -37,14 +38,13 @@ class SVADashboardManager {
         };
 
         // Bind methods to preserve context
-        this.refresh = this.debounce(this.refresh.bind(this), this.debounceTime);
         this.renderDashboard = this.renderDashboard.bind(this);
 
         // Initialize if components are provided
         if (this.numberCards.length || this.charts.length) {
             this.initializeComponents().catch(this.handleError.bind(this));
         }
-        return this.wrapper;
+        return {wrapper: this.wrapper, ref: this};
     }
 
     // Utility method for debouncing
@@ -86,12 +86,13 @@ class SVADashboardManager {
             if (this.numberCards?.length && !this.frm.is_new()) {
                 initializationPromises.push(
                     frappe.require("sva_card.bundle.js").then(() => {
-                        frappe.sva_card = new frappe.ui.SvaCard({
+                        let cardInstance = new frappe.ui.SvaCard({
                             wrapper: this.containers.cards,
                             frm: this.frm,
                             numberCards: this.numberCards,
                             signal: this.signal
                         });
+                        this.refresh = cardInstance.refresh.bind(cardInstance);
                     })
                 );
             }else if(this.numberCards?.length){
@@ -297,29 +298,6 @@ class SVADashboardManager {
             });
 
         await Promise.all(renderPromises);
-    }
-
-    async refresh(newCards, newCharts) {
-        if (this.isDestroyed) return;
-
-        if (newCards) this.numberCards = newCards;
-        if (newCharts) this.charts = newCharts;
-
-        const updates = [];
-
-        const cardInstance = this.componentInstances.get('cards');
-        if (cardInstance && newCards) {
-            cardInstance.numberCards = newCards;
-            updates.push(cardInstance.make());
-        }
-
-        const chartInstance = this.componentInstances.get('charts');
-        if (chartInstance && newCharts) {
-            chartInstance.charts = newCharts;
-            updates.push(chartInstance.make());
-        }
-
-        await Promise.all(updates);
     }
 
     cleanup() {

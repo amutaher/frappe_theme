@@ -456,6 +456,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 charts: type === 'chart' ? [item] : [],
                 signal
             });
+            if(item.parentfield == "number_cards"){
+                frm.sva_cards[item.number_card] = ref;
+            }
+            if(item.parentfield == "charts"){
+                frm.sva_charts[item.chart] = ref;
+            }
             wrapper._dashboard = _wrapper;
         };
 
@@ -704,7 +710,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         frm.set_df_property(field.html_field, 'options', wrapper);
 
         const instance = new SvaDataTable({
-            label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
+            label: field?.title || frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
             doctype: ["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,
