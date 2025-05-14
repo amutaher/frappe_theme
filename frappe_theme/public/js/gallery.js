@@ -443,6 +443,80 @@ class GalleryComponent {
             </div>
         `;
     }
+    preview_file (frm) {
+        // return console.log(frm)
+        let file_extension = frm?.file_url?.split(".").pop();
+		let show_file = new frappe.ui.Dialog({
+            title: __('Preview File'),
+            size: 'large',
+            fields: [
+                {
+                    fieldtype: 'HTML',
+                    fieldname: 'preview_html',
+                    options: ""
+                }
+            ],
+            primary_action_label: __('Download'),
+            primary_action() {
+                let link = document.createElement('a');
+                link.href = frm.file_url;
+                link.download = frm.file_name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+            secondary_action_label: __('Close'),
+            secondary_action() {
+                show_file.hide();
+            }
+        });
+        let $preview = "";
+        // if(!frappe.utils.is_image_file(frm.file_url)){
+        //     show_file.get_primary_btn().hide();
+        // }
+		if (frappe.utils.is_image_file(frm.file_url)) {
+			$preview = $(`<div class="img_preview position-relative">
+				<img style="width: 100%; max-height:75vh;object-fit: contain;" 
+					class="img-responsive"
+					src="${frappe.utils.escape_html(frm.file_url)}"
+				/>
+			</div>`);
+		} else if (frappe.utils.is_video_file(frm.file_url)) {
+			$preview = $(`<div class="img_preview d-flex justify-content-center">
+				<video style="width:100%" height="320" controls>
+					<source src="${frappe.utils.escape_html(frm.file_url)}">
+					${__("Your browser does not support the video element.")}
+				</video>
+			</div>`);
+		} else if (file_extension === "pdf") {
+			$preview = $(`<div class="img_preview">
+				<object style="background:#323639;" width="100%">
+					<embed
+						style="background:#323639;"
+						width="100%"
+						height="1190"
+						src="${frappe.utils.escape_html(frm.file_url)}" type="application/pdf"
+					>
+				</object>
+			</div>`);
+		} else if (file_extension === "mp3") {
+			$preview = $(`<div class="img_preview d-flex justify-content-center">
+				<audio width="480" height="60" controls>
+					<source src="${frappe.utils.escape_html(frm.file_url)}" type="audio/mpeg">
+					${__("Your browser does not support the audio element.")}
+				</audio >
+			</div>`);
+		}else{
+            $preview = $(`<div class="img_preview d-flex justify-content-center">
+				<p class="text-muted">Preview not available for this file type</p>
+			</div>`);
+        }
+
+		if ($preview) {
+            show_file.show();
+			show_file.get_field("preview_html").$wrapper.html($preview);
+		}
+	}
     convertTofileSize(size) {
         if (size < 1024) {
             return size + ' Bytes';
@@ -497,9 +571,9 @@ class GalleryComponent {
                                             </div>
                                         ` : ''}
                                         <div class="cover-body">
-                                            <a href="javascript:void(0)" onclick="window.open('${file.file_url}', '_blank')" class="view-button">
+                                            <p class="view-button preview-btn" style="cursor: pointer;" data-file='${JSON.stringify(file)}'>
                                                 <i class="fa fa-eye"></i>
-                                            </a>
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -776,6 +850,13 @@ class GalleryComponent {
             }
         });
 
+        $('.preview-btn').off('click').on('click', function() {
+            const fileData = $(this).data('file');
+            if (fileData) {
+                self.preview_file(fileData);
+            }
+        });
+
         $('.edit-btn').off('click').on('click', async function () { // Remove previous handlers
             const fileId = $(this).data('id');
             await self.renderForm('edit', fileId); // Use self here
@@ -889,9 +970,9 @@ class GalleryComponent {
                                     ${frappe.datetime.str_to_user(file.creation)}
                                 </div>
                                 <div class="frappe-list-col frappe-list-col-preview">
-                                    <a href="${file.file_url}" target="_blank" class="btn btn-xs btn-default">
+                                    <p class="preview-btn" style="cursor: pointer;" data-file='${JSON.stringify(file)}'>
                                         <i class="fa fa-eye"></i>
-                                    </a>
+                                    </p>
                                 </div>
                                 ${(canWrite || canDelete) ? `
                                     <div class="frappe-list-col frappe-list-col-actions">
