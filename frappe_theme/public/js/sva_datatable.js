@@ -487,7 +487,7 @@ class SvaDataTable {
                     create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
                     create_button.style = 'width:fit-content;height:fit-content; margin-bottom:10px;';
                     create_button.addEventListener('click', async () => {
-                        if (this.connection?.redirect_to_main_form) {
+                        if ((this.connection?.redirect_to_main_form || this.connection?.connection_type === 'Report')) {
                             let params = {}
                             if (this.connection?.connection_type === 'Referenced') {
                                 params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
@@ -859,6 +859,10 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
+                    if (this.frm && this.frm?.doc?.[f.fieldname]) {
+                        f.default = this.frm?.doc[f.fieldname];
+                        f.read_only = 1;
+                    }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
