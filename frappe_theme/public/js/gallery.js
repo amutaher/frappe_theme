@@ -351,7 +351,26 @@ class GalleryComponent {
                 order_by: 'creation desc',
                 limit: 1000,
             }) || [];
+            const uniqueOwners = [...new Set(this.gallery_files.map(file => file.owner))];
 
+            const { message: ownerNames } = await frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                    doctype: 'User',
+                    filters: { name: ['in', uniqueOwners] },
+                    fields: ['name', 'full_name']
+                }
+            });
+
+            // Create a map of user names to full names
+            const ownerFullNames = {};
+            ownerNames.forEach(user => {
+                ownerFullNames[user.name] = user.full_name;
+            });
+            this.gallery_files = this.gallery_files.map(file => ({
+                ...file,
+                owner_full_name: ownerFullNames[file.owner]
+            }));
             this.updateGallery();
         } catch (error) {
             console.error('Error fetching files:', error);
@@ -424,7 +443,15 @@ class GalleryComponent {
             </div>
         `;
     }
-
+    convertTofileSize(size) {
+        if (size < 1024) {
+            return size + ' Bytes';
+        } else if (size < 1048576) {
+            return (size / 1024).toFixed(2) + ' KB';
+        } else if (size < 1073741824) {
+            return (size / 1048576).toFixed(2) + ' MB';
+        }
+    }
     renderCardView() {
         if (!this.gallery_files.length) {
             return this.renderEmptyState();
@@ -476,8 +503,19 @@ class GalleryComponent {
                                         </div>
                                     </div>
                                 </div>
-                                <div class="file-name">${file.file_name}</div>
-                                <div class="file-date">${frappe.datetime.str_to_user(file.creation)}</div>
+                                <div class="file-name" style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;" title="${file.file_name}">${file.file_name}</div>
+                                <div class="d-flex justify-content-between">
+                                    <div class="file-date">${frappe.datetime.str_to_user(file.creation)?.split(' ')[0]}</div>
+                                    <div class="file-date">
+                                        ${this.convertTofileSize(file.file_size)}
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div class="file-date" style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;"
+                                        title="by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}">
+                                        by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
