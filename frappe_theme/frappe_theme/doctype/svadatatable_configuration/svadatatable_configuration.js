@@ -1,6 +1,18 @@
 // Copyright (c) 2024, Suvaidyam and contributors
 // For license information, please see license.txt
-
+const filter_html_fields = (frm)=>{
+    let filter_html_fields = []
+        if(frm.doc.child_doctypes.length > 0){
+            filter_html_fields = frm.doc.child_doctypes.filter(d => d && d.html_field).map(d => d.html_field);
+        }
+        if(frm.doc.number_cards.length > 0){
+            filter_html_fields = filter_html_fields.concat(frm.doc.number_cards.filter(d => d && d.html_field).map(d=>d.html_field));
+        }
+        if(frm.doc.charts.length > 0){
+            filter_html_fields = filter_html_fields.concat(frm.doc.charts.filter(d => d && d.html_field).map(d=>d.html_field));
+        }
+        return filter_html_fields;
+};
 frappe.ui.form.on("SVADatatable Configuration", {
     refresh: function(frm) {
         frm.set_query('parent_doctype', function() {
@@ -187,7 +199,11 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     connection_type: async function (frm, cdt, cdn) {
@@ -357,9 +373,9 @@ frappe.ui.form.on("SVADatatable Child Conf", {
                 }
             }
         }
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let options = html_fields.map(function (d) { return d.fieldname });
-        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+        // let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        // let options = html_fields.map(function (d) { return d.fieldname });
+        // frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     parent_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
@@ -551,7 +567,11 @@ frappe.ui.form.on('Number Card Child', {
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     cards_add: function (frm, cdt, cdn) {
@@ -584,7 +604,11 @@ frappe.ui.form.on('Dashboard Chart Child', {
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     charts_add: function (frm, cdt, cdn) {
