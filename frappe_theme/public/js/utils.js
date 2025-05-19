@@ -97,12 +97,14 @@ function showFieldError({ context, fieldname, message, color = 'red' }) {
     if (isDialog && context?.show_message) {
         context.show_message('');
         context.show_message(__(message), color);
+        return;
     } else if (isForm) {
         frappe.msgprint({
             message: __(message),
             indicator: color,
             title: __('Validation Error'),
         });
+        return;
     }
 }
 
