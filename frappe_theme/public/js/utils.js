@@ -90,7 +90,7 @@ function showFieldError({ context, fieldname, message, color = 'red' }) {
     // Select input element using fieldname
     const input = document.querySelector(`div[data-fieldname="${fieldname}"] input`);
     if (input) {
-        input.style.border = "1px solid red";
+        input.style.border = `1px solid ${color}`;
     }
 
     // Show error message
