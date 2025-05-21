@@ -45,20 +45,24 @@ def get_meta_fields(doctype):
     return fields_dict
 
 @frappe.whitelist()
-def get_permissions(doctype):
+def get_permissions(doctype,_type='Direct'):
     permissions = []
-    if frappe.has_permission(doctype,'read'):
-        permissions.append('read')
-    if frappe.has_permission(doctype,'write'):
-        permissions.append('write')
-    if frappe.has_permission(doctype,'create'):
-        permissions.append('create')
-    if frappe.has_permission(doctype,'delete'):
-        permissions.append('delete')
-    if frappe.has_permission(doctype,'submit'):
-        permissions.append('submit')
-    if frappe.has_permission(doctype,'cancel'):
-        permissions.append('cancel')
+    if _type == 'Report':
+        re_prms = frappe.db.get_value('SVADatatable Configuration Child',{'link_report':doctype},['crud_permissions'])
+        permissions = re_prms
+    else:
+        if frappe.has_permission(doctype,'read'):
+            permissions.append('read')
+        if frappe.has_permission(doctype,'write'):
+            permissions.append('write')
+        if frappe.has_permission(doctype,'create'):
+            permissions.append('create')
+        if frappe.has_permission(doctype,'delete'):
+            permissions.append('delete')
+        if frappe.has_permission(doctype,'submit'):
+            permissions.append('submit')
+        if frappe.has_permission(doctype,'cancel'):
+            permissions.append('cancel')
     return permissions
 
 @frappe.whitelist() 

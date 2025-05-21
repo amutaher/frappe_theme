@@ -90,9 +90,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             // frm.page.hide_icon_group('print')
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
-                const exists = await sva_db.exists("SVADatatable Configuration", frm.doc.doctype)
-                if (!exists) return;
-                this.dts = await sva_db.get_doc('SVADatatable Configuration', frm.doc.doctype);
+                const { message } = await sva_db.call({ method: 'frappe_theme.dt_api.get_sva_dt_settings', doctype: frm.doc.doctype });
+                if (!message) return;
+                this.dts = message;
                 window.sva_datatable_configuration = {
                     [frm.doc.doctype]: this.dts
                 };
@@ -456,6 +456,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 charts: type === 'chart' ? [item] : [],
                 signal
             });
+            if(item.parentfield == "number_cards"){
+                frm.sva_cards[item.number_card] = ref;
+            }
+            if(item.parentfield == "charts"){
+                frm.sva_charts[item.chart] = ref;
+            }
             wrapper._dashboard = _wrapper;
         };
 
@@ -474,7 +480,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             try {
                 if (signal.aborted) break;
 
-                if (frm.doc.__islocal) {
+                if (frm.is_new()) {
                     await this.renderLocalFormMessage(field, frm);
                 } else {
                     await this.renderSavedFormContent(field, frm, dts, signal);
@@ -492,11 +498,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             const message = __(
                 `Save ${__(frm.doctype)} to add ${__(field?.connection_type === "Is Custom Design" ?
                     field?.template :
-                    (field.connection_type === "Direct" ? field.link_doctype : field.referenced_link_doctype))} items`
+                    (["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype))} items`
             );
             element.innerHTML = `
-                <div id="form-not-saved" class="flex flex-col items-center justify-center gap-3 p-3 border border-gray-600 rounded my-3">
-                    <img width='50px' src='/assets/frappe_theme/images/form-not-saved.png' alt="Not Saved"/>
+                <div style="height: 150px; gap: 10px;" id="form-not-saved" class="d-flex flex-column justify-content-center align-items-center p-3 card rounded my-3">
+                    <svg class="icon icon-xl" style="stroke: var(--text-light);">
+					    <use href="#icon-small-file"></use>
+				    </svg>
                     ${message}
                 </div>`;
         }
@@ -702,7 +710,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         frm.set_df_property(field.html_field, 'options', wrapper);
 
         const instance = new SvaDataTable({
-            label: frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
+            label: field?.title || frm.meta?.fields?.find(f => f.fieldname === field.html_field)?.label,
             wrapper,
             doctype: ["Direct", "Unfiltered","Indirect"].includes(field.connection_type) ? field.link_doctype : field.referenced_link_doctype,
             frm,

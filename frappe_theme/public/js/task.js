@@ -23,7 +23,7 @@ class mGrantTask {
         return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
-                args: { doctype: "ToDo" },
+                args: { doctype: "ToDo", _type: "Task" },
                 callback: function (response) {
                     rslv(response.message)
                 },
@@ -73,7 +73,7 @@ class mGrantTask {
                         color: 'grey'
                     },
                     {
-                        name: 'Todo',
+                        name: 'To Do',
                         color: 'grey'
                     },
                     {
@@ -147,10 +147,10 @@ class mGrantTask {
         let el = document.createElement('div');
         el.style = 'overflow-y:auto;'
         el.className = 'form-grid-container form-grid';
-        
+
         // Only show checkbox column if user has write or delete permissions
         const showActions = this.permissions.includes('write') || this.permissions.includes('delete');
-        
+
         el.innerHTML = `
             <table style="margin: 0px !important;" class="table table-bordered">
                 <thead style="font-size: 12px;">
@@ -173,15 +173,15 @@ class mGrantTask {
                 </thead>
                 <tbody style="background-color: #fff; font-size: 12px;">
                     ${this.task_list.length === 0
-                        ? `<tr><td colspan="${showActions ? '9' : '8'}" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8;">
+                ? `<tr><td colspan="${showActions ? '9' : '8'}" style="height:92px; text-align: center; font-size: 14px; color: #6c757d; background-color: #F8F8F8;">
                             <div class="d-flex align-items-center" style="height: 100%; flex-direction: column; gap: 22px">
                                 <svg class="icon icon-xl" style="stroke: var(--text-light);">
                                     <use href="#icon-small-file"></use>
                                 </svg>
-                                <p class="text-muted">You haven't created a Recored yet</p>
+                                <p class="text-muted">You haven't created a Record yet</p>
                             </div>
                         </td></tr>`
-                        : this.task_list.map(task => `
+                : this.task_list.map(task => `
                             <tr class="grid-row">
                                 ${showActions ? `
                                     <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff;">
@@ -207,7 +207,7 @@ class mGrantTask {
                                                 </span>
                                                 <div class="dropdown-menu" aria-labelledby="dropStatus-${task.name}">
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Backlog">Backlog</a>
-                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Todo">Todo</a>
+                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="To Do">To Do</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Cancelled">Cancelled</a>
@@ -337,7 +337,7 @@ class mGrantTask {
             <svg class="icon icon-xl" style="stroke: var(--text-light);">
                 <use href="#icon-small-file"></use>
             </svg>
-            <p class="text-muted">You haven't created a Recored yet</p>
+            <p class="text-muted">You haven't created a Record yet</p>
         `
         return el;
     }
@@ -345,13 +345,13 @@ class mGrantTask {
         try {
             // Get permissions first
             this.permissions = await this.getPermissions();
-            
+
             // If no read permission, show message and return early
             if (!this.permissions.includes('read')) {
                 if (document.getElementById('task-list')) {
                     document.getElementById('task-list').remove();
                 }
-                
+
                 let task_container = document.createElement('div');
                 task_container.classList.add('task-list');
                 task_container.id = 'task-list';
@@ -525,9 +525,9 @@ class mGrantTask {
 
         } catch (error) {
             console.error('Error in show_task:', error);
-            frappe.show_alert({ 
-                message: __('Error loading tasks. Please check your permissions.'), 
-                indicator: 'red' 
+            frappe.show_alert({
+                message: __('Error loading tasks. Please check your permissions.'),
+                indicator: 'red'
             });
         }
     }

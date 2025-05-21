@@ -1,0 +1,11 @@
+{
+  "name": "frappe_theme",
+  "version": "1.0.0",
+  "description": "A custom app to customize color theme of frappe desk and web along with adding custom element inside the forms and workspaces",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "cd frappe_theme && yarn install"
+  },
+  "author": "Suvaidyam",
+  "license": "ISC"
+}
