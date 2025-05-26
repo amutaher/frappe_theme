@@ -11,7 +11,8 @@
         "field_label",
         "comment",
         "user",
-        "creation_date"
+        "creation_date",
+        "reply_to"
     ],
     "fields": [
         {
@@ -61,10 +62,17 @@
             "fieldtype": "Datetime",
             "label": "Creation Date",
             "read_only": 1
+        },
+        {
+            "fieldname": "reply_to",
+            "fieldtype": "Link",
+            "label": "Reply To",
+            "options": "DocType Field Comment",
+            "description": "Reference to the comment being replied to"
         }
     ],
     "links": [],
-    "modified": "2025-05-21 17:31:15.412632",
+    "modified": "2025-05-23 10:08:45.337298",
     "modified_by": "Administrator",
     "module": "Frappe Theme",
     "name": "DocType Field Comment",
@@ -79,6 +87,18 @@
             "read": 1,
             "report": 1,
             "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Guest",
             "share": 1,
             "write": 1
         }
