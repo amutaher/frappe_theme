@@ -18,7 +18,6 @@ def validate(self,method):
             "dn_reference_field":"related_to"
         }
     }
-    frappe.set_user('Administrator')
     if self.ref_doctype in template_dt:
         dt = template_dt[self.ref_doctype]
         curr_doc = frappe.get_doc(self.ref_doctype, self.docname)
@@ -47,4 +46,3 @@ def validate(self,method):
                         self.custom_actual_document_name = self.docname
                         self.ref_doctype = dt.parent
                         self.docname = curr_doc.get(dt.link_fieldname)
-    frappe.set_user(frappe.session.user)
