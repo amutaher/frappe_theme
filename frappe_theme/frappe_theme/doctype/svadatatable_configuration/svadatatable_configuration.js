@@ -201,7 +201,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
         }
         let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
-        if(filter_fields.length > 0){
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
             options = options.filter(d=>!filter_fields.includes(d));
         }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
@@ -562,6 +565,7 @@ frappe.ui.form.on("SVADatatable Action Conf", {
 
 frappe.ui.form.on('Number Card Child', {
     async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
@@ -569,7 +573,10 @@ frappe.ui.form.on('Number Card Child', {
         }
         let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
-        if(filter_fields.length > 0){
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
             options = options.filter(d=>!filter_fields.includes(d));
         }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
@@ -599,6 +606,7 @@ frappe.ui.form.on('Number Card Child', {
 // Dashboard Chart Child table handling
 frappe.ui.form.on('Dashboard Chart Child', {
     async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
@@ -606,7 +614,10 @@ frappe.ui.form.on('Dashboard Chart Child', {
         }
         let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
-        if(filter_fields.length > 0){
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
             options = options.filter(d=>!filter_fields.includes(d));
         }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
