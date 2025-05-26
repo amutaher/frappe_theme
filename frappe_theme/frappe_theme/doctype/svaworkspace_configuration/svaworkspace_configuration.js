@@ -9,13 +9,17 @@ frappe.ui.form.on("SVAWorkspace Configuration", {
 });
 const set_list_settings = async (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
-    let dtmeta = await frappe.call({
-        method: 'frappe_theme.api.get_meta',
-        args: { doctype: ["Direct", "Unfiltered"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype }
+    let dtmeta = await frappe.call({ 
+        method: 'frappe_theme.dt_api.get_meta_fields', 
+        args: { 
+            doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
+            _type: row.connection_type
+        }
     });
     new ListSettings({
-        doctype: ["Direct", "Unfiltered"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype,
+        doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
         meta: dtmeta.message,
+        connection_type: row.connection_type,
         settings: row,
         dialog_primary_action: async (listview_settings) => {
             frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_settings));
@@ -67,6 +71,7 @@ frappe.ui.form.on('SVAWorkspace DT Child',{
     },
     form_render:async (frm, cdt, cdn) => {
         let workspace = frm.doc.workspace;
+        let row = locals[cdt][cdn];
         if(workspace){
             let res = await frappe.call('frappe_theme.wp_api.get_html_blocks',{workspace: workspace});
             frm.cur_grid.grid_form.fields_dict.custom_html_block.get_query = () => {
@@ -75,6 +80,15 @@ frappe.ui.form.on('SVAWorkspace DT Child',{
                     limit_page_length: 100
                 }
             }
+        }
+        if (row.connection_type === 'Report'){
+            frm.cur_grid.grid_form.fields_dict.link_report.get_query = () => {
+                return {
+                    filters: { 'report_type': ['=', 'Query Report'] },
+                    limit_page_length: 10000
+                }
+            }
+            // let reports = await frappe.call('frappe_theme.dt_api.link_report_list', { doctype: frm.doc.parent_doctype });
         }
     }
 })

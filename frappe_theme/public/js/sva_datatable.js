@@ -859,10 +859,10 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if (this.frm && this.frm?.doc?.[f.fieldname]) {
-                        f.default = this.frm?.doc[f.fieldname];
-                        f.read_only = 1;
-                    }
+                    // if (this.frm && this.frm?.doc?.[f.fieldname]) {
+                    //     f.default = this.frm?.doc[f.fieldname];
+                    //     f.read_only = 1;
+                    // }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
@@ -1921,6 +1921,18 @@ class SvaDataTable {
                 }
                 return;
             }
+            if (['Percent'].includes(columnField.fieldtype)) {
+                td.innerText = `${row[column.fieldname].toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                }) || 0 }%`;
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                } else {
+                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                }
+                return;
+            }
             if (['Date'].includes(columnField.fieldtype)) {
                 td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
                 if (col?.width) {
@@ -2009,7 +2021,8 @@ class SvaDataTable {
                 doc: this.frm?.doc?.name,
                 ref_doctype: this.frm?.doc?.doctype,
                 filters: [...filters, ...this.additional_list_filters],
-                _type: this.connection.connection_type
+                _type: this.connection.connection_type,
+                unfiltered: this.connection?.unfiltered
             });
             if(message){
                 this.total = message;
@@ -2038,7 +2051,8 @@ class SvaDataTable {
                 limit_page_length: this.limit,
                 order_by: `${this.sort_by} ${this.sort_order}`,
                 limit_start: this.page > 0 ? ((this.page - 1) * this.limit) : 0,
-                _type: this.connection.connection_type
+                _type: this.connection.connection_type,
+                unfiltered: this.connection?.unfiltered,
             });
             return res.message;
         } catch (error) {
