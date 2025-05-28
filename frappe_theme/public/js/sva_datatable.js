@@ -859,10 +859,10 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    if (this.frm && this.frm?.doc?.[f.fieldname]) {
-                        f.default = this.frm?.doc[f.fieldname];
-                        f.read_only = 1;
-                    }
+                    // if (this.frm && this.frm?.doc?.[f.fieldname]) {
+                    //     f.default = this.frm?.doc[f.fieldname];
+                    //     f.read_only = 1;
+                    // }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
