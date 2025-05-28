@@ -60,13 +60,13 @@ def get_meta_fields(doctype,_type="Direct"):
     return DTConf.get_meta_fields(doctype,_type)
 
 @frappe.whitelist()
-def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List"):
-    return DTConf.get_dt_list(doctype,doc,ref_doctype, filters, fields, limit_page_length, order_by, limit_start, _type)
+def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List",unfiltered=0):
+    return DTConf.get_dt_list(doctype,doc,ref_doctype, filters, fields, limit_page_length, order_by, limit_start, _type,unfiltered)
     
 @frappe.whitelist()
 def get_report_filters(doctype):
     return DTConf.get_report_filters(doctype)
 
 @frappe.whitelist()
-def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List"):
-    return DTConf.get_dt_count(doctype,doc,ref_doctype, filters, _type)
+def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List",unfiltered=0):
+    return DTConf.get_dt_count(doctype,doc,ref_doctype, filters, _type,unfiltered)

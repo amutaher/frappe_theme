@@ -1,4 +1,7 @@
 import frappe
+import json
+from frappe import _
+
 class Chart():
     def chart_settings(settings):
         visible_charts = [chart for chart in settings.charts if chart.is_visible]
