@@ -1829,16 +1829,16 @@ class SvaDataTable {
         };
         if (column.fieldtype === 'Link') {
             if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
-                td.innerText = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                td.innerHTML = `<span>${frappe.utils.get_link_title(column.options, row[column.fieldname])}</span>`;
                 td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
             } else {
                 try {
                     frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
-                        td.innerText = res || "";
+                        td.innerHTML = `<span>${res || ""}</span>`;
                         td.title = res || "";
                     })
                 } catch (error) {
-                    td.innerText = row[column.fieldname] || "";
+                    td.innerHTML = `<span>${row[column.fieldname] || ""}</span>`;
                     td.title = row[column.fieldname] || "";
                 }
             }
@@ -1847,6 +1847,7 @@ class SvaDataTable {
             } else {
                 $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
+            this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1886,13 +1887,14 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
+                    td.innerHTML = `<span>${formatCurrency(row[column.fieldname], frappe.sys_defaults.currency)}</span>`;
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     } else {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
+                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
@@ -1919,16 +1921,17 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    td.innerText = row[column.fieldname].toLocaleString('en-US', {
+                    td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 2,
-                    }) || 0;
+                    }) || 0}</span>`;
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     } else {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
+                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
@@ -1936,16 +1939,17 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    td.innerText = `${row[column.fieldname].toLocaleString('en-US', {
+                    td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 2,
-                    }) || 0}%`;
+                    }) || 0}%</span>`;
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     } else {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
+                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
@@ -1953,13 +1957,14 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
+                    td.innerHTML = `<span>${row[column.fieldname] ? formaDate(row[column.fieldname]) : ''}</span>`;
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                     } else {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                     }
                 }
+                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
                 return;
             }
             if (columnField.fieldname == 'name') {
@@ -1993,20 +1998,30 @@ class SvaDataTable {
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
+                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
                 return;
             }
             if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                 td.innerHTML = formatter(row[column.fieldname], column, row);
             } else {
-                td.textContent = row[column.fieldname] || "";
+                td.innerHTML = `<span>${row[column.fieldname]}</span>`;
                 if (col?.width) {
                     $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
+            this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
             td.title = row[column.fieldname] || "";
+        }
+    }
+    bindColumnEvents(element,value,column, row) {
+        if(this.frm.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]){
+            let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
+            for(let event in events){
+                element.addEventListener(event, () => events[event](element,value,column, row));
+            }
         }
     }
     async getDocList() {
