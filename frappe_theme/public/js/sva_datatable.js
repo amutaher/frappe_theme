@@ -1990,17 +1990,23 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
+                btn.classList.add('btn', 'btn-secondary', 'btn-xs');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
-                td.appendChild(btn)
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
-                } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    let formattedElement = formatter(btn, column, row);
+                    td.appendChild(formattedElement);
+                }else{
+                    td.appendChild(btn)
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                    }
                 }
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
