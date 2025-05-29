@@ -80,3 +80,44 @@ function getDistrictRoute(state_name){
 frappe.utils.format_currency = formatCurrencyWithSuffix;
 frappe.utils.custom_eval = custom_eval;
 frappe.utils.get_district_json_route = getDistrictRoute;
+
+
+function showFieldError({ context, fieldname, message, color = 'red' }) {
+    // Determine if it's a dialog or form
+    const isDialog = context?.$wrapper && context.get_value;
+    const isForm = context?.fields_dict && context.doc;
+
+    // Select input element using fieldname
+    const input = document.querySelector(`div[data-fieldname="${fieldname}"] input`);
+    if (input) {
+        input.style.border = `1px solid ${color}`;
+    }
+
+    // Show error message
+    if (isDialog && context?.show_message) {
+        context.show_message('');
+        context.show_message(__(message), color);
+        return;
+    } else if (isForm) {
+        frappe.msgprint({
+            message: __(message),
+            indicator: color,
+            title: __('Validation Error'),
+        });
+        return;
+    }
+}
+
+function hideFieldError({ context, fieldname }) {
+    const isDialog = context?.$wrapper && context.get_value;
+    const input = document.querySelector(`div[data-fieldname="${fieldname}"] input`);
+    if (input) {
+        input.style.border = "none";
+    }
+    if (isDialog && context.show_message) {
+        context.show_message('');
+    }
+}
+
+frappe.utils.showFieldError = showFieldError;
+frappe.utils.hideFieldError = hideFieldError;

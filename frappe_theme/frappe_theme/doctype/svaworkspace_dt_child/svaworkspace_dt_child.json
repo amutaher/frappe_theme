@@ -9,6 +9,7 @@
   "connection_type",
   "title",
   "link_doctype",
+  "link_report",
   "template",
   "action_label",
   "extend_condition",
@@ -21,13 +22,11 @@
  ],
  "fields": [
   {
-   "default": "Unfiltered",
    "fieldname": "connection_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Connection Type",
-   "options": "Unfiltered\nIs Custom Design",
-   "read_only": 1,
+   "options": "\nUnfiltered\nReport",
    "reqd": 1
   },
   {
@@ -37,7 +36,7 @@
    "label": "Title"
   },
   {
-   "depends_on": "eval:[\"Direct\",\"Unfiltered\"].includes(doc.connection_type)",
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
    "fieldname": "link_doctype",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -55,6 +54,7 @@
   },
   {
    "default": "Approval",
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
    "fieldname": "action_label",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -62,6 +62,7 @@
   },
   {
    "default": "0",
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
    "fieldname": "extend_condition",
    "fieldtype": "Check",
    "label": "Extend Condition"
@@ -115,12 +116,21 @@
    "label": "Custom HTML Block",
    "options": "Custom HTML Block",
    "reqd": 1
+  },
+  {
+   "depends_on": "eval:[\"Report\"].includes(doc.connection_type)",
+   "fieldname": "link_report",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Link Report",
+   "mandatory_depends_on": "eval:[\"Report\"].includes(doc.connection_type)",
+   "options": "Report"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-04-02 20:25:19.350253",
+ "modified": "2025-05-20 12:21:56.991243",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVAWorkspace DT Child",
