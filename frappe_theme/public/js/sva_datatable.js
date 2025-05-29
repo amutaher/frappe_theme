@@ -122,7 +122,7 @@ class SvaDataTable {
                 }
                 // ================================ Workflow End ================================
                 if (this.permissions.length && this.permissions.includes('read')) {
-                    let columns = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype|| this.link_report, _type: this.connection.connection_type });
+                    let columns = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype || this.link_report, _type: this.connection.connection_type });
                     if (this.header.length) {
                         this.columns = [];
                         let ft = {
@@ -280,7 +280,7 @@ class SvaDataTable {
         `;
         let refresh_button = document.createElement('button');
         refresh_button.id = 'refresh_button';
-        refresh_button.classList.add('text-muted', 'btn', 'btn-default','icon-btn');
+        refresh_button.classList.add('text-muted', 'btn', 'btn-default', 'icon-btn');
         refresh_button.innerHTML = `
             <svg class="es-icon es-line  icon-sm" style="" aria-hidden="true">
                 <use class="" href="#es-line-reload"></use>
@@ -294,13 +294,13 @@ class SvaDataTable {
         }
         let report_filters = [];
         if (this.connection.connection_type == 'Report') {
-            let {message} = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_report_filters', doctype: this.link_report })
+            let { message } = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_report_filters', doctype: this.link_report })
             report_filters = message;
         }
         new CustomFilterArea({
             wrapper: list_filter,
             doctype: this.doctype || this.link_report,
-            dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? {...this,columns:this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters} :this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) :this.header.map(field => field.fieldname)  },
+            dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? { ...this, columns: this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters } : this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) : this.header.map(field => field.fieldname) },
             on_change: (filters) => {
                 if (filters.length == 0) {
                     if (this.additional_list_filters.length) {
@@ -317,20 +317,20 @@ class SvaDataTable {
             this.sort_selector = new SVASortSelector({
                 parent: $(list_filter),
                 doctype: this.doctype,
-            sorting_fields: this.header,
-            args: {
-                sort_by: this.sort_by,
-                sort_order: this.sort_order,
-            },
-            onchange: (sort_by, sort_order) => {
-                if (this.sort_by != sort_by || this.sort_order != sort_order) {
-                    this.sort_by = sort_by || "modified";
-                    this.sort_order = sort_order || "desc";
-                    this.reloadTable(true);
-                }
+                sorting_fields: this.header,
+                args: {
+                    sort_by: this.sort_by,
+                    sort_order: this.sort_order,
+                },
+                onchange: (sort_by, sort_order) => {
+                    if (this.sort_by != sort_by || this.sort_order != sort_order) {
+                        this.sort_by = sort_by || "modified";
+                        this.sort_order = sort_order || "desc";
+                        this.reloadTable(true);
+                    }
 
-            },
-        });
+                },
+            });
         }
         let options_wrapper = document.createElement('div');
 
@@ -372,7 +372,7 @@ class SvaDataTable {
         return list_view_settings;
     }
     async setupListviewSettings() {
-        let dtmeta = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype|| this.link_report, _type: this.connection.connection_type });
+        let dtmeta = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype || this.link_report, _type: this.connection.connection_type });
         new ListSettings({
             doctype: this.doctype || this.link_report,
             meta: dtmeta.message,
@@ -410,7 +410,7 @@ class SvaDataTable {
                     frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
                 } catch (error) {
                     console.error('Error in setupListviewSettings', error);
-                }finally{
+                } finally {
                     this.header = listview_settings;
                     if (window.sva_datatable_configuration?.[this.connection.parent]) {
                         let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
@@ -701,7 +701,7 @@ class SvaDataTable {
         return new Promise((rslv, rjct) => {
             frappe.call({
                 method: 'frappe_theme.api.get_permissions',
-                args: { doctype: doctype,_type: this.connection.connection_type },
+                args: { doctype: doctype, _type: this.connection.connection_type },
                 callback: function (response) {
                     rslv(response.message)
                 },
@@ -983,7 +983,7 @@ class SvaDataTable {
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
-                    f.fields = tableFields.map((f) => {return {...f, read_only: 1}});
+                    f.fields = tableFields.map((f) => { return { ...f, read_only: 1 } });
                     f.cannot_add_rows = 1;
                     f.cannot_delete_rows = 1;
                     if (doc[f.fieldname].length) {
@@ -1252,10 +1252,10 @@ class SvaDataTable {
 
         // ========================= Action Column ======================
         // if (((this.frm?.doc.docstatus == 0 && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write')))) || this.childLinks?.length) {
-            const action_th = document.createElement('th');
-            action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
-            action_th.appendChild(this.createSettingsButton());
-            tr.appendChild(action_th);
+        const action_th = document.createElement('th');
+        action_th.style = 'width:5px; text-align:center;position:sticky;right:0px;background-color:#F3F3F3;';
+        action_th.appendChild(this.createSettingsButton());
+        tr.appendChild(action_th);
         // }
         // ========================= Action Column End ======================
         thead.appendChild(tr);
@@ -1288,7 +1288,7 @@ class SvaDataTable {
         if (this.connection.connection_type != 'Report') {
             dropdownBtn.style.cursor = 'pointer';
             dropdownBtn.setAttribute('data-toggle', 'dropdown');
-        }else{
+        } else {
             dropdownBtn.style.cursor = 'not-allowed';
             dropdownBtn.setAttribute('disabled', 'disabled');
             dropdownBtn.setAttribute('title', 'This action is not allowed for reports');
@@ -1445,7 +1445,7 @@ class SvaDataTable {
 
                     serialTd.innerHTML = `<p style="cursor: pointer; text-decoration:underline;">${serialNumber}</p>`;
                     serialTd.querySelector('p').addEventListener('click', () => {
-                    let route = frappe.get_route();
+                        let route = frappe.get_route();
                         frappe.set_route('Form', this.connection.connection_type == 'Report' ? this.connection.report_ref_dt : this.doctype, row.name).then(() => {
                             cur_frm.add_custom_button('Back', () => {
                                 frappe.set_route(route);
@@ -1554,7 +1554,7 @@ class SvaDataTable {
                     actionTd.style.right = '0px';
                     actionTd.style.backgroundColor = '#fff';
                     actionTd.appendChild(this.createActionColumn(row, primaryKey));
-                    
+
                     tr.appendChild(actionTd);
                 }
 
@@ -1829,16 +1829,16 @@ class SvaDataTable {
         };
         if (column.fieldtype === 'Link') {
             if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
-                td.innerText = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                td.innerHTML = `<span>${frappe.utils.get_link_title(column.options, row[column.fieldname])}</span>`;
                 td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
             } else {
                 try {
                     frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
-                        td.innerText = res || "";
+                        td.innerHTML = `<span>${res || ""}</span>`;
                         td.title = res || "";
                     })
                 } catch (error) {
-                    td.innerText = row[column.fieldname] || "";
+                    td.innerHTML = `<span>${row[column.fieldname] || ""}</span>`;
                     td.title = row[column.fieldname] || "";
                 }
             }
@@ -1847,6 +1847,7 @@ class SvaDataTable {
             } else {
                 $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
+            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1882,12 +1883,18 @@ class SvaDataTable {
                 }
             }
             if (columnField.fieldtype === 'Currency') {
-                td.innerHTML = formatCurrency(row[column.fieldname], frappe.sys_defaults.currency);
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    td.innerHTML = `<span>${formatCurrency(row[column.fieldname], frappe.sys_defaults.currency)}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    }
                 }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
@@ -1910,36 +1917,54 @@ class SvaDataTable {
                 }
             }
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
-                td.innerText = row[column.fieldname].toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2,
-                }) || 0;
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                    }) || 0}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    }
                 }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
-                td.innerText = `${row[column.fieldname].toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2,
-                }) || 0 }%`;
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                    }) || 0}%</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    }
                 }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
-                td.innerText = row[column.fieldname] ? formaDate(row[column.fieldname]) : '';
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                    td.innerHTML = `<span>${row[column.fieldname] ? formaDate(row[column.fieldname]) : ''}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                    }
                 }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldname == 'name') {
@@ -1973,15 +1998,30 @@ class SvaDataTable {
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
-            td.textContent = row[column.fieldname] || "";
-            if (col?.width) {
-                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+            if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                td.innerHTML = formatter(row[column.fieldname], column, row);
             } else {
-                $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                } else {
+                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                }
             }
+            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
             td.title = row[column.fieldname] || "";
+        }
+    }
+    bindColumnEvents(element, value, column, row) {
+        if (this.frm.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
+            let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
+            for (let event in events) {
+                element.addEventListener(event, () => events[event](element, value, column, row));
+            }
         }
     }
     async getDocList() {
@@ -2013,9 +2053,9 @@ class SvaDataTable {
             } else if (this.connection.link_fieldname) {
                 filters.push([this.doctype, this.connection.link_fieldname, '=', this.frm?.doc.name]);
             }
-           
+
             // this.total = await frappe.db.count(this.doctype, { filters: [...filters, ...this.additional_list_filters] });
-            let {message} = await this.sva_db.call({
+            let { message } = await this.sva_db.call({
                 method: "frappe_theme.dt_api.get_dt_count",
                 doctype: this.doctype || this.link_report,
                 doc: this.frm?.doc?.name,
@@ -2024,7 +2064,7 @@ class SvaDataTable {
                 _type: this.connection.connection_type,
                 unfiltered: this.connection?.unfiltered
             });
-            if(message){
+            if (message) {
                 this.total = message;
             }
             // Update pagination after getting total count
