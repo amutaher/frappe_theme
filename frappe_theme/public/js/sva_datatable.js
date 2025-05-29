@@ -1883,7 +1883,7 @@ class SvaDataTable {
                 }
             }
             if (columnField.fieldtype === 'Currency') {
-                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
@@ -1917,7 +1917,7 @@ class SvaDataTable {
                 }
             }
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
-                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
@@ -1935,7 +1935,7 @@ class SvaDataTable {
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
-                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
@@ -1953,7 +1953,7 @@ class SvaDataTable {
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
-                if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     td.innerHTML = formatter(row[column.fieldname], column, row);
                 } else {
@@ -2001,7 +2001,7 @@ class SvaDataTable {
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
-            if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+            if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                 td.innerHTML = formatter(row[column.fieldname], column, row);
             } else {
@@ -2017,7 +2017,7 @@ class SvaDataTable {
         }
     }
     bindColumnEvents(element, value, column, row) {
-        if (this.frm.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
+        if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
                 element.addEventListener(event, () => events[event](element, value, column, row));
