@@ -56,7 +56,7 @@ frappe.ui.form.on('*', {
             if (!frm.page.sidebar.find('.field-comments-btn').length) {
                 // Create comment popup/sidebar
                 const comment_sidebar = $(`
-                    <div class="field-comments-sidebar" style="display: none; position: fixed; right: 0; top: 0; width: 400px; height: 100vh; background: var(--fg-color); box-shadow: -2px 0 15px rgba(0,0,0,0.1); z-index: 9999;">
+                    <div class="field-comments-sidebar" style="display: none; position: fixed; right: -400px; top: 0; width: 400px; height: 100vh; background: var(--fg-color); box-shadow: -2px 0 15px rgba(0,0,0,0.1); z-index: 9999; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
                         <div style="padding: 15px; border-bottom: 1px solid var(--border-color);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <h5 style="margin: 0; font-size: 18px; font-weight: 600;">Field Comments</h5>
@@ -85,13 +85,17 @@ frappe.ui.form.on('*', {
 
                 // Add custom button to form
                 frm.add_custom_button(__('Field Comments'), function () {
+                    comment_sidebar.css('right', '0');
                     comment_sidebar.show();
                     load_all_comments();
                 });
 
                 // Handle close button click
                 comment_sidebar.find('.close-comments').click(() => {
-                    comment_sidebar.hide();
+                    comment_sidebar.css('right', '-400px');
+                    setTimeout(() => {
+                        comment_sidebar.hide();
+                    }, 400);
                 });
 
                 // Handle refresh button click
