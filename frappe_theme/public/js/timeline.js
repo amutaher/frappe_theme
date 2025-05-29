@@ -452,11 +452,11 @@ class TimelineGenerator {
         const days = Math.floor(hours / 24);
 
         if (minutes < 60) {
-            return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+            return `${minutes} ${minutes > 1 ? __('minutes') : __('minute')} ${__('ago')}`;
         } else if (hours < 24) {
-            return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+            return `${hours} ${hours > 1 ? __('hours') : __('hour')} ${__('ago')}`;
         } else if (days < 30) {
-            return `${days} day${days !== 1 ? 's' : ''} ago`;
+            return `${days} ${days > 1 ? __('days') : __('day')} ${__('ago')}`;
         } else {
             return '';
         }
@@ -601,7 +601,7 @@ class TimelineGenerator {
                                 <a href="#" class="timeline-link"
                                 style="display: ${(item.custom_actual_doctype || item.ref_doctype) === this.frm.doc.doctype ? 'none' : 'block'};"
                                 >
-                                    ${item.custom_actual_doctype || item.ref_doctype} - 
+                                    ${__(item.custom_actual_doctype || item.ref_doctype)} - 
                                     ${item.custom_actual_document_name || item.docname}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M7 17L17 7M17 7H7M17 7V17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
