@@ -85,8 +85,10 @@ frappe.ui.form.on('*', {
 
                 // Add custom button to form
                 frm.add_custom_button(__('Field Comments'), function () {
-                    comment_sidebar.css('right', '0');
                     comment_sidebar.show();
+                    // Force a reflow to ensure the transition works
+                    comment_sidebar[0].offsetHeight;
+                    comment_sidebar.css('right', '0');
                     load_all_comments();
                 });
 
