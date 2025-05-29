@@ -1847,7 +1847,7 @@ class SvaDataTable {
             } else {
                 $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
-            this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1894,7 +1894,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
@@ -1931,7 +1931,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
@@ -1949,7 +1949,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
@@ -1964,7 +1964,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldname == 'name') {
@@ -1998,29 +1998,29 @@ class SvaDataTable {
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
-                this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (this.frm.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                 td.innerHTML = formatter(row[column.fieldname], column, row);
             } else {
-                td.innerHTML = `<span>${row[column.fieldname]}</span>`;
+                td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
                 if (col?.width) {
                     $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 } else {
                     $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
-            this.bindColumnEvents(td.firstElementChild,row[column.fieldname],column, row);
+            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
             td.title = row[column.fieldname] || "";
         }
     }
-    bindColumnEvents(element,value,column, row) {
-        if(this.frm.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]){
+    bindColumnEvents(element, value, column, row) {
+        if (this.frm.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
-            for(let event in events){
-                element.addEventListener(event, () => events[event](element,value,column, row));
+            for (let event in events) {
+                element.addEventListener(event, () => events[event](element, value, column, row));
             }
         }
     }
