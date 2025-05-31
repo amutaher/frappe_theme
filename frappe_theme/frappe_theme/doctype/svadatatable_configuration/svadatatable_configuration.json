@@ -1,6 +1,5 @@
 {
  "actions": [],
- "allow_rename": 1,
  "autoname": "field:parent_doctype",
  "creation": "2024-11-22 12:18:58.864292",
  "doctype": "DocType",
@@ -90,7 +89,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-02-19 19:00:40.795067",
+ "modified": "2025-05-02 12:22:50.235740",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration",

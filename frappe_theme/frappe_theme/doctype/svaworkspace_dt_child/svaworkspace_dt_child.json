@@ -1,0 +1,142 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-04-02 19:33:21.844196",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "custom_html_block",
+  "connection_type",
+  "title",
+  "link_doctype",
+  "link_report",
+  "template",
+  "action_label",
+  "extend_condition",
+  "extended_condition",
+  "listview_settings",
+  "setup_list_settings",
+  "crud_permissions",
+  "setup_crud_permissions",
+  "redirect_to_main_form"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Connection Type",
+   "options": "\nUnfiltered\nReport",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
+  },
+  {
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
+   "fieldname": "link_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Link DocType",
+   "mandatory_depends_on": "eval:[\"Direct\",\"Unfiltered\"].includes(doc.connection_type)",
+   "options": "DocType"
+  },
+  {
+   "depends_on": "eval:doc.connection_type == \"Is Custom Design\"",
+   "fieldname": "template",
+   "fieldtype": "Select",
+   "label": "Template",
+   "mandatory_depends_on": "eval:doc.connection_type == \"Is Custom Design\"",
+   "options": "Tasks\nEmail\nTimeline\nGallery\nNotes\nLinked Users"
+  },
+  {
+   "default": "Approval",
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
+   "fieldname": "action_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Workflow Action Label"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:[\"Unfiltered\"].includes(doc.connection_type)",
+   "fieldname": "extend_condition",
+   "fieldtype": "Check",
+   "label": "Extend Condition"
+  },
+  {
+   "default": "{}",
+   "depends_on": "eval:doc.extend_condition == true",
+   "description": "Only Double Quote (\") is allowed in the conditions,\ne.g. [[\"dt\",\"fieldname\",\"operator\",\"value\"],[\"dt\",\"fieldname\",\"operator\",\"value\"]]",
+   "fieldname": "extended_condition",
+   "fieldtype": "Code",
+   "label": "Extended Condition"
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "listview_settings",
+   "fieldtype": "Code",
+   "label": "Listview Settings",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "setup_list_settings",
+   "fieldtype": "Button",
+   "label": "Setup Listview Setting"
+  },
+  {
+   "default": "[\"read\"]",
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "crud_permissions",
+   "fieldtype": "JSON",
+   "label": "Crud Permissions",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.connection_type !== \"Is Custom Design\"",
+   "fieldname": "setup_crud_permissions",
+   "fieldtype": "Button",
+   "label": "Setup Crud Permissions"
+  },
+  {
+   "default": "1",
+   "fieldname": "redirect_to_main_form",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Redirect to main form on any Action"
+  },
+  {
+   "fieldname": "custom_html_block",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custom HTML Block",
+   "options": "Custom HTML Block",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:[\"Report\"].includes(doc.connection_type)",
+   "fieldname": "link_report",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Link Report",
+   "mandatory_depends_on": "eval:[\"Report\"].includes(doc.connection_type)",
+   "options": "Report"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-05-20 12:21:56.991243",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVAWorkspace DT Child",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

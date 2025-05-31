@@ -1,36 +1,72 @@
 import frappe
+from frappe_theme.controllers.dt_conf import DTConf
+from frappe_theme.controllers.number_card import NumberCard
+from frappe_theme.controllers.chart import Chart
 
 @frappe.whitelist()
 def get_direct_connection_dts(dt):
-    standard_dts = frappe.get_list('DocField',filters=[
-        ['DocField', 'options', '=', dt],
-        ['DocField', 'parenttype', '=', "DocType"]
-    ],pluck='parent',ignore_permissions=True)
-    custom_dts = frappe.get_list('Custom Field',filters=[
-        ['Custom Field', 'options', '=', dt],
-    ],pluck='dt',ignore_permissions=True)
-    return standard_dts + custom_dts
+    return DTConf.get_direct_connection_dts(dt)
+
+@frappe.whitelist()
+def get_indirect_connection_local_fields(dt):
+    return DTConf.get_indirect_connection_local_fields(dt)
+
+@frappe.whitelist()
+def get_indirect_connection_foreign_fields(dt,local_field_option):
+    return DTConf.get_indirect_connection_foreign_fields(dt,local_field_option)
 
 @frappe.whitelist()
 def get_direct_connection_fields(dt,link_dt):
-    standard_dt_fields = frappe.get_list('DocField',filters=[
-        ['DocField', 'options', '=', dt],
-        ['DocField', 'parenttype', '=', "DocType"],
-        ['DocField', 'parent', '=', link_dt]
-    ],fields=['label','fieldname'],ignore_permissions=True)
-    custom_dt_fields = frappe.get_list('Custom Field',filters=[
-        ['Custom Field', 'options', '=', dt],
-        ['Custom Field', 'dt', '=', link_dt]
-    ],fields=['label','fieldname'],ignore_permissions=True)
-    return standard_dt_fields + custom_dt_fields
+    return DTConf.get_direct_connection_fields(dt,link_dt)
 
 @frappe.whitelist()
 def get_workflow_with_dt(dt):
-    exists = frappe.db.exists('Workflow', {'document_type': dt})
-    if exists:
-        frappe.set_user('Administrator')
-        wf_doc = frappe.get_doc('Workflow', exists)
-        frappe.set_user(frappe.session.user)
-        return wf_doc.as_dict()
-    else:
-        frappe.throw('No workflow found for this doctype')
+    return DTConf.get_workflow_with_dt(dt)
+
+@frappe.whitelist()
+def doc_filters(doctype, filters=None):
+    return DTConf.doc_filters(doctype, filters)
+
+@frappe.whitelist()
+def setup_user_list_settings(parent_id,child_dt,listview_settings):
+    return DTConf.setup_user_list_settings(parent_id,child_dt,listview_settings)
+
+@frappe.whitelist()
+def delete_user_list_settings(parent_id,child_dt):
+    return DTConf.delete_user_list_settings(parent_id,child_dt)
+
+@frappe.whitelist()
+def get_user_list_settings(parent_id,child_dt):
+    return DTConf.get_user_list_settings(parent_id,child_dt)
+
+@frappe.whitelist()
+def get_sva_dt_settings(doctype):
+    return DTConf.get_sva_dt_settings(doctype)
+
+@frappe.whitelist()
+def get_number_card_count(type, details,report=None, doctype=None, docname=None):
+    return NumberCard.get_number_card_count(type, details,report, doctype, docname)
+    
+@frappe.whitelist()
+def get_chart_data(type, details,report=None, doctype=None, docname=None):
+    return Chart.get_chart_data(type, details,report, doctype, docname)
+
+@frappe.whitelist()
+def link_report_list(doctype):
+    return DTConf.link_report_list(doctype)
+
+@frappe.whitelist()
+def get_meta_fields(doctype,_type="Direct"):
+    return DTConf.get_meta_fields(doctype,_type)
+
+@frappe.whitelist()
+def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List",unfiltered=0):
+    return DTConf.get_dt_list(doctype,doc,ref_doctype, filters, fields, limit_page_length, order_by, limit_start, _type,unfiltered)
+    
+@frappe.whitelist()
+def get_report_filters(doctype):
+    return DTConf.get_report_filters(doctype)
+
+@frappe.whitelist()
+def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List",unfiltered=0):
+    return DTConf.get_dt_count(doctype,doc,ref_doctype, filters, _type,unfiltered)

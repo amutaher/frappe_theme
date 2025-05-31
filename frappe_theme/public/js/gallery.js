@@ -5,18 +5,34 @@ class GalleryComponent {
         this.gallery_files = [];
         this.selectedFiles = [];
         this.view = 'Card'; // Default view
+        this.permissions = [];
         this.initialize();
         return this.wrapper;
     }
-
+    get_permissions(doctype) {
+        return new Promise((rslv, rjct) => {
+            frappe.call({
+                method: 'frappe_theme.api.get_permissions',
+                args: { doctype: doctype },
+                callback: function (response) {
+                    rslv(response.message)
+                },
+                error: (err) => {
+                    rjct(err);
+                }
+            });
+        });
+    }
     async initialize() {
         try {
             if (!this.wrapper) {
                 console.error('Wrapper element is null');
                 return;
             }
-
-            // Clear and initialize wrapper
+            // Get permissions and store them
+            this.permissions = await this.get_permissions("File");
+            
+            // Initialize the wrapper with basic structure regardless of permissions
             this.wrapper.innerHTML = `
                 <div class="gallery-wrapper">
                     <div class="gallery-header" id="gallery-header"></div>
@@ -24,6 +40,30 @@ class GalleryComponent {
                 </div>
             `;
 
+            // Check if user has at least read permission
+            if (!this.permissions.includes('read')) {
+                const noPermissionDiv = document.createElement('div');
+                noPermissionDiv.id = 'noPermissionPage';
+                noPermissionDiv.style.cssText = `
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    text-align: center;
+                    padding: 50px;
+                    color: var(--gray-600);
+                `;
+                noPermissionDiv.textContent = "You do not have permission through role permission to access this resource.";
+                
+                // Clear the gallery body and append the no permission message
+                const galleryBody = this.wrapper.querySelector('#gallery-body');
+                galleryBody.innerHTML = '';
+                galleryBody.appendChild(noPermissionDiv);
+                return;
+            }
+
+            // Continue with initialization only if read permission exists
             this.appendGalleryStyles();
             await this.fetchGalleryFiles();
             this.renderHeader();
@@ -31,11 +71,23 @@ class GalleryComponent {
             this.attachEventListeners();
         } catch (error) {
             console.error('Error in initialize:', error);
-            frappe.msgprint({
-                title: __('Error'),
-                indicator: 'red',
-                message: __('Failed to initialize gallery: ') + (error.message || error)
-            });
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'errorPage';
+            errorDiv.style.cssText = `
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                text-align: center;
+                padding: 50px;
+                color: var(--gray-600);
+            `;
+            errorDiv.textContent = `Failed to initialize gallery: ${error.message || error}`;
+            
+            const galleryBody = this.wrapper.querySelector('#gallery-body');
+            galleryBody.innerHTML = '';
+            galleryBody.appendChild(errorDiv);
         }
     }
 
@@ -293,16 +345,32 @@ class GalleryComponent {
                 'is_folder': 0
             };
 
-            console.log('Fetching files with filters:', filters);
-
             this.gallery_files = await frappe.db.get_list('File', {
                 fields: ['*'],  // Get all fields
                 filters: filters,
                 order_by: 'creation desc',
                 limit: 1000,
             }) || [];
+            const uniqueOwners = [...new Set(this.gallery_files.map(file => file.owner))];
 
-            console.log('Fetched files:', this.gallery_files);
+            const { message: ownerNames } = await frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                    doctype: 'User',
+                    filters: { name: ['in', uniqueOwners] },
+                    fields: ['name', 'full_name']
+                }
+            });
+
+            // Create a map of user names to full names
+            const ownerFullNames = {};
+            ownerNames.forEach(user => {
+                ownerFullNames[user.name] = user.full_name;
+            });
+            this.gallery_files = this.gallery_files.map(file => ({
+                ...file,
+                owner_full_name: ownerFullNames[file.owner]
+            }));
             this.updateGallery();
         } catch (error) {
             console.error('Error fetching files:', error);
@@ -332,15 +400,20 @@ class GalleryComponent {
     }
 
     renderHeader() {
+        const canCreate = this.permissions.includes('create');
+        const canDelete = this.permissions.includes('delete');
+        
         const headerHTML = `
             <div class="row" style="display: flex; justify-content: space-between; align-items: center; margin: 0;">
                 <div style="display: flex; align-items: center; gap: 16px;">
                     <span class="text-muted">Total records: ${this.gallery_files.length}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn btn-danger btn-sm" style="display:none;" id="deleteSelectedButton">
-                        <i class="fa fa-trash"></i> Delete Selected
-                    </button>
+                    ${canDelete ? `
+                        <button class="btn btn-danger btn-sm" style="display:none;" id="deleteSelectedButton">
+                            <i class="fa fa-trash"></i> Delete Selected
+                        </button>
+                    ` : ''}
                     <div class="btn-group">
                         <button class="btn btn-default btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
                             <i class="fa ${this.view === 'Card' ? 'fa-th-large' : 'fa-list'}"></i>
@@ -351,9 +424,11 @@ class GalleryComponent {
                             <li><a class="dropdown-item" id="listViewBtn"><i class="fa fa-list"></i> List View</a></li>
                         </ul>
                     </div>
-                    <button class="btn btn-primary btn-sm" id="customUploadButton">
-                        <i class="fa fa-upload"></i> Upload
-                    </button>
+                    ${canCreate ? `
+                        <button class="btn btn-primary btn-sm" id="customUploadButton">
+                            <i class="fa fa-upload"></i> Upload
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -368,53 +443,157 @@ class GalleryComponent {
             </div>
         `;
     }
+    preview_file (frm) {
+        // return console.log(frm)
+        let file_extension = frm?.file_url?.split(".").pop();
+		let show_file = new frappe.ui.Dialog({
+            title: __('Preview File'),
+            size: 'large',
+            fields: [
+                {
+                    fieldtype: 'HTML',
+                    fieldname: 'preview_html',
+                    options: ""
+                }
+            ],
+            primary_action_label: __('Download'),
+            primary_action() {
+                let link = document.createElement('a');
+                link.href = frm.file_url;
+                link.download = frm.file_name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+            secondary_action_label: __('Close'),
+            secondary_action() {
+                show_file.hide();
+            }
+        });
+        let $preview = "";
+        // if(!frappe.utils.is_image_file(frm.file_url)){
+        //     show_file.get_primary_btn().hide();
+        // }
+		if (frappe.utils.is_image_file(frm.file_url)) {
+			$preview = $(`<div class="img_preview position-relative">
+				<img style="width: 100%; max-height:75vh;object-fit: contain;" 
+					class="img-responsive"
+					src="${frappe.utils.escape_html(frm.file_url)}"
+				/>
+			</div>`);
+		} else if (frappe.utils.is_video_file(frm.file_url)) {
+			$preview = $(`<div class="img_preview d-flex justify-content-center">
+				<video style="width:100%" height="320" controls>
+					<source src="${frappe.utils.escape_html(frm.file_url)}">
+					${__("Your browser does not support the video element.")}
+				</video>
+			</div>`);
+		} else if (file_extension === "pdf") {
+			$preview = $(`<div class="img_preview">
+				<object style="background:#323639;" width="100%">
+					<embed
+						style="background:#323639;"
+						width="100%"
+						height="1190"
+						src="${frappe.utils.escape_html(frm.file_url)}" type="application/pdf"
+					>
+				</object>
+			</div>`);
+		} else if (file_extension === "mp3") {
+			$preview = $(`<div class="img_preview d-flex justify-content-center">
+				<audio width="480" height="60" controls>
+					<source src="${frappe.utils.escape_html(frm.file_url)}" type="audio/mpeg">
+					${__("Your browser does not support the audio element.")}
+				</audio >
+			</div>`);
+		}else{
+            $preview = $(`<div class="img_preview d-flex justify-content-center">
+				<p class="text-muted">Preview not available for this file type</p>
+			</div>`);
+        }
 
+		if ($preview) {
+            show_file.show();
+			show_file.get_field("preview_html").$wrapper.html($preview);
+		}
+	}
+    convertTofileSize(size) {
+        if (size < 1024) {
+            return size + ' Bytes';
+        } else if (size < 1048576) {
+            return (size / 1024).toFixed(2) + ' KB';
+        } else if (size < 1073741824) {
+            return (size / 1048576).toFixed(2) + ' MB';
+        }
+    }
     renderCardView() {
         if (!this.gallery_files.length) {
             return this.renderEmptyState();
         }
 
+        const canWrite = this.permissions.includes('write');
+        const canDelete = this.permissions.includes('delete');
+
         return `
             <div class="row">
                 ${this.gallery_files.map(file => {
-            let extension = file?.file_url?.split('.').pop()?.toLowerCase();
-            return `
+                    let extension = file?.file_url?.split('.').pop()?.toLowerCase();
+                    return `
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
                             <div class="image-card">
                                 <div class="image-container">
                                     ${this.getFilePreview(file, extension)}
-                                    <div class="checkbox-container">
-                                        <input type="checkbox" data-id="${file.name}" class="toggleCheckbox"/>
-                                    </div>
+                                    ${canDelete ? `
+                                        <div class="checkbox-container">
+                                            <input type="checkbox" data-id="${file.name}" class="toggleCheckbox"/>
+                                        </div>
+                                    ` : ''}
                                     <div class="image-cover">
-                                        <div class="cover-header">
-                                            <div class="dropdown">
-                                                <button class="action-button" data-toggle="dropdown">
-                                                    <i class="fa fa-ellipsis-v"></i>
-                                                </button>
-                                                <div class="dropdown-menu dropdown-menu-right">
-                                                    <a class="dropdown-item edit-btn" data-id="${file.name}">
-                                                        <i class="fa fa-edit"></i> Edit
-                                                    </a>
-                                                    <a class="dropdown-item delete-btn" data-id="${file.name}">
-                                                        <i class="fa fa-trash"></i> Delete
-                                                    </a>
+                                        ${(canWrite || canDelete) ? `
+                                            <div class="cover-header">
+                                                <div class="dropdown">
+                                                    <button class="action-button" data-toggle="dropdown">
+                                                        <i class="fa fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu dropdown-menu-right">
+                                                        ${canWrite ? `
+                                                            <a class="dropdown-item edit-btn" data-id="${file.name}">
+                                                                <i class="fa fa-edit"></i> Edit
+                                                            </a>
+                                                        ` : ''}
+                                                        ${canDelete ? `
+                                                            <a class="dropdown-item delete-btn" data-id="${file.name}">
+                                                                <i class="fa fa-trash"></i> Delete
+                                                            </a>
+                                                        ` : ''}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ` : ''}
                                         <div class="cover-body">
-                                            <a href="javascript:void(0)" onclick="window.open('${file.file_url}', '_blank')" class="view-button">
+                                            <p class="view-button preview-btn" style="cursor: pointer;" data-file='${JSON.stringify(file)}'>
                                                 <i class="fa fa-eye"></i>
-                                            </a>
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="file-name">${file.file_name}</div>
-                                <div class="file-date">${frappe.datetime.str_to_user(file.creation)}</div>
+                                <div class="file-name" style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;" title="${file.file_name}">${file.file_name}</div>
+                                <div class="d-flex justify-content-between">
+                                    <div class="file-date">${frappe.datetime.str_to_user(file.creation)?.split(' ')[0]}</div>
+                                    <div class="file-date">
+                                        ${this.convertTofileSize(file.file_size)}
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div class="file-date" style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;"
+                                        title="by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}">
+                                        by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
-        }).join('')}
+                }).join('')}
             </div>
         `;
     }
@@ -503,6 +682,10 @@ class GalleryComponent {
                 loader.show();
                 let doc = await frappe.db.get_doc('File', fileId);
                 fields = fields.map(f => {
+                    if (f.fieldname === 'file' && doc.file_url) {
+                        f.default = doc.file_url;
+                        return f;
+                    }
                     if (doc[f.fieldname]) {
                         f.default = doc[f.fieldname];
                     }
@@ -555,6 +738,8 @@ class GalleryComponent {
                             });
                         }
                     } else {
+                        values['file_url'] = values.file
+                        delete values.file
                         let updated_file = await frappe.db.set_value('File', fileId, values);
                         if (updated_file?.message) {
                             self.gallery_files = self.gallery_files.map(file =>
@@ -580,46 +765,54 @@ class GalleryComponent {
         });
 
         fileDialog.show();
+        fileDialog.onhide = function () {
+            loader.hide();
+        }
         this.dialog = fileDialog;
     }
 
     attachEventListeners() {
         const self = this;
 
-        $('#customUploadButton').off('click').on('click', async () => {
-            await self.renderForm('create');
-        });
-
-        $('#deleteSelectedButton').off('click').on('click', async () => {
-            if (self.selectedFiles.length === 0) {
-                frappe.msgprint(__('Please select files to delete'));
-                return;
-            }
-
-            frappe.confirm('Are you sure you want to delete the selected files?', async () => {
-                const loader = new Loader(self.wrapper.querySelector('.gallery-wrapper'), 'gallery-delete-loader');
-                try {
-                    loader.show();
-                    for (const fileId of self.selectedFiles) {
-                        await frappe.db.delete_doc('File', fileId);
-                    }
-                    self.gallery_files = self.gallery_files.filter(file => !self.selectedFiles.includes(file.name));
-                    self.selectedFiles = [];
-                    self.updateSelectedFilesUI();
-                    self.updateGallery();
-                    frappe.show_alert({
-                        message: __('Files deleted successfully'),
-                        indicator: 'green'
-                    });
-                } catch (error) {
-                    console.error("Error deleting files:", error);
-                    frappe.msgprint(__('Error deleting files. Please try again.'));
-                } finally {
-                    loader.hide();
-                }
+        if (this.permissions.includes('create')) {
+            $('#customUploadButton').off('click').on('click', async () => {
+                await self.renderForm('create');
             });
-        });
+        }
 
+        if (this.permissions.includes('delete')) {
+            $('#deleteSelectedButton').off('click').on('click', async () => {
+                if (self.selectedFiles.length === 0) {
+                    frappe.msgprint(__('Please select files to delete'));
+                    return;
+                }
+
+                frappe.confirm('Are you sure you want to delete the selected files?', async () => {
+                    const loader = new Loader(self.wrapper.querySelector('.gallery-wrapper'), 'gallery-delete-loader');
+                    try {
+                        loader.show();
+                        for (const fileId of self.selectedFiles) {
+                            await frappe.db.delete_doc('File', fileId);
+                        }
+                        self.gallery_files = self.gallery_files.filter(file => !self.selectedFiles.includes(file.name));
+                        self.selectedFiles = [];
+                        self.updateSelectedFilesUI();
+                        self.updateGallery();
+                        frappe.show_alert({
+                            message: __('Files deleted successfully'),
+                            indicator: 'green'
+                        });
+                    } catch (error) {
+                        console.error("Error deleting files:", error);
+                        frappe.msgprint(__('Error deleting files. Please try again.'));
+                    } finally {
+                        loader.hide();
+                    }
+                });
+            });
+        }
+
+        // View switching remains accessible to all users with read permission
         $('#cardViewBtn').off('click').on('click', () => {
             self.view = 'Card';
             self.selectedFiles = [];
@@ -636,7 +829,7 @@ class GalleryComponent {
             self.updateGallery();
         });
 
-        this.attachGalleryItemEventListeners(); // Attach event listeners to gallery items
+        this.attachGalleryItemEventListeners();
     }
 
     attachGalleryItemEventListeners() {
@@ -654,6 +847,13 @@ class GalleryComponent {
                 } catch (error) {
                     console.error(error);
                 }
+            }
+        });
+
+        $('.preview-btn').off('click').on('click', function() {
+            const fileData = $(this).data('file');
+            if (fileData) {
+                self.preview_file(fileData);
             }
         });
 
@@ -691,21 +891,28 @@ class GalleryComponent {
 
     updateSelectedFilesUI() {
         const deleteSelectedButton = document.getElementById('deleteSelectedButton');
-        if (this.selectedFiles.length === this.gallery_files.length) {
-            $('#selectAllCheckBox').prop('checked', true);
-        } else {
-            $('#selectAllCheckBox').prop('checked', false);
+        
+        // Only update delete button if it exists (user has delete permission)
+        if (deleteSelectedButton) {
+            if (this.selectedFiles.length > 0) {
+                deleteSelectedButton.style.display = 'block';
+            } else {
+                deleteSelectedButton.style.display = 'none';
+            }
         }
 
-        if (this.selectedFiles.length > 0) {
-            deleteSelectedButton.style.display = 'block';
-        } else {
-            deleteSelectedButton.style.display = 'none';
+        // Update select all checkbox if it exists
+        const selectAllCheckbox = document.getElementById('selectAllCheckBox');
+        if (selectAllCheckbox) {
+            if (this.selectedFiles.length === this.gallery_files.length) {
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.checked = false;
+            }
         }
     }
 
     updateGallery() {
-        console.log('called', 'updateGallery');
         const bodyWrapper = this.wrapper.querySelector('#gallery-body');
         if (this.view === 'Card') {
             bodyWrapper.innerHTML = this.renderCardView();
@@ -713,7 +920,7 @@ class GalleryComponent {
             bodyWrapper.innerHTML = this.renderListView();
         }
         bodyWrapper.style.height = '75vh';
-        bodyWrapper.style.minHeight = '500px';
+        // bodyWrapper.style.minHeight = '500px';
         bodyWrapper.style.overflow = 'auto';
         this.attachGalleryItemEventListeners(); // Attach event listeners to gallery items
     }
@@ -723,61 +930,76 @@ class GalleryComponent {
             return this.renderEmptyState();
         }
 
+        const canWrite = this.permissions.includes('write');
+        const canDelete = this.permissions.includes('delete');
+
         return `
             <div class="frappe-list">
                 <div class="frappe-list-header">
                     <div class="frappe-list-row">
-                        <div class="frappe-list-col frappe-list-col-checkbox">
-                            <input type="checkbox" class="list-row-checkbox" id="selectAllCheckBox">
-                        </div>
+                        ${canDelete ? `
+                            <div class="frappe-list-col frappe-list-col-checkbox">
+                                <input type="checkbox" class="list-row-checkbox" id="selectAllCheckBox">
+                            </div>
+                        ` : ''}
                         <div class="frappe-list-col frappe-list-col-subject">File Name</div>
                         <div class="frappe-list-col frappe-list-col-creation">Upload Date</div>
                         <div class="frappe-list-col frappe-list-col-preview">Preview</div>
-                        <div class="frappe-list-col frappe-list-col-actions"></div>
+                        ${(canWrite || canDelete) ? `
+                            <div class="frappe-list-col frappe-list-col-actions"></div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="frappe-list-body">
                     ${this.gallery_files.map(file => {
-            let extension = file?.file_url?.split('.').pop()?.toLowerCase();
-            return `
+                        let extension = file?.file_url?.split('.').pop()?.toLowerCase();
+                        return `
                             <div class="frappe-list-row">
-                                <div class="frappe-list-col frappe-list-col-checkbox">
-                                    <input type="checkbox" class="list-row-checkbox toggleCheckbox" data-id="${file.name}">
-                                </div>
+                                ${canDelete ? `
+                                    <div class="frappe-list-col frappe-list-col-checkbox">
+                                        <input type="checkbox" class="list-row-checkbox toggleCheckbox" data-id="${file.name}">
+                                    </div>
+                                ` : ''}
                                 <div class="frappe-list-col frappe-list-col-subject">
                                     <a href="${file.file_url}" target="_blank" class="text-muted">
                                         <i class="${this.getFileIcon(extension)} mr-2"></i>
                                         ${file.file_name}
                                     </a>
                                 </div>
-                                <div class="frappe-list-col frappe-list-col-creation ">
+                                <div class="frappe-list-col frappe-list-col-creation">
                                     ${frappe.datetime.str_to_user(file.creation)}
                                 </div>
                                 <div class="frappe-list-col frappe-list-col-preview">
-                                    <a href="${file.file_url}" target="_blank" class="btn btn-xs btn-default">
+                                    <p class="preview-btn" style="cursor: pointer;" data-file='${JSON.stringify(file)}'>
                                         <i class="fa fa-eye"></i>
-                                    </a>
+                                    </p>
                                 </div>
-                                <div class="frappe-list-col frappe-list-col-actions">
-                                    <div class="list-actions">
-                                        <div class="dropdown">
-                                            <button class="btn btn-link btn-sm" data-toggle="dropdown">
-                                                <i class="fa fa-ellipsis-v text-muted"></i>
-                                            </button>
-                                            <div class="dropdown-menu dropdown-menu-right">
-                                                <a class="dropdown-item edit-btn" data-id="${file.name}">
-                                                    <i class="fa fa-edit text-muted"></i> Edit
-                                                </a>
-                                                <a class="dropdown-item delete-btn" data-id="${file.name}">
-                                                    <i class="fa fa-trash text-muted"></i> Delete
-                                                </a>
+                                ${(canWrite || canDelete) ? `
+                                    <div class="frappe-list-col frappe-list-col-actions">
+                                        <div class="list-actions">
+                                            <div class="dropdown">
+                                                <button class="btn btn-link btn-sm" data-toggle="dropdown">
+                                                    <i class="fa fa-ellipsis-v text-muted"></i>
+                                                </button>
+                                                <div class="dropdown-menu dropdown-menu-right">
+                                                    ${canWrite ? `
+                                                        <a class="dropdown-item edit-btn" data-id="${file.name}">
+                                                            <i class="fa fa-edit text-muted"></i> Edit
+                                                        </a>
+                                                    ` : ''}
+                                                    ${canDelete ? `
+                                                        <a class="dropdown-item delete-btn" data-id="${file.name}">
+                                                            <i class="fa fa-trash text-muted"></i> Delete
+                                                        </a>
+                                                    ` : ''}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                ` : ''}
                             </div>
                         `;
-        }).join('')}
+                    }).join('')}
                 </div>
             </div>
         `;
