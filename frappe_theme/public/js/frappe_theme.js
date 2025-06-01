@@ -123,12 +123,12 @@ const hide_comments_and_like_from_list = async () => {
 }
 const addCustomLogo = () => {
     const navbarBreadcrumbs = document.querySelector('#navbar-breadcrumbs');
-    if (navbarBreadcrumbs) {
+    const logoUrl = frappe.boot.my_theme?.custom_logo;
+
+    if (navbarBreadcrumbs && logoUrl) {
         const customLogo = document.createElement('div');
         customLogo.className = 'custom-logo';
 
-        // Get the logo URL from theme settings or use default
-        const logoUrl = frappe.boot.my_theme?.custom_logo;
         const logoHeight = frappe.boot.my_theme?.custom_logo_height || 36;
 
         customLogo.innerHTML = `
