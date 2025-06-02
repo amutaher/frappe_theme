@@ -48,14 +48,7 @@ def get_meta_fields(doctype):
 def get_permissions(doctype,_type='Direct'):
     permissions = []
     if _type == 'Report':
-        dt = frappe.db.exists('SVADatatable Configuration Child',{'link_report':doctype})
-        ws = frappe.db.exists('SVAWorkspace Configuration Child',{'link_report':doctype})
-        if dt:
-            permissions = frappe.db.get_value('SVADatatable Configuration Child',{'link_report':doctype},['crud_permissions'])
-        elif ws:
-            permissions = frappe.db.get_value('SVADatatable Configuration Child',{'link_report':doctype},['crud_permissions'])
-        else:
-            permissions = ['read']
+        permissions.append('read')
     else:
         if frappe.has_permission(doctype,'read'):
             permissions.append('read')
