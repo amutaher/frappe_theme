@@ -36,7 +36,7 @@ class SvaDataTable {
     }) {
         this.signal = signal;
         this.sva_db = new SVAHTTP(signal)
-        this.label = label
+        this.label = __(label)
         wrapper.innerHTML = '';
         this.wrapper = wrapper;
         this.rows = rows;
@@ -121,7 +121,7 @@ class SvaDataTable {
                     this.wf_transitions_allowed = this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr?.allowed));
                 }
                 // ================================ Workflow End ================================
-                if (this.permissions.length && this.permissions.includes('read')) {
+                if (this.permissions?.length && this.permissions.includes('read')) {
                     let columns = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype || this.link_report, _type: this.connection.connection_type });
                     if (this.header.length) {
                         this.columns = [];
@@ -479,7 +479,7 @@ class SvaDataTable {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
         if ((this.frm ? this.frm?.doc?.docstatus == 0 : true) && this.conf_perms.length && this.conf_perms.includes('create')) {
-            if (this.permissions.length && this.permissions.includes('create')) {
+            if (this.permissions?.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
                     create_button.id = 'create';
@@ -698,18 +698,22 @@ class SvaDataTable {
         });
     }
     get_permissions(doctype) {
-        return new Promise((rslv, rjct) => {
-            frappe.call({
-                method: 'frappe_theme.api.get_permissions',
-                args: { doctype: doctype, _type: this.connection.connection_type },
-                callback: function (response) {
-                    rslv(response.message)
-                },
-                error: (err) => {
-                    rjct(err);
-                }
+        if(this.connection.connection_type === 'Report') {
+            return this.conf_perms ? this.conf_perms : ['read']
+        }else{
+            return new Promise((rslv, rjct) => {
+                frappe.call({
+                    method: 'frappe_theme.api.get_permissions',
+                    args: { doctype: doctype, _type: this.connection.connection_type },
+                    callback: function (response) {
+                        rslv(response.message)
+                    },
+                    error: (err) => {
+                        rjct(err);
+                    }
+                });
             });
-        });
+        }
     }
     isAsync = (fn) => fn?.constructor?.name === "AsyncFunction";
     async createFormDialog(doctype, name = undefined, mode = 'create', additional_action = null) {
@@ -1204,7 +1208,7 @@ class SvaDataTable {
 
         if (this.options.serialNumberColumn) {
             const serialTh = document.createElement('th');
-            serialTh.textContent = '#';
+            serialTh.textContent = __('#');
             serialTh.style = 'width:40px;text-align:center;position:sticky;left:0px;background-color:#F3F3F3;';
             tr.appendChild(serialTh);
         }
@@ -1218,7 +1222,7 @@ class SvaDataTable {
             if (col?.width) {
                 th.style = `min-width:${Number(col?.width) * 50}px !important;max-width:${Number(col?.width) * 50}px !important;width:${Number(col?.width) * 50}px !important; white-space: nowrap;overflow: hidden;text-overflow:ellipsis;`;
             }
-            th.textContent = column.label || column.name;
+            th.textContent = __(column.label || column.name);
 
             if (column.sortable) {
                 this.createSortingIcon(th, column); // Create the sorting dropdown
@@ -1986,17 +1990,23 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
+                btn.classList.add('btn', 'btn-secondary', 'btn-xs');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
-                td.appendChild(btn)
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
-                } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    let formattedElement = formatter(btn, column, row);
+                    td.appendChild(formattedElement);
+                }else{
+                    td.appendChild(btn)
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                    }
                 }
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
