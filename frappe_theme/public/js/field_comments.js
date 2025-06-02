@@ -139,6 +139,14 @@ frappe.ui.form.on('*', {
                     const comment = control.get_value();
                     if (!comment) return;
 
+                    // Extract mentions from comment
+                    const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
+                    const mentions = [];
+                    let match;
+                    while ((match = mentionRegex.exec(comment)) !== null) {
+                        mentions.push(match[1]);
+                    }
+
                     frappe.db.insert({
                         doctype: 'DocType Field Comment',
                         doctype_name: frm.doctype,
@@ -146,12 +154,30 @@ frappe.ui.form.on('*', {
                         field_name: fieldName,
                         field_label: field.df.label || fieldName,
                         comment: comment
-                    }).then(() => {
+                    }).then((doc) => {
                         control.set_value('');
                         frappe.show_alert({
                             message: __('Comment added successfully'),
                             indicator: 'green'
                         });
+
+                        // Send notifications to mentioned users
+                        if (mentions.length > 0) {
+                            mentions.forEach(mention => {
+                                frappe.call({
+                                    method: 'frappe_theme.frappe_theme.doctype.doctype_field_comment.doctype_field_comment.send_mention_notification',
+                                    args: {
+                                        mentioned_user: mention,
+                                        comment_doc: doc.name,
+                                        doctype: frm.doctype,
+                                        docname: frm.docname,
+                                        field_name: fieldName,
+                                        field_label: field.df.label || fieldName,
+                                        comment: comment
+                                    }
+                                });
+                            });
+                        }
 
                         // Keep sidebar open and reload only this field's comments
                         frappe.db.get_list('DocType Field Comment', {
