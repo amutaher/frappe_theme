@@ -81,27 +81,51 @@ frappe.utils.format_currency = formatCurrencyWithSuffix;
 frappe.utils.custom_eval = custom_eval;
 frappe.utils.get_district_json_route = getDistrictRoute;
 
-function toggleFieldError(context, fieldname, message, toggle = true) {
-    let field = context.fields_dict[fieldname];
-    let error_message = '';
-    if (field?.description) {
-        error_message = `<span class="text-danger">${__(message)}</span><br>${field?.description}`;
-    } else {
-        error_message = `<span class="text-danger">${__(message)}</span>`;
-    }
-    if (toggle) {
-        context.set_df_property(fieldname, 'description', error_message);
-        $(field.$wrapper).addClass('has-error');
-        frappe.validate = false;
-        throw new Error(message);
-    } else {
+function toggleFieldError(context, fieldname, message, toggle = true, is_child = false) {
+    if (!is_child) {
+        let field = context.fields_dict[fieldname];
+        let error_message = '';
         if (field?.description) {
-            context.set_df_property(fieldname, 'description', field?.description);
+            error_message = `<span class="text-danger">${__(message)}</span><br>${field?.description}`;
         } else {
-            context.set_df_property(fieldname, 'description', '');
+            error_message = `<span class="text-danger">${__(message)}</span>`;
         }
-        $(field.$wrapper).removeClass('has-error');
-        frappe.validate = true;
+        if (toggle) {
+            context.set_df_property(fieldname, 'description', error_message);
+            $(field.$wrapper).addClass('has-error');
+            frappe.validate = false;
+            throw new Error(message);
+        } else {
+            if (field?.description) {
+                context.set_df_property(fieldname, 'description', field?.description);
+            } else {
+                context.set_df_property(fieldname, 'description', '');
+            }
+            $(field.$wrapper).removeClass('has-error');
+            frappe.validate = true;
+        }
+    } else {
+        if (toggle) {
+            const isDialog = context?.$wrapper && context.get_value;
+            const isForm = context?.fields_dict && context.doc;
+
+        // Show error message
+        if (isDialog && context?.show_message) {
+            context.show_message('');
+            context.show_message(__(message), 'red');
+            frappe.validate = false;
+            throw new Error(message);
+            } 
+            else if (isForm) {
+                frappe.throw(message);
+            }
+        } else {
+            const isDialog = context?.$wrapper && context.get_value;
+            if (isDialog && context?.show_message) {
+                context.show_message('');
+                console.log('running')
+            }
+        }
     }
 }
 
