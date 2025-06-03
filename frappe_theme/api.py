@@ -1,6 +1,7 @@
 import frappe
 import json
 from frappe import _
+import re
 
 @frappe.whitelist(allow_guest=True)
 def get_my_theme():
@@ -497,4 +498,183 @@ def apply_common_permissions(target_perm, common_permissions):
         target_perm.email = common_permissions['email']
     else:
         target_perm.email = 0
+
+@frappe.whitelist()
+def get_comment_logs(doctype_name, docname, field_name):
+    """Fetches DocType Field Comment Log records for a specific field."""
+    filters = {
+        "parenttype": "DocType Field Comment",
+        "parentfield": "comment_log"
+    }
+
+    # First, find the parent DocType Field Comment document
+    comment_doc = frappe.get_list('DocType Field Comment', 
+        filters={
+            'doctype_name': doctype_name,
+            'docname': docname,
+            'field_name': field_name
+        },
+        fields=['name'],
+        limit=1
+    )
+
+    if not comment_doc:
+        return [] # No parent comment document found
+
+    filters['parent'] = comment_doc[0].name
+
+    # Fetch child table entries
+    comment_logs = frappe.get_list(
+        'DocType Field Comment Log',
+        filters=filters,
+        fields=['name', 'comment', 'user', 'creation_date', 'reply_to'],
+        order_by='creation_date asc',
+        ignore_permissions=True # Temporarily ignore permissions for testing
+    )
+
+    return comment_logs
+
+@frappe.whitelist()
+def get_all_comment_logs_for_document(doctype_name, docname):
+    """Fetches all DocType Field Comment Log records for a specific document."""
+    # Find all parent DocType Field Comment documents for the given document
+    comment_docs = frappe.get_list('DocType Field Comment', 
+        filters={
+            'doctype_name': doctype_name,
+            'docname': docname,
+        },
+        fields=['name', 'field_name', 'field_label', 'status'],
+    )
+
+    if not comment_docs:
+        return [] # No parent comment documents found
+
+    # Get names of all parent comment documents
+    comment_doc_names = [doc.name for doc in comment_docs]
+    
+    # Fetch all child table entries related to these parent documents
+    all_comment_logs = frappe.get_list(
+        'DocType Field Comment Log',
+        filters={
+            "parent": ["in", comment_doc_names],
+            "parenttype": "DocType Field Comment",
+            "parentfield": "comment_log"
+        },
+        fields=['name', 'comment', 'user', 'creation_date', 'reply_to', 'parent'], # Include parent to link back to the field
+        order_by='creation_date asc',
+        ignore_permissions=True # Temporarily ignore permissions for testing
+    )
+
+    # Combine parent info with comment logs
+    comment_data = {}
+    for doc in comment_docs:
+        comment_data[doc.name] = {
+            'field_name': doc.field_name,
+            'field_label': doc.field_label,
+            'status': doc.status,
+            'logs': []
+        }
+
+    for log in all_comment_logs:
+        if log.parent in comment_data:
+            comment_data[log.parent]['logs'].append(log)
+
+    # Return as a list of structures grouped by field
+    return list(comment_data.values())
+
+@frappe.whitelist()
+def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, reply_to=None):
+    try:
+        # Find or create the parent DocType Field Comment document
+        existing_comments = frappe.get_all('DocType Field Comment', filters={
+            'doctype_name': doctype_name,
+            'docname': docname,
+            'field_name': field_name
+        }, fields=['name'])
+
+        if existing_comments and len(existing_comments) > 0:
+            comment_doc = frappe.get_doc('DocType Field Comment', existing_comments[0].name)
+        else:
+            # Create new parent document
+            comment_doc = frappe.get_doc({
+                'doctype': 'DocType Field Comment',
+                'doctype_name': doctype_name,
+                'docname': docname,
+                'field_name': field_name,
+                'field_label': field_label,
+                'status': 'Open'  # Set initial status
+            })
+            comment_doc.insert(ignore_permissions=True)
+
+        # Create the child DocType Field Comment Log entry
+        comment_log_entry = frappe.get_doc({
+            'doctype': 'DocType Field Comment Log',
+            'parent': comment_doc.name,
+            'parenttype': 'DocType Field Comment',
+            'parentfield': 'comment_log',
+            'comment': comment_text,
+            'user': frappe.session.user,
+            'creation_date': frappe.utils.now_datetime()
+        })
+        if reply_to:
+            comment_log_entry.reply_to = reply_to
+
+        # Insert the child document, ignoring permissions
+        comment_log_entry.insert(ignore_permissions=True)
+
+        # Return the newly created comment log entry for UI update
+        return {
+            'name': comment_log_entry.name,
+            'parent': comment_doc.name,
+            'comment': comment_text,
+            'user': frappe.session.user,
+            'creation_date': comment_log_entry.creation_date,
+            'reply_to': reply_to
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error in save_field_comment: {str(e)}", "Field Comment Error")
+        return None
+
+@frappe.whitelist()
+def send_mention_notification(mentioned_user, comment_doc, doctype, docname, field_name, field_label, comment):
+    """Send notification to mentioned user"""
+    try:
+        # Extract user from mention data
+        mention_pattern = r'data-id="([^"]+)"'
+        mentioned_users = re.findall(mention_pattern, comment)
+        
+        if not mentioned_users:
+            return
+
+        # Get user's full name
+        from_user = frappe.utils.get_fullname(frappe.session.user)
+        
+        for user_email in mentioned_users:
+            # Get user ID from email
+            user_id = frappe.db.get_value("User", {"email": user_email}, "name")
+            if not user_id:
+                continue
+
+            # Create notification message
+            notification_message = f"{from_user} mentioned you in a comment on {field_label} in {doctype} {docname}"
+            
+            # Create Notification Log entry
+            notification = frappe.new_doc("Notification Log")
+            notification.for_user = user_id
+            notification.from_user = frappe.session.user
+            notification.type = "Mention"
+            notification.document_type = doctype
+            notification.document_name = docname
+            notification.subject = notification_message
+            notification.email_content = f"""
+                <p>{from_user} mentioned you in a comment:</p>
+                <p>{comment}</p>
+                <p>Document: {doctype} {docname}</p>
+                <p>Field: {field_label}</p>
+            """
+            notification.insert(ignore_permissions=True)
+
+    except Exception as e:
+        frappe.log_error(f"Error sending mention notification: {str(e)}", "DocType Field Comment Notification Error")
 

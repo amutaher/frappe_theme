@@ -1,56 +1,115 @@
+// Place these function definitions near the top of the file, outside any other function scopes.
+const primaryColor = frappe.boot.my_theme?.button_background_color || '#171717';
+// Variable to store the context of the currently viewed field's comments
+let current_field_context = null;
+
+const getLightColor = (color) => {
+    // Convert hex to RGB
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    // Lighten by 40%
+    return `rgb(${Math.min(255, r + 102)}, ${Math.min(255, g + 102)}, ${Math.min(255, b + 102)})`;
+};
+const getLighterColor = (color) => {
+    // Convert hex to RGB
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    // Lighten by 60%
+    return `rgb(${Math.min(255, r + 153)}, ${Math.min(255, g + 153)}, ${Math.min(255, b + 153)})`;
+};
+const getUserColor = (username) => {
+    const colors = [
+        '#4A90E2', // Light Blue
+        '#50C878', // Light Green
+        '#FFA07A', // Light Salmon
+        '#B19CD9', // Light Purple
+        '#FF6B6B', // Light Red
+        '#48D1CC', // Light Turquoise
+        '#D2B48C', // Light Brown
+        '#A9A9A9', // Light Gray
+        '#BDB76B', // Light Olive
+        '#FFB6C1'  // Light Pink
+    ];
+    // Generate a consistent index based on username
+    const index = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+    return colors[index];
+};
+const getLightUserColor = (color) => {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgb(${Math.min(255, r + 102)}, ${Math.min(255, g + 102)}, ${Math.min(255, b + 102)})`;
+};
+
+// Place this function definition near the top of the file, outside any other function scopes.
+function get_comment_html(comment, commentMap) {
+    // console.log('Rendering comment:', comment); // Log the comment object
+    const userColor = getUserColor(comment.user);
+    const isCurrentUser = comment.user === frappe.session.user;
+    const isReply = comment.reply_to;
+    const repliedToComment = isReply ? commentMap[comment.reply_to] : null;
+
+    // Render the comment content as Markdown
+    const renderedComment = frappe.format(comment.comment, 'Markdown');
+
+    // Add a test string to see if it renders
+    // const testString = "TEST TEXT VISIBLE";
+
+    return `
+        <div class="comment-item" style="margin-bottom: 28px; position: relative; display: flex; ${isCurrentUser ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
+            ${!isCurrentUser ? `
+                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ${frappe.user.full_name(comment.user).charAt(0).toUpperCase()}
+                </div>
+            ` : ''}
+            <div style="max-width: 80%;">
+                ${!isCurrentUser ? `
+                    <div style="margin-bottom: 6px;">
+                        <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
+                            ${frappe.user.full_name(comment.user)}
+                            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">${frappe.datetime.prettyDate(comment.creation_date)}</span>
+                        </div>
+                    </div>
+                ` : ''}
+                ${isReply ? `
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding: 2px 8px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-block;">
+                        Replying to ${frappe.user.full_name(repliedToComment ? repliedToComment.user : 'Unknown User')}
+                    </div>
+                ` : ''}
+                <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    ${!isCurrentUser ? `
+                        <div style="position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: #fff; border-left: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
+                    ` : `
+                        <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
+                    `}
+                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word;">${renderedComment}</div>
+                </div>
+                <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
+                    ${isCurrentUser ? `
+                <div style="font-size: 11px; color: var(--text-muted);">${frappe.datetime.prettyDate(comment.creation_date)}</div>
+                    ` : ''}
+                </div>
+            </div>
+            ${isCurrentUser ? `
+                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ${frappe.user.full_name(comment.user).charAt(0).toUpperCase()}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
 // Add comment button to form and implement threaded comments
 frappe.ui.form.on('*', {
     refresh: function (frm) {
         if (!frm.is_new()) {
             if (!frm.doc || !frm.doc.doctype) return;
 
-            // Get theme colors
-            const primaryColor = frappe.boot.my_theme?.button_background_color || '#171717';
-            const getLightColor = (color) => {
-                // Convert hex to RGB
-                const r = parseInt(color.slice(1, 3), 16);
-                const g = parseInt(color.slice(3, 5), 16);
-                const b = parseInt(color.slice(5, 7), 16);
-                // Lighten by 40%
-                return `rgb(${Math.min(255, r + 102)}, ${Math.min(255, g + 102)}, ${Math.min(255, b + 102)})`;
-            };
-            const getLighterColor = (color) => {
-                // Convert hex to RGB
-                const r = parseInt(color.slice(1, 3), 16);
-                const g = parseInt(color.slice(3, 5), 16);
-                const b = parseInt(color.slice(5, 7), 16);
-                // Lighten by 60%
-                return `rgb(${Math.min(255, r + 153)}, ${Math.min(255, g + 153)}, ${Math.min(255, b + 153)})`;
-            };
+            // Lighten by 40%
             const lightPrimaryColor = getLightColor(primaryColor);
             const lighterPrimaryColor = getLighterColor(primaryColor);
-
-            // Function to generate consistent color for a user
-            const getUserColor = (username) => {
-                const colors = [
-                    '#4A90E2', // Light Blue
-                    '#50C878', // Light Green
-                    '#FFA07A', // Light Salmon
-                    '#B19CD9', // Light Purple
-                    '#FF6B6B', // Light Red
-                    '#48D1CC', // Light Turquoise
-                    '#D2B48C', // Light Brown
-                    '#A9A9A9', // Light Gray
-                    '#BDB76B', // Light Olive
-                    '#FFB6C1'  // Light Pink
-                ];
-                // Generate a consistent index based on username
-                const index = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-                return colors[index];
-            };
-
-            // Function to get light version of user color
-            const getLightUserColor = (color) => {
-                const r = parseInt(color.slice(1, 3), 16);
-                const g = parseInt(color.slice(3, 5), 16);
-                const b = parseInt(color.slice(5, 7), 16);
-                return `rgb(${Math.min(255, r + 102)}, ${Math.min(255, g + 102)}, ${Math.min(255, b + 102)})`;
-            };
 
             // Create comment popup/sidebar if not exists
             if (!$('.field-comments-sidebar').length) {
@@ -99,7 +158,16 @@ frappe.ui.form.on('*', {
                     refreshBtn.prop('disabled', true);
                     refreshBtn.find('svg').css('animation', 'spin 1s linear infinite');
 
-                    load_all_comments().then(() => {
+                    let loadCommentsPromise;
+
+                    // Check if viewing comments for a specific field or all comments
+                    if (current_field_context) {
+                        loadCommentsPromise = load_field_comments(current_field_context.fieldName, current_field_context.field);
+                    } else {
+                        loadCommentsPromise = load_all_comments();
+                    }
+
+                    loadCommentsPromise.then(() => {
                         // Reset button state
                         refreshBtn.prop('disabled', false);
                         refreshBtn.find('svg').css('animation', '');
@@ -128,12 +196,14 @@ frappe.ui.form.on('*', {
                     // Force a reflow to ensure the transition works
                     $('.field-comments-sidebar')[0].offsetHeight;
                     $('.field-comments-sidebar').css('right', '0');
+                    // Set context to null when viewing all comments
+                    current_field_context = null;
                     load_all_comments();
                 });
             }
 
             // Function to initialize comment control
-            function initializeCommentControl(field_section, fieldName, field) {
+            function initializeCommentControl(field_section, fieldName, field, get_comment_html) {
                 const commentBox = field_section.find('.comment-box')[0];
                 let control;
 
@@ -176,78 +246,224 @@ frappe.ui.form.on('*', {
                         mentions.push(match[1]);
                     }
 
-                    frappe.db.insert({
-                        doctype: 'DocType Field Comment',
+                    // Call the server-side method to save the comment
+                    frappe.call({
+                        method: "frappe_theme.api.save_field_comment",
+                        args: {
+                            doctype_name: frm.doctype,
+                            docname: frm.docname,
+                            field_name: fieldName,
+                            field_label: field.df.label || fieldName,
+                            comment_text: comment
+                        },
+                        callback: function (response) {
+                            if (response.message) {
+                                const newCommentEntry = response.message;
+                                control.set_value('');
+                                frappe.show_alert({
+                                    message: __('Comment added successfully'),
+                                    indicator: 'green'
+                                });
+
+                                // Send notifications to mentioned users
+                                if (mentions.length > 0) {
+                                    mentions.forEach(mention => {
+                                        frappe.call({
+                                            method: 'frappe_theme.api.send_mention_notification',
+                                            args: {
+                                                mentioned_user: mention,
+                                                comment_doc: newCommentEntry.parent,
+                                                doctype: frm.doctype,
+                                                docname: frm.docname,
+                                                field_name: fieldName,
+                                                field_label: field.df.label || fieldName,
+                                                comment: comment
+                                            }
+                                        });
+                                    });
+                                }
+
+                                // Reload comments based on current view
+                                const isAllCommentsView = $('.field-comments-sidebar').find('.comments-list').children().length > 1;
+                                if (isAllCommentsView) {
+                                    load_all_comments();
+                                } else {
+                                    // For field-specific view, reload the comments immediately
+                                    load_field_comments(fieldName, field).then(() => {
+                                        // Update comment count badge
+                                        const comment_icon = $(field.label_area).find('.field-comment-icon');
+                                        if (comment_icon.length) {
+                                            const badge = comment_icon.find('.comment-count-badge');
+                                            const currentCount = parseInt(badge.text() || '0');
+                                            badge.text(currentCount + 1);
+                                            badge.css({
+                                                background: primaryColor,
+                                                color: '#fff',
+                                                opacity: 1,
+                                                transform: 'scale(1)',
+                                                visibility: 'visible',
+                                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                                            });
+                                        }
+                                    });
+                                }
+                            } else {
+                                console.error('Error saving comment:', response);
+                                frappe.show_alert({
+                                    message: __('Error adding comment'),
+                                    indicator: 'red'
+                                });
+                            }
+                        }
+                    });
+                });
+
+                return control;
+            }
+
+            function load_field_comments(fieldName, field) {
+                return frappe.db.get_list('DocType Field Comment', {
+                    filters: {
                         doctype_name: frm.doctype,
                         docname: frm.docname,
-                        field_name: fieldName,
-                        field_label: field.df.label || fieldName,
-                        comment: comment
-                    }).then((doc) => {
-                        control.set_value('');
-                        frappe.show_alert({
-                            message: __('Comment added successfully'),
-                            indicator: 'green'
-                        });
+                        field_name: fieldName
+                    },
+                    fields: ['name', 'status']
+                }).then(comments => {
+                    const comments_list = $('.field-comments-sidebar').find('.comments-list');
+                    comments_list.empty();
 
-                        // Send notifications to mentioned users
-                        if (mentions.length > 0) {
-                            mentions.forEach(mention => {
-                                frappe.call({
-                                    method: 'frappe_theme.frappe_theme.doctype.doctype_field_comment.doctype_field_comment.send_mention_notification',
-                                    args: {
-                                        mentioned_user: mention,
-                                        comment_doc: doc.name,
-                                        doctype: frm.doctype,
-                                        docname: frm.docname,
-                                        field_name: fieldName,
-                                        field_label: field.df.label || fieldName,
-                                        comment: comment
-                                    }
+                    // Create field section first
+                    const field_section = $(`
+                        <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${field.df.label || fieldName}</h5>
+                                <div class="status-selector" style="display: flex; align-items: center; gap: 8px;">
+                                    <select class="form-control status-select" style="font-size: 12px; padding: 2px 8px; height: 24px;">
+                                        <option value="Open">Open</option>
+                                        <option value="Resolved">Resolved</option>
+                                        <option value="Closed">Closed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field-comments"></div>
+                            <div class="comment-input" style="margin-top: 15px;">
+                                <div style="display: flex; align-items: center;">
+                                    <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+
+                    // Set initial status if comments exist
+                    if (comments && comments.length > 0) {
+                        const status = comments[0].status || 'Open';
+                        field_section.find('.status-select').val(status);
+                    }
+
+                    // Add status change handler
+                    field_section.find('.status-select').on('change', function () {
+                        const newStatus = $(this).val();
+                        if (comments && comments.length > 0) {
+                            frappe.db.set_value('DocType Field Comment', comments[0].name, 'status', newStatus)
+                                .then(() => {
+                                    frappe.show_alert({
+                                        message: __('Status updated successfully'),
+                                        indicator: 'green'
+                                    });
                                 });
-                            });
                         }
+                    });
 
-                        // Check if we're in the all comments view
-                        const isAllCommentsView = $('.field-comments-sidebar').find('.comments-list').children().length > 1;
+                    if (!comments || comments.length === 0) {
+                        field_section.find('.field-comments').html(`
+                            <div style="display: flex; justify-content: center; align-items: center; height: 100px;">
+                                <div class="text-muted" style="text-align: center;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
+                                        <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                                        <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                                    </svg>
+                                    <div>No comments yet</div>
+                                </div>
+                            </div>
+                        `);
+                        comments_list.append(field_section);
+                        initializeCommentControl(field_section, fieldName, field, get_comment_html);
+                        return;
+                    }
 
-                        if (isAllCommentsView) {
-                            // If in all comments view, reload all comments
-                            load_all_comments();
-                        } else {
-                            // If in specific field view, reload only that field's comments
-                            frappe.db.get_list('DocType Field Comment', {
-                                filters: {
-                                    doctype_name: frm.doctype,
-                                    docname: frm.docname,
-                                    field_name: fieldName
-                                },
-                                fields: ['name', 'comment', 'user', 'creation', 'reply_to'],
-                                order_by: 'creation asc'
-                            }).then(comments => {
-                                const comments_list = $('.field-comments-sidebar').find('.comments-list');
-                                comments_list.empty();
+                    // Get the comment document
+                    const comment_doc = comments[0].name;
 
-                                // Create field section
-                                const field_section = $(`
-                                    <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                                            <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${field.df.label || fieldName}</h5>
-                                        </div>
-                                        <div class="field-comments"></div>
-                                        <div class="comment-input" style="margin-top: 15px;">
-                                            <div style="display: flex; align-items: center;">
-                                                <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                                    <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
-                                                </div>
-                                            </div>
+                    // Fetch child table data using the new server method
+                    frappe.call({
+                        method: "frappe_theme.api.get_comment_logs",
+                        args: {
+                            doctype_name: frm.doctype,
+                            docname: frm.docname,
+                            field_name: fieldName
+                        },
+                        callback: function (response) {
+                            const comment_log = response.message;
+                            // console.log('API response for field comments (custom):', comment_log); // Log the response from custom API
+                            if (!comment_log || comment_log.length === 0) {
+                                field_section.find('.field-comments').html(`
+                                    <div style="display: flex; justify-content: center; align-items: center; height: 100px;">
+                                        <div class="text-muted" style="text-align: center;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
+                                                <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                                                <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                                            </svg>
+                                            <div>No comments yet</div>
                                         </div>
                                     </div>
                                 `);
+                            } else {
+                                const commentMap = {};
+                                comment_log.forEach(c => commentMap[c.name] = c);
 
-                                if (!comments || comments.length === 0) {
-                                    field_section.find('.field-comments').html(`
-                                        <div style="display: flex; justify-content: center; align-items: center; height: 100px;">
+                                // Sort comments to keep conversations together
+                                const sortedComments = comment_log.sort((a, b) => {
+                                    if (b.reply_to === a.name) return -1;
+                                    if (a.reply_to === b.name) return 1;
+                                    return new Date(a.creation_date) - new Date(b.creation_date);
+                                });
+
+                                sortedComments.forEach(c => {
+                                    const comment_element = get_comment_html(c, commentMap);
+                                    field_section.find('.field-comments').append(comment_element);
+                                });
+                            }
+
+                            comments_list.append(field_section);
+                            initializeCommentControl(field_section, fieldName, field, get_comment_html);
+                        }
+                    });
+                });
+            }
+
+            function load_all_comments() {
+                return new Promise((resolve, reject) => {
+                    // Fetch all comment logs for the document using the new server method
+                    frappe.call({
+                        method: "frappe_theme.api.get_all_comment_logs_for_document",
+                        args: {
+                            doctype_name: frm.doctype,
+                            docname: frm.docname
+                        },
+                        callback: function (response) {
+                            if (response.message) {
+                                const field_comments_data = response.message;
+                                const comments_list = $('.field-comments-sidebar').find('.comments-list');
+                                comments_list.empty();
+
+                                // console.log('API response for all comments (custom):', field_comments_data); // Log the response from custom API
+
+                                if (!field_comments_data || field_comments_data.length === 0) {
+                                    comments_list.html(`
+                                        <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
                                             <div class="text-muted" style="text-align: center;">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
                                                     <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
@@ -257,224 +473,109 @@ frappe.ui.form.on('*', {
                                             </div>
                                         </div>
                                     `);
-                                } else {
-                                    // Create a map of comments by their name for easy lookup
-                                    const commentMap = {};
-                                    comments.forEach(c => commentMap[c.name] = c);
-
-                                    // Sort comments to keep conversations together
-                                    const sortedComments = comments.sort((a, b) => {
-                                        if (b.reply_to === a.name) return -1;
-                                        if (a.reply_to === b.name) return 1;
-                                        return new Date(a.creation) - new Date(b.creation);
-                                    });
-
-                                    sortedComments.forEach(c => {
-                                        const userColor = getUserColor(c.user);
-                                        const isCurrentUser = c.user === frappe.session.user;
-                                        const isReply = c.reply_to;
-                                        const repliedToComment = isReply ? commentMap[c.reply_to] : null;
-
-                                        field_section.find('.field-comments').append(`
-                                            <div class="comment-item" style="margin-bottom: 28px; position: relative; display: flex; ${isCurrentUser ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
-                                                ${!isCurrentUser ? `
-                                                    <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                        ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
-                                                    </div>
-                                                ` : ''}
-                                                <div style="max-width: 80%;">
-                                                    ${!isCurrentUser ? `
-                                                        <div style="margin-bottom: 6px;">
-                                                            <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
-                                                                ${frappe.user.full_name(c.user)}
-                                                                <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">${frappe.datetime.prettyDate(c.creation)}</span>
-                                                            </div>
-                                                        </div>
-                                                    ` : ''}
-                                                    ${isReply ? `
-                                                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding: 2px 8px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-block;">
-                                                            Replying to ${frappe.user.full_name(repliedToComment.user)}
-                                                        </div>
-                                                    ` : ''}
-                                                    <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        ${!isCurrentUser ? `
-                                                            <div style="position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: #fff; border-left: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                        ` : `
-                                                            <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                        `}
-                                                        <div style="font-size: 14px; line-height: 1.6; color: #222;">${frappe.format(c.comment, 'Markdown')}</div>
-                                                    </div>
-                                                    <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
-                                                        ${isCurrentUser ? `
-                                                            <div style="font-size: 11px; color: var(--text-muted);">${frappe.datetime.prettyDate(c.creation)}</div>
-                                                        ` : ''}
-                                                    </div>
-                                                </div>
-                                                ${isCurrentUser ? `
-                                                    <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                        ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
-                                                    </div>
-                                                ` : ''}
-                                            </div>
-                                        `);
-                                    });
+                                    resolve();
+                                    return;
                                 }
 
-                                comments_list.append(field_section);
-                                initializeCommentControl(field_section, fieldName, field);
-                            });
-                        }
+                                // Create HTML for each field's comments
+                                field_comments_data.forEach(data => {
+                                    const field = frm.fields_dict[data.field_name];
+                                    if (!field) return; // Skip if field doesn't exist in the form
 
-                        // Update comment count badge
-                        const comment_icon = $(field.label_area).find('.field-comment-icon');
-                        if (comment_icon.length) {
-                            const badge = comment_icon.find('.comment-count-badge');
-                            const currentCount = parseInt(badge.text() || '0');
-                            badge.text(currentCount + 1);
-                            badge.css({
-                                background: primaryColor,
-                                color: '#fff',
-                                opacity: 1,
-                                transform: 'scale(1)',
-                                visibility: 'visible',
-                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                            });
-                        }
-                    });
-                });
-
-                return control;
-            }
-
-            function load_all_comments() {
-                return new Promise((resolve, reject) => {
-                    frappe.db.get_list('DocType Field Comment', {
-                        filters: {
-                            doctype_name: frm.doctype,
-                            docname: frm.docname
-                        },
-                        fields: ['name', 'field_name', 'field_label', 'comment', 'user', 'creation', 'reply_to'],
-                        order_by: 'creation asc'
-                    }).then(comments => {
-                        const comments_list = $('.field-comments-sidebar').find('.comments-list');
-                        comments_list.empty();
-
-                        if (!comments || comments.length === 0) {
-                            comments_list.html(`
-                                <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
-                                    <div class="text-muted" style="text-align: center;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
-                                            <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                                            <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
-                                        </svg>
-                                        <div>No comments yet</div>
-                                    </div>
-                                </div>
-                            `);
-                            resolve();
-                            return;
-                        }
-
-                        // Group comments by field
-                        const field_comments = {};
-                        comments.forEach(c => {
-                            if (!field_comments[c.field_name]) {
-                                field_comments[c.field_name] = {
-                                    label: c.field_label || c.field_name,
-                                    comments: []
-                                };
-                            }
-                            field_comments[c.field_name].comments.push(c);
-                        });
-
-                        // Create HTML for each field's comments
-                        Object.entries(field_comments).forEach(([field_name, data]) => {
-                            const field = frm.fields_dict[field_name];
-                            const field_section = $(`
-                                <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                                        <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${data.label}</h5>
-                                    </div>
-                                    <div class="field-comments"></div>
-                                    <div class="comment-input" style="margin-top: 15px;">
-                                        <div style="display: flex; align-items: center;">
-                                            <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                                <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `);
-
-                            // Add existing comments
-                            if (data.comments && data.comments.length > 0) {
-                                const commentMap = {};
-                                data.comments.forEach(c => commentMap[c.name] = c);
-
-                                const sortedComments = data.comments.sort((a, b) => {
-                                    if (b.reply_to === a.name) return -1;
-                                    if (a.reply_to === b.name) return 1;
-                                    return new Date(a.creation) - new Date(b.creation);
-                                });
-
-                                sortedComments.forEach(c => {
-                                    const userColor = getUserColor(c.user);
-                                    const isCurrentUser = c.user === frappe.session.user;
-                                    const isReply = c.reply_to;
-                                    const repliedToComment = isReply ? commentMap[c.reply_to] : null;
-
-                                    field_section.find('.field-comments').append(`
-                                        <div class="comment-item" style="margin-bottom: 28px; position: relative; display: flex; ${isCurrentUser ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
-                                            ${!isCurrentUser ? `
-                                                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                    ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
-                                                </div>
-                                            ` : ''}
-                                            <div style="max-width: 80%;">
-                                                ${!isCurrentUser ? `
-                                                    <div style="margin-bottom: 6px;">
-                                                        <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
-                                                            ${frappe.user.full_name(c.user)}
-                                                            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">${frappe.datetime.prettyDate(c.creation)}</span>
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                                ${isReply ? `
-                                                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding: 2px 8px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-block;">
-                                                        Replying to ${frappe.user.full_name(repliedToComment.user)}
-                                                    </div>
-                                                ` : ''}
-                                                <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                    ${!isCurrentUser ? `
-                                                        <div style="position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: #fff; border-left: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                    ` : `
-                                                        <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                    `}
-                                                    <div style="font-size: 14px; line-height: 1.6; color: #222;">${frappe.format(c.comment, 'Markdown')}</div>
-                                                </div>
-                                                <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
-                                                    ${isCurrentUser ? `
-                                                        <div style="font-size: 11px; color: var(--text-muted);">${frappe.datetime.prettyDate(c.creation)}</div>
-                                                    ` : ''}
+                                    const field_section = $(`
+                                        <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                                <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${data.field_label || data.field_name}</h5>
+                                                <div class="status-selector" style="display: flex; align-items: center; gap: 8px;">
+                                                    <select class="form-control status-select" style="font-size: 12px; padding: 2px 8px; height: 24px;">
+                                                        <option value="Open">Open</option>
+                                                        <option value="Resolved">Resolved</option>
+                                                        <option value="Closed">Closed</option>
+                                                    </select>
                                                 </div>
                                             </div>
-                                            ${isCurrentUser ? `
-                                                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                    ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
+                                            <div class="field-comments"></div>
+                                            <div class="comment-input" style="margin-top: 15px;">
+                                                <div style="display: flex; align-items: center;">
+                                                    <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                                    </div>
                                                 </div>
-                                            ` : ''}
+                                            </div>
                                         </div>
                                     `);
-                                });
-                            }
 
-                            comments_list.append(field_section);
-                            initializeCommentControl(field_section, field_name, field);
-                        });
-                        resolve();
-                    }).catch(error => {
-                        console.error('Error loading comments:', error);
-                        reject(error);
+                                    // Set initial status
+                                    field_section.find('.status-select').val(data.status);
+
+                                    // Add status change handler
+                                    field_section.find('.status-select').on('change', function () {
+                                        const newStatus = $(this).val();
+                                        // We need the comment_doc name to update status, fetch it here or pass from backend
+                                        // For now, this part might need adjustment based on how you want to update status
+                                        // console.log('Status changed for field:', data.field_name, 'New status:', newStatus);
+                                        // A potential way to get comment_doc name: fetch it again based on field_name, doctype, docname
+                                        frappe.db.get_list('DocType Field Comment', {
+                                            filters: {
+                                                doctype_name: frm.doctype,
+                                                docname: frm.docname,
+                                                field_name: data.field_name
+                                            },
+                                            fields: ['name'],
+                                            limit: 1
+                                        }).then(comment_doc_list => {
+                                            if (comment_doc_list && comment_doc_list.length > 0) {
+                                                frappe.db.set_value('DocType Field Comment', comment_doc_list[0].name, 'status', newStatus)
+                                                    .then(() => {
+                                                        frappe.show_alert({
+                                                            message: __('Status updated successfully'),
+                                                            indicator: 'green'
+                                                        });
+                                                    });
+                                            }
+                                        });
+                                    });
+
+                                    if (!data.logs || data.logs.length === 0) {
+                                        field_section.find('.field-comments').html(`
+                                            <div style="display: flex; justify-content: center; align-items: center; height: 100px;">
+                                                <div class="text-muted" style="text-align: center;">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
+                                                        <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                                                        <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                                                    </svg>
+                                                    <div>No comments yet</div>
+                                                </div>
+                                            </div>
+                                        `);
+                                    } else {
+                                        // Need a commentMap for replies - create it from the logs
+                                        const commentMap = {};
+                                        data.logs.forEach(c => commentMap[c.name] = c);
+
+                                        // Sort comments to keep conversations together (optional, but good practice)
+                                        const sortedLogs = data.logs.sort((a, b) => {
+                                            if (b.reply_to === a.name) return -1;
+                                            if (a.reply_to === b.name) return 1;
+                                            return new Date(a.creation_date) - new Date(b.creation_date);
+                                        });
+
+                                        sortedLogs.forEach(c => {
+                                            const comment_element = get_comment_html(c, commentMap);
+                                            field_section.find('.field-comments').append(comment_element);
+                                        });
+                                    }
+
+                                    comments_list.append(field_section);
+                                    initializeCommentControl(field_section, data.field_name, field, get_comment_html);
+                                });
+
+                                resolve();
+                            } else {
+                                // console.error('Error fetching all comment logs (custom API):', response);
+                                reject('Error fetching all comment logs');
+                            }
+                        }
                     });
                 });
             }
@@ -535,21 +636,9 @@ frappe.ui.form.on('*', {
                             },
                             fields: ['name']
                         }).then(comments => {
-                            const count = comments ? comments.length : 0;
-                            const badge = comment_icon.find('.comment-count-badge');
-                            badge.text(count);
-                            if (count > 0) {
-                                badge.css({
-                                    background: primaryColor,
-                                    color: '#fff',
-                                    opacity: 1,
-                                    transform: 'scale(1)',
-                                    visibility: 'visible',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-                                    zIndex: 9999,
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                                });
-                            } else {
+                            if (!comments || comments.length === 0) {
+                                const badge = comment_icon.find('.comment-count-badge');
+                                badge.text('0');
                                 badge.css({
                                     background: '#e0e0e0',
                                     color: '#666',
@@ -558,7 +647,46 @@ frappe.ui.form.on('*', {
                                     visibility: 'visible',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                                 });
+                                return;
                             }
+
+                            // Get the comment document
+                            const comment_doc = comments[0].name;
+
+                            // Fetch child table data
+                            return frappe.db.get_list('DocType Field Comment Log', {
+                                filters: {
+                                    parent: comment_doc,
+                                    parenttype: 'DocType Field Comment',
+                                    parentfield: 'comment_log'
+                                },
+                                fields: ['name']
+                            }).then(comment_log => {
+                                const count = comment_log ? comment_log.length : 0;
+                                const badge = comment_icon.find('.comment-count-badge');
+                                badge.text(count);
+                                if (count > 0) {
+                                    badge.css({
+                                        background: primaryColor,
+                                        color: '#fff',
+                                        opacity: 1,
+                                        transform: 'scale(1)',
+                                        visibility: 'visible',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                                        zIndex: 9999,
+                                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                                    });
+                                } else {
+                                    badge.css({
+                                        background: '#e0e0e0',
+                                        color: '#666',
+                                        opacity: 0.9,
+                                        transform: 'scale(0.9)',
+                                        visibility: 'visible',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                    });
+                                }
+                            });
                         });
                     };
 
@@ -582,114 +710,11 @@ frappe.ui.form.on('*', {
                         $('.field-comments-sidebar')[0].offsetHeight;
                         $('.field-comments-sidebar').css('right', '0');
 
+                        // Set context when viewing comments for a specific field
+                        current_field_context = { fieldName: fieldname, field: field };
+
                         // Load only this field's comments
-                        frappe.db.get_list('DocType Field Comment', {
-                            filters: {
-                                doctype_name: frm.doctype,
-                                docname: frm.docname,
-                                field_name: fieldname
-                            },
-                            fields: ['name', 'comment', 'user', 'creation', 'reply_to'],
-                            order_by: 'creation asc'
-                        }).then(comments => {
-                            const comments_list = $('.field-comments-sidebar').find('.comments-list');
-                            comments_list.empty();
-
-                            // Create field section
-                            const field_section = $(`
-                                <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                                        <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${field.df.label || fieldname}</h5>
-                                    </div>
-                                    <div class="field-comments"></div>
-                                    <div class="comment-input" style="margin-top: 15px;">
-                                        <div style="display: flex; align-items: center;">
-                                            <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                                <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `);
-
-                            if (!comments || comments.length === 0) {
-                                field_section.find('.field-comments').html(`
-                                    <div style="display: flex; justify-content: center; align-items: center; height: 100px;">
-                                        <div class="text-muted" style="text-align: center;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-square-text" viewBox="0 0 16 16" style="margin-bottom: 10px;">
-                                                <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                                                <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
-                                            </svg>
-                                            <div>No comments yet</div>
-                                        </div>
-                                    </div>
-                                `);
-                            } else {
-                                // Create a map of comments by their name for easy lookup
-                                const commentMap = {};
-                                comments.forEach(c => commentMap[c.name] = c);
-
-                                // Sort comments to keep conversations together
-                                const sortedComments = comments.sort((a, b) => {
-                                    if (b.reply_to === a.name) return -1;
-                                    if (a.reply_to === b.name) return 1;
-                                    return new Date(a.creation) - new Date(b.creation);
-                                });
-
-                                sortedComments.forEach(c => {
-                                    const userColor = getUserColor(c.user);
-                                    const isCurrentUser = c.user === frappe.session.user;
-                                    const isReply = c.reply_to;
-                                    const repliedToComment = isReply ? commentMap[c.reply_to] : null;
-
-                                    field_section.find('.field-comments').append(`
-                                        <div class="comment-item" style="margin-bottom: 28px; position: relative; display: flex; ${isCurrentUser ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
-                                            ${!isCurrentUser ? `
-                                                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                    ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
-                                                </div>
-                                            ` : ''}
-                                            <div style="max-width: 80%;">
-                                                ${!isCurrentUser ? `
-                                                    <div style="margin-bottom: 6px;">
-                                                        <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
-                                                            ${frappe.user.full_name(c.user)}
-                                                            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">${frappe.datetime.prettyDate(c.creation)}</span>
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                                ${isReply ? `
-                                                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding: 2px 8px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-block;">
-                                                        Replying to ${frappe.user.full_name(repliedToComment.user)}
-                                                    </div>
-                                                ` : ''}
-                                                <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                    ${!isCurrentUser ? `
-                                                        <div style="position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: #fff; border-left: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                    ` : `
-                                                        <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
-                                                    `}
-                                                    <div style="font-size: 14px; line-height: 1.6; color: #222;">${frappe.format(c.comment, 'Markdown')}</div>
-                                                </div>
-                                                <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
-                                                    ${isCurrentUser ? `
-                                                        <div style="font-size: 11px; color: var(--text-muted);">${frappe.datetime.prettyDate(c.creation)}</div>
-                                                    ` : ''}
-                                                </div>
-                                            </div>
-                                            ${isCurrentUser ? `
-                                                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                    ${frappe.user.full_name(c.user).charAt(0).toUpperCase()}
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                    `);
-                                });
-                            }
-
-                            comments_list.append(field_section);
-                            initializeCommentControl(field_section, fieldname, field);
-                        });
+                        load_field_comments(fieldname, field);
                     });
                 }
             });
