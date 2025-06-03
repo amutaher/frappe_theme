@@ -1,5 +1,8 @@
 import frappe
 import jwt
+from hashlib import sha256
+from frappe.utils import now_datetime
+
 def format_currency(value):
     value = float(value)
     currency_type = frappe.get_doc("System Settings").currency
@@ -69,3 +72,22 @@ def decode_url(token):
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = redirect_url
 
+def get_loging_url(email):
+    is_signup = frappe.db.get_single_value('My Theme','disable_usr_pass_login')
+    frappe.log_error("is_signuphhh", is_signup)
+    if is_signup:
+        conf = frappe.get_conf()
+        baseurl = conf.get("hostname")
+        url = f"{baseurl}/login?email={email}"
+        frappe.log_error("url1", url)
+        return url
+    else:
+        key = frappe.generate_hash()
+        hashed_key = sha256(key.encode("utf-8")).hexdigest()
+        
+        frappe.db.set_value("User", email, "reset_password_key", hashed_key)
+        frappe.db.set_value("User", email, "last_reset_password_key_generated_on", now_datetime())
+        
+        url = f"/update-password?key={key}"
+        frappe.log_error("url2", url)
+        return url
