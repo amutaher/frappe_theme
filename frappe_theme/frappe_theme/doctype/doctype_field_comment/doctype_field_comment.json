@@ -1,111 +1,111 @@
 {
-    "actions": [],
-    "autoname": "format:FIELD-COMMENT-{####}",
-    "creation": "2024-05-21 14:29:37",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "field_order": [
-        "doctype_name",
-        "docname",
-        "field_name",
-        "field_label",
-        "comment",
-        "user",
-        "creation_date",
-        "reply_to"
-    ],
-    "fields": [
-        {
-            "fieldname": "doctype_name",
-            "fieldtype": "Link",
-            "label": "DocType",
-            "options": "DocType",
-            "reqd": 1
-        },
-        {
-            "fieldname": "docname",
-            "fieldtype": "Data",
-            "label": "Document Name",
-            "reqd": 1
-        },
-        {
-            "fieldname": "field_name",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Field Name",
-            "read_only": 1,
-            "reqd": 1
-        },
-        {
-            "fieldname": "field_label",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Field Label",
-            "read_only": 1
-        },
-        {
-            "fieldname": "comment",
-            "fieldtype": "Text Editor",
-            "in_list_view": 1,
-            "label": "Comment",
-            "reqd": 1
-        },
-        {
-            "fieldname": "user",
-            "fieldtype": "Link",
-            "label": "User",
-            "options": "User",
-            "read_only": 1
-        },
-        {
-            "fieldname": "creation_date",
-            "fieldtype": "Datetime",
-            "label": "Creation Date",
-            "read_only": 1
-        },
-        {
-            "fieldname": "reply_to",
-            "fieldtype": "Link",
-            "label": "Reply To",
-            "options": "DocType Field Comment",
-            "description": "Reference to the comment being replied to"
-        }
-    ],
-    "links": [],
-    "modified": "2025-05-23 10:08:45.337298",
-    "modified_by": "Administrator",
-    "module": "Frappe Theme",
-    "name": "DocType Field Comment",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "System Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Guest",
-            "share": 1,
-            "write": 1
-        }
-    ],
-    "row_format": "Dynamic",
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "states": [],
-    "track_changes": 1
+ "actions": [],
+ "autoname": "format:FIELD-COMMENT-{####}",
+ "creation": "2024-05-21 14:29:37",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "doctype_name",
+  "docname",
+  "field_name",
+  "field_label",
+  "comment",
+  "user",
+  "creation_date",
+  "reply_to"
+ ],
+ "fields": [
+  {
+   "fieldname": "doctype_name",
+   "fieldtype": "Link",
+   "label": "DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "docname",
+   "fieldtype": "Data",
+   "label": "Document Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "field_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Field Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "field_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Field Label",
+   "read_only": 1
+  },
+  {
+   "fieldname": "comment",
+   "fieldtype": "Text Editor",
+   "in_list_view": 1,
+   "label": "Comment",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "creation_date",
+   "fieldtype": "Datetime",
+   "label": "Creation Date",
+   "read_only": 1
+  },
+  {
+   "description": "Reference to the comment being replied to",
+   "fieldname": "reply_to",
+   "fieldtype": "Link",
+   "label": "Reply To",
+   "options": "DocType Field Comment"
+  }
+ ],
+ "links": [],
+ "modified": "2025-06-03 09:56:06.928568",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "DocType Field Comment",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Guest",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
 }
