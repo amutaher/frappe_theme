@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "autoincrement",
+ "autoname": "hash",
  "creation": "2025-06-03 14:51:42.941958",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -8,8 +8,7 @@
  "field_order": [
   "comment",
   "user",
-  "creation_date",
-  "reply_to"
+  "creation_date"
  ],
  "fields": [
   {
@@ -33,23 +32,15 @@
    "in_list_view": 1,
    "label": "Creation Date",
    "read_only": 1
-  },
-  {
-   "description": "Reference to the comment being replied to",
-   "fieldname": "reply_to",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Reply To",
-   "options": "DocType Field Comment Log"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2025-06-03 19:09:00.538056",
+ "modified": "2025-06-05 12:28:11.220816",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "DocType Field Comment Log",
- "naming_rule": "Autoincrement",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

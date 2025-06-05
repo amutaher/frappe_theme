@@ -499,92 +499,12 @@ def apply_common_permissions(target_perm, common_permissions):
     else:
         target_perm.email = 0
 
-@frappe.whitelist()
-def get_comment_logs(doctype_name, docname, field_name):
-    """Fetches DocType Field Comment Log records for a specific field."""
-    filters = {
-        "parenttype": "DocType Field Comment",
-        "parentfield": "comment_log"
-    }
-
-    # First, find the parent DocType Field Comment document
-    comment_doc = frappe.get_list('DocType Field Comment', 
-        filters={
-            'doctype_name': doctype_name,
-            'docname': docname,
-            'field_name': field_name
-        },
-        fields=['name'],
-        limit=1
-    )
-
-    if not comment_doc:
-        return [] # No parent comment document found
-
-    filters['parent'] = comment_doc[0].name
-
-    # Fetch child table entries
-    comment_logs = frappe.get_list(
-        'DocType Field Comment Log',
-        filters=filters,
-        fields=['name', 'comment', 'user', 'creation_date', 'reply_to'],
-        order_by='creation_date asc',
-        ignore_permissions=True # Temporarily ignore permissions for testing
-    )
-
-    return comment_logs
 
 @frappe.whitelist()
-def get_all_comment_logs_for_document(doctype_name, docname):
-    """Fetches all DocType Field Comment Log records for a specific document."""
-    # Find all parent DocType Field Comment documents for the given document
-    comment_docs = frappe.get_list('DocType Field Comment', 
-        filters={
-            'doctype_name': doctype_name,
-            'docname': docname,
-        },
-        fields=['name', 'field_name', 'field_label', 'status'],
-    )
-
-    if not comment_docs:
-        return [] # No parent comment documents found
-
-    # Get names of all parent comment documents
-    comment_doc_names = [doc.name for doc in comment_docs]
-    
-    # Fetch all child table entries related to these parent documents
-    all_comment_logs = frappe.get_list(
-        'DocType Field Comment Log',
-        filters={
-            "parent": ["in", comment_doc_names],
-            "parenttype": "DocType Field Comment",
-            "parentfield": "comment_log"
-        },
-        fields=['name', 'comment', 'user', 'creation_date', 'reply_to', 'parent'], # Include parent to link back to the field
-        order_by='creation_date asc',
-        ignore_permissions=True # Temporarily ignore permissions for testing
-    )
-
-    # Combine parent info with comment logs
-    comment_data = {}
-    for doc in comment_docs:
-        comment_data[doc.name] = {
-            'field_name': doc.field_name,
-            'field_label': doc.field_label,
-            'status': doc.status,
-            'logs': []
-        }
-
-    for log in all_comment_logs:
-        if log.parent in comment_data:
-            comment_data[log.parent]['logs'].append(log)
-
-    # Return as a list of structures grouped by field
-    return list(comment_data.values())
-
-@frappe.whitelist()
-def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, reply_to=None):
+def save_field_comment(doctype_name, docname, field_name, field_label, comment_text):
     try:
+        frappe.log_error(f"Saving comment for: {doctype_name} {docname} {field_name}", "Comment Save Debug")
+        
         # Find or create the parent DocType Field Comment document
         existing_comments = frappe.get_all('DocType Field Comment', filters={
             'doctype_name': doctype_name,
@@ -592,8 +512,11 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'field_name': field_name
         }, fields=['name'])
 
+        frappe.log_error(f"Existing comments found: {existing_comments}", "Comment Save Debug")
+
         if existing_comments and len(existing_comments) > 0:
             comment_doc = frappe.get_doc('DocType Field Comment', existing_comments[0].name)
+            frappe.log_error(f"Using existing comment doc: {comment_doc.name}", "Comment Save Debug")
         else:
             # Create new parent document
             comment_doc = frappe.get_doc({
@@ -605,6 +528,7 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
                 'status': 'Open'  # Set initial status
             })
             comment_doc.insert(ignore_permissions=True)
+            frappe.log_error(f"Created new comment doc: {comment_doc.name}", "Comment Save Debug")
 
         # Create the child DocType Field Comment Log entry
         comment_log_entry = frappe.get_doc({
@@ -616,11 +540,14 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'user': frappe.session.user,
             'creation_date': frappe.utils.now_datetime()
         })
-        if reply_to:
-            comment_log_entry.reply_to = reply_to
 
         # Insert the child document, ignoring permissions
         comment_log_entry.insert(ignore_permissions=True)
+        frappe.log_error(f"Created new comment log: {comment_log_entry.name}", "Comment Save Debug")
+
+        # Verify the comment was saved
+        saved_log = frappe.get_doc('DocType Field Comment Log', comment_log_entry.name)
+        frappe.log_error(f"Verified saved comment: {saved_log.name}", "Comment Save Debug")
 
         # Return the newly created comment log entry for UI update
         return {
@@ -628,12 +555,11 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'parent': comment_doc.name,
             'comment': comment_text,
             'user': frappe.session.user,
-            'creation_date': comment_log_entry.creation_date,
-            'reply_to': reply_to
+            'creation_date': comment_log_entry.creation_date
         }
 
     except Exception as e:
-        frappe.log_error(f"Error in save_field_comment: {str(e)}", "Field Comment Error")
+        frappe.log_error(f"Error in save_field_comment: {str(e)}\nTraceback: {frappe.get_traceback()}", "Comment Save Error")
         return None
 
 @frappe.whitelist()
@@ -677,4 +603,173 @@ def send_mention_notification(mentioned_user, comment_doc, doctype, docname, fie
 
     except Exception as e:
         frappe.log_error(f"Error sending mention notification: {str(e)}", "DocType Field Comment Notification Error")
+
+@frappe.whitelist()
+def get_comment_count(doctype_name, docname, field_name):
+    """Get the count of comments for a specific field"""
+    try:
+        frappe.log_error(f"Getting comment count for: {doctype_name} {docname} {field_name}", "Comment Count Debug")
+        
+        # First verify if the document exists
+        doc_exists = frappe.db.exists(doctype_name, docname)
+        frappe.log_error(f"Document exists: {doc_exists}", "Comment Count Debug")
+        
+        # Get the parent comment document with more detailed logging
+        comment_doc = frappe.get_all(
+            'DocType Field Comment',
+            filters={
+                'doctype_name': doctype_name,
+                'docname': docname,
+                'field_name': field_name
+            },
+            fields=['name', 'doctype_name', 'docname', 'field_name'],
+            limit=1,
+            ignore_permissions=True
+        )
+        
+        frappe.log_error(f"Found comment doc: {comment_doc}", "Comment Count Debug")
+        
+        if not comment_doc:
+            frappe.log_error(f"No comment document found for {doctype_name} {docname} {field_name}", "Comment Count Error")
+            return 0
+            
+        # Get the count of comment logs with detailed logging
+        # First, let's verify the parent document exists
+        parent_exists = frappe.db.exists('DocType Field Comment', comment_doc[0].name)
+        frappe.log_error(f"Parent document exists: {parent_exists}", "Comment Count Debug")
+        
+        if not parent_exists:
+            frappe.log_error(f"Parent document {comment_doc[0].name} does not exist", "Comment Count Error")
+            return 0
+            
+        # Get all comment logs for this parent
+        comment_logs = frappe.get_all(
+            'DocType Field Comment Log',
+            filters={
+                'parent': comment_doc[0].name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            },
+            fields=['name', 'comment', 'user', 'creation_date'],
+            ignore_permissions=True
+        )
+        
+        frappe.log_error(f"Comment logs found: {comment_logs}", "Comment Count Debug")
+        
+        # Get the count
+        count = len(comment_logs)
+        frappe.log_error(f"Total count: {count}", "Comment Count Debug")
+        
+        # If count is 0 but we have a parent document, verify the relationship
+        if count == 0:
+            # Check if there are any logs at all in the system
+            total_logs = frappe.db.count('DocType Field Comment Log')
+            frappe.log_error(f"Total logs in system: {total_logs}", "Comment Count Debug")
+            
+            # Check if the parent field exists in the DocType Field Comment table
+            parent_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'parentfield')
+            frappe.log_error(f"Parent field value: {parent_field}", "Comment Count Debug")
+            
+            # Check if the comment_log table field exists
+            table_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'comment_log')
+            frappe.log_error(f"Table field value: {table_field}", "Comment Count Debug")
+        
+        return count
+    except Exception as e:
+        frappe.log_error(f"Error in get_comment_count: {str(e)}\nTraceback: {frappe.get_traceback()}", "Comment Count Error")
+        return 0
+
+@frappe.whitelist()
+def load_field_comments(doctype_name, docname, field_name):
+    """Load comments for a specific field"""
+    try:
+        # Get the parent comment document
+        comment_doc = frappe.get_all(
+            'DocType Field Comment',
+            filters={
+                'doctype_name': doctype_name,
+                'docname': docname,
+                'field_name': field_name
+            },
+            fields=['name', 'status'],
+            limit=1,
+            ignore_permissions=True
+        )
+
+        if not comment_doc:
+            return {
+                'comments': [],
+                'status': 'Open'
+            }
+
+        # Get the comment logs
+        comment_logs = frappe.get_all(
+            'DocType Field Comment Log',
+            filters={
+                'parent': comment_doc[0].name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            },
+            fields=['name', 'comment', 'user', 'creation_date'],
+            order_by='creation_date asc',
+            ignore_permissions=True
+        )
+
+        return {
+            'comments': comment_logs,
+            'status': comment_doc[0].status
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error in load_field_comments: {str(e)}")
+        return {
+            'comments': [],
+            'status': 'Open'
+        }
+
+@frappe.whitelist()
+def load_all_comments(doctype_name, docname):
+    """Load all comments for a document"""
+    try:
+        # Get all parent comment documents for the document
+        comment_docs = frappe.get_all(
+            'DocType Field Comment',
+            filters={
+                'doctype_name': doctype_name,
+                'docname': docname
+            },
+            fields=['name', 'field_name', 'field_label', 'status'],
+            ignore_permissions=True
+        )
+
+        if not comment_docs:
+            return []
+
+        # Get all comment logs for these parent documents
+        all_comments = []
+        for doc in comment_docs:
+            comment_logs = frappe.get_all(
+                'DocType Field Comment Log',
+                filters={
+                    'parent': doc.name,
+                    'parenttype': 'DocType Field Comment',
+                    'parentfield': 'comment_log'
+                },
+                fields=['name', 'comment', 'user', 'creation_date'],
+                order_by='creation_date asc',
+                ignore_permissions=True
+            )
+
+            all_comments.append({
+                'field_name': doc.field_name,
+                'field_label': doc.field_label,
+                'status': doc.status,
+                'comments': comment_logs
+            })
+
+        return all_comments
+
+    except Exception as e:
+        frappe.log_error(f"Error in load_all_comments: {str(e)}")
+        return []
 
