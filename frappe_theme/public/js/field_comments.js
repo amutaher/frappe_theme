@@ -7,7 +7,7 @@ let current_field_context = null;
 const STATUS_COLORS = {
     'Open': '#4A90E2',      // Blue
     'Resolved': '#50C878',  // Green
-    'Closed': '#A9A9A9'     // Gray
+    'Closed': '#FF4444'     // Red
 };
 
 // Add this helper function to get status color
@@ -82,7 +82,7 @@ function get_comment_html(comment, commentMap) {
                     ${frappe.user.full_name(comment.user).charAt(0).toUpperCase()}
                 </div>
             ` : ''}
-            <div style="max-width: 80%;">
+            <div style="width: fit-content; max-width: 80%;">
                 ${!isCurrentUser ? `
                     <div style="margin-bottom: 6px;">
                         <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
@@ -91,13 +91,13 @@ function get_comment_html(comment, commentMap) {
                         </div>
                     </div>
                 ` : ''}
-                <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div class="comment-content" style="padding: 12px 16px; border-radius: 16px; border: 1px solid #ececec; position: relative; background: ${isCurrentUser ? '#f5f7fa' : '#fff'}; margin-bottom: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: fit-content;">
                     ${!isCurrentUser ? `
                         <div style="position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: #fff; border-left: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
                     ` : `
                         <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
                     `}
-                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word;">${renderedComment}</div>
+                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word; white-space: pre-wrap;">${renderedComment}</div>
                 </div>
                 <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
                     ${isCurrentUser ? `
@@ -760,198 +760,203 @@ function updateCommentCount(fieldName, frm) {
     });
 }
 
-// Add comment button to form and implement threaded comments
-frappe.ui.form.on('*', {
-    refresh: function (frm) {
-        if (!frm.is_new()) {
-            if (!frm.doc || !frm.doc.doctype) return;
+// Add this new function before the frappe.ui.form.on('*') handler
+function setupFieldComments(frm) {
+    if (!frm.is_new()) {
+        if (!frm.doc || !frm.doc.doctype) return;
 
-            // Check permissions first
-            check_comment_permissions().then(permissions => {
-                // Only proceed if user has read permission
-                if (!permissions.includes('read')) {
+        // Check permissions first
+        check_comment_permissions().then(permissions => {
+            // Only proceed if user has read permission
+            if (!permissions.includes('read')) {
+                return;
+            }
+
+            // Lighten by 40%
+            const lightPrimaryColor = getLightColor(primaryColor);
+            const lighterPrimaryColor = getLighterColor(primaryColor);
+
+            // Create comment popup/sidebar if not exists
+            if (!$('.field-comments-sidebar').length) {
+                const comment_sidebar = $(`
+                    <div class="field-comments-sidebar" style="display: none; position: fixed; right: -400px; top: 48px; width: 400px; height: calc(100vh - 48px); background: var(--fg-color); box-shadow: -2px 0 8px rgba(0,0,0,0.1); z-index: 100; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                        <div style="padding: 15px; border-bottom: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h5 style="margin: 0; font-size: 18px; font-weight: 600;">Comment</h5>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-default btn-sm refresh-comments" style="padding: 4px 8px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="btn btn-default btn-sm close-comments" style="padding: 4px 8px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="comments-container" style="height: calc(100vh - 108px); overflow-y: auto; padding: 15px;">
+                            <div class="comments-list"></div>
+                        </div>
+                    </div>
+                `);
+
+                $('body').append(comment_sidebar);
+
+                // Handle close button click
+                comment_sidebar.find('.close-comments').click(() => {
+                    comment_sidebar.css('right', '-400px');
+                    setTimeout(() => {
+                        comment_sidebar.hide();
+                    }, 400);
+                });
+
+                // Handle refresh button click
+                comment_sidebar.find('.refresh-comments').click(() => {
+                    if (!cur_frm) return;
+
+                    // Show loading state
+                    const refreshBtn = comment_sidebar.find('.refresh-comments');
+                    refreshBtn.prop('disabled', true);
+                    refreshBtn.find('svg').css('animation', 'spin 1s linear infinite');
+
+                    let loadCommentsPromise;
+
+                    // Check if viewing comments for a specific field or all comments
+                    if (current_field_context) {
+                        loadCommentsPromise = load_field_comments(current_field_context.fieldName, current_field_context.field, current_field_context.frm);
+                    } else {
+                        loadCommentsPromise = load_all_comments(frm);
+                    }
+
+                    loadCommentsPromise.then(() => {
+                        // Reset button state
+                        refreshBtn.prop('disabled', false);
+                        refreshBtn.find('svg').css('animation', '');
+
+                        frappe.show_alert({
+                            message: __('Comments refreshed'),
+                            indicator: 'green'
+                        });
+                    }).catch((error) => {
+                        // Reset button state on error
+                        refreshBtn.prop('disabled', false);
+                        refreshBtn.find('svg').css('animation', '');
+
+                        frappe.show_alert({
+                            message: __('Error refreshing comments'),
+                            indicator: 'red'
+                        });
+                    });
+                });
+            }
+
+            // Add comment button to form only if user has create permission
+            if (permissions.includes('create') && !frm.page.sidebar.find('.field-comments-btn').length) {
+                frm.add_custom_button(__('Comment'), function () {
+                    $('.field-comments-sidebar').show();
+                    // Force a reflow to ensure the transition works
+                    $('.field-comments-sidebar')[0].offsetHeight;
+                    $('.field-comments-sidebar').css('right', '0');
+                    // Set context to null when viewing all comments
+                    current_field_context = null;
+                    load_all_comments(frm);
+                });
+            }
+
+            // Add comment icons to each field only if user has read permission
+            Object.keys(frm.fields_dict).forEach(fieldname => {
+                const field = frm.fields_dict[fieldname];
+                if (!field || !field.df) return;
+                if (['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
                     return;
                 }
 
-                // Lighten by 40%
-                const lightPrimaryColor = getLightColor(primaryColor);
-                const lighterPrimaryColor = getLighterColor(primaryColor);
-
-                // Create comment popup/sidebar if not exists
-                if (!$('.field-comments-sidebar').length) {
-                    const comment_sidebar = $(`
-                        <div class="field-comments-sidebar" style="display: none; position: fixed; right: -400px; top: 48px; width: 400px; height: calc(100vh - 48px); background: var(--fg-color); box-shadow: -2px 0 8px rgba(0,0,0,0.1); z-index: 100; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
-                            <div style="padding: 15px; border-bottom: none;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h5 style="margin: 0; font-size: 18px; font-weight: 600;">Comment</h5>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="btn btn-default btn-sm refresh-comments" style="padding: 4px 8px;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                                                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                                                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-                                            </svg>
-                                        </button>
-                                        <button class="btn btn-default btn-sm close-comments" style="padding: 4px 8px;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="comments-container" style="height: calc(100vh - 108px); overflow-y: auto; padding: 15px;">
-                                <div class="comments-list"></div>
-                            </div>
+                // Create comment icon if not exists
+                if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                    const comment_icon = $(`
+                        <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
+                            <button class="btn" style="padding: 2px 8px; position: relative;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
+                                    <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"></path>
+                                </svg>
+                                <span class="comment-count-badge" style="
+                                    position: absolute;
+                                    top: -4px;
+                                    right: -8px;
+                                    background: #ff5722;
+                                    color: #fff;
+                                    border-radius: 50%;
+                                    min-width: 16px;
+                                    height: 16px;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    display: flex !important;
+                                    align-items: center;
+                                    justify-content: center;
+                                    padding: 0 4px;
+                                    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+                                    border: 1.5px solid #fff;
+                                    z-index: 9999;
+                                    opacity: 1;
+                                    transition: all 0.2s ease;
+                                    transform-origin: center;
+                                ">0</span>
+                            </button>
                         </div>
                     `);
 
-                    $('body').append(comment_sidebar);
+                    // Add icon to the field wrapper
+                    $(field.label_area).css('position', 'relative');
+                    $(field.label_area).append(comment_icon);
 
-                    // Handle close button click
-                    comment_sidebar.find('.close-comments').click(() => {
-                        comment_sidebar.css('right', '-400px');
-                        setTimeout(() => {
-                            comment_sidebar.hide();
-                        }, 400);
-                    });
+                    // Update comment count initially
+                    updateCommentCount(fieldname, frm);
 
-                    // Handle refresh button click
-                    comment_sidebar.find('.refresh-comments').click(() => {
-                        if (!cur_frm) return;
+                    // Show/hide icon on hover
+                    $(field.$wrapper).hover(
+                        function () {
+                            comment_icon.show();
+                            updateCommentCount(fieldname, frm);
+                        },
+                        function () { comment_icon.hide(); }
+                    );
 
-                        // Show loading state
-                        const refreshBtn = comment_sidebar.find('.refresh-comments');
-                        refreshBtn.prop('disabled', true);
-                        refreshBtn.find('svg').css('animation', 'spin 1s linear infinite');
-
-                        let loadCommentsPromise;
-
-                        // Check if viewing comments for a specific field or all comments
-                        if (current_field_context) {
-                            loadCommentsPromise = load_field_comments(current_field_context.fieldName, current_field_context.field, current_field_context.frm);
-                        } else {
-                            loadCommentsPromise = load_all_comments(frm);
-                        }
-
-                        loadCommentsPromise.then(() => {
-                            // Reset button state
-                            refreshBtn.prop('disabled', false);
-                            refreshBtn.find('svg').css('animation', '');
-
-                            frappe.show_alert({
-                                message: __('Comments refreshed'),
-                                indicator: 'green'
-                            });
-                        }).catch((error) => {
-                            // Reset button state on error
-                            refreshBtn.prop('disabled', false);
-                            refreshBtn.find('svg').css('animation', '');
-
-                            frappe.show_alert({
-                                message: __('Error refreshing comments'),
-                                indicator: 'red'
-                            });
-                        });
-                    });
-                }
-
-                // Add comment button to form only if user has create permission
-                if (permissions.includes('create') && !frm.page.sidebar.find('.field-comments-btn').length) {
-                    frm.add_custom_button(__('Comment'), function () {
+                    // Handle click on comment icon
+                    comment_icon.click(() => {
+                        // Show sidebar
                         $('.field-comments-sidebar').show();
                         // Force a reflow to ensure the transition works
                         $('.field-comments-sidebar')[0].offsetHeight;
                         $('.field-comments-sidebar').css('right', '0');
-                        // Set context to null when viewing all comments
-                        current_field_context = null;
-                        load_all_comments(frm);
+
+                        // Set context when viewing comments for a specific field
+                        current_field_context = { fieldName: fieldname, field: field, frm: frm };
+
+                        // Load only this field's comments
+                        load_field_comments(fieldname, field, frm);
                     });
                 }
-
-                // Add comment icons to each field only if user has read permission
-                Object.keys(frm.fields_dict).forEach(fieldname => {
-                    const field = frm.fields_dict[fieldname];
-                    if (!field || !field.df) return;
-                    if (['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
-                        return;
-                    }
-
-                    // Create comment icon if not exists
-                    if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
-                        const comment_icon = $(`
-                            <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
-                                <button class="btn" style="padding: 2px 8px; position: relative;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
-                                        <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"></path>
-                                    </svg>
-                                    <span class="comment-count-badge" style="
-                                        position: absolute;
-                                        top: -4px;
-                                        right: -8px;
-                                        background: #ff5722;
-                                        color: #fff;
-                                        border-radius: 50%;
-                                        min-width: 16px;
-                                        height: 16px;
-                                        font-size: 10px;
-                                        font-weight: 600;
-                                        display: flex !important;
-                                        align-items: center;
-                                        justify-content: center;
-                                        padding: 0 4px;
-                                        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-                                        border: 1.5px solid #fff;
-                                        z-index: 9999;
-                                        opacity: 1;
-                                        transition: all 0.2s ease;
-                                        transform-origin: center;
-                                    ">0</span>
-                                </button>
-                            </div>
-                        `);
-
-                        // Add icon to the field wrapper
-                        $(field.label_area).css('position', 'relative');
-                        $(field.label_area).append(comment_icon);
-
-                        // Update comment count initially
-                        updateCommentCount(fieldname, frm);
-
-                        // Show/hide icon on hover
-                        $(field.$wrapper).hover(
-                            function () {
-                                comment_icon.show();
-                                updateCommentCount(fieldname, frm);
-                            },
-                            function () { comment_icon.hide(); }
-                        );
-
-                        // Handle click on comment icon
-                        comment_icon.click(() => {
-                            // Show sidebar
-                            $('.field-comments-sidebar').show();
-                            // Force a reflow to ensure the transition works
-                            $('.field-comments-sidebar')[0].offsetHeight;
-                            $('.field-comments-sidebar').css('right', '0');
-
-                            // Set context when viewing comments for a specific field
-                            current_field_context = { fieldName: fieldname, field: field, frm: frm };
-
-                            // Load only this field's comments
-                            load_field_comments(fieldname, field, frm);
-                        });
-                    }
-                });
-            }).catch(err => {
-                console.error('Error checking permissions:', err);
             });
-        } else {
-            Object.keys(frm.fields_dict).forEach(fieldname => {
-                const field = frm.fields_dict[fieldname];
-                if (field && field.label_area) {
-                    $(field.label_area).find('.field-comment-icon').remove();
-                }
-            });
-        }
+        }).catch(err => {
+            console.error('Error checking permissions:', err);
+        });
+    } else {
+        Object.keys(frm.fields_dict).forEach(fieldname => {
+            const field = frm.fields_dict[fieldname];
+            if (field && field.label_area) {
+                $(field.label_area).find('.field-comment-icon').remove();
+            }
+        });
+    }
+}
+
+// Remove the frappe.ui.form.on('*') handler and replace with this
+frappe.ui.form.on('*', {
+    refresh: function (frm) {
+        setupFieldComments(frm);
     }
 });
