@@ -680,11 +680,31 @@ def get_comment_count(doctype_name, docname, field_name):
         return 0
 
 @frappe.whitelist()
-def load_field_comments(doctype_name, docname, field_name):
-    """Load comments for a specific field"""
+def create_new_comment_thread(doctype_name, docname, field_name, field_label):
+    """Create a new comment thread for a field"""
     try:
-        # Get the parent comment document
-        comment_doc = frappe.get_all(
+        # Create new parent document
+        comment_doc = frappe.get_doc({
+            'doctype': 'DocType Field Comment',
+            'doctype_name': doctype_name,
+            'docname': docname,
+            'field_name': field_name,
+            'field_label': field_label,
+            'status': 'Open'  # Set initial status
+        })
+        comment_doc.insert(ignore_permissions=True)
+        
+        return comment_doc.name
+    except Exception as e:
+        frappe.log_error(f"Error creating new comment thread: {str(e)}")
+        return None
+
+@frappe.whitelist()
+def load_field_comments(doctype_name, docname, field_name):
+    """Load all comment threads for a specific field"""
+    try:
+        # Get all parent comment documents for the field
+        comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
                 'doctype_name': doctype_name,
@@ -692,39 +712,44 @@ def load_field_comments(doctype_name, docname, field_name):
                 'field_name': field_name
             },
             fields=['name', 'status'],
-            limit=1,
+            order_by='creation desc',  # Most recent first
             ignore_permissions=True
         )
 
-        if not comment_doc:
+        if not comment_docs:
             return {
-                'comments': [],
-                'status': 'Open'
+                'threads': []
             }
 
-        # Get the comment logs
-        comment_logs = frappe.get_all(
-            'DocType Field Comment Log',
-            filters={
-                'parent': comment_doc[0].name,
-                'parenttype': 'DocType Field Comment',
-                'parentfield': 'comment_log'
-            },
-            fields=['name', 'comment', 'user', 'creation_date'],
-            order_by='creation_date asc',
-            ignore_permissions=True
-        )
+        # Get all comment logs for these parent documents
+        threads = []
+        for doc in comment_docs:
+            comment_logs = frappe.get_all(
+                'DocType Field Comment Log',
+                filters={
+                    'parent': doc.name,
+                    'parenttype': 'DocType Field Comment',
+                    'parentfield': 'comment_log'
+                },
+                fields=['name', 'comment', 'user', 'creation_date'],
+                order_by='creation_date asc',
+                ignore_permissions=True
+            )
+
+            threads.append({
+                'name': doc.name,
+                'status': doc.status,
+                'comments': comment_logs
+            })
 
         return {
-            'comments': comment_logs,
-            'status': comment_doc[0].status
+            'threads': threads
         }
 
     except Exception as e:
         frappe.log_error(f"Error in load_field_comments: {str(e)}")
         return {
-            'comments': [],
-            'status': 'Open'
+            'threads': []
         }
 
 @frappe.whitelist()
