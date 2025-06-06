@@ -446,7 +446,7 @@
    "label": "Logo Height (px)"
   },
   {
-   "default": "0",
+   "default": "1",
    "fieldname": "disable_usr_pass_login",
    "fieldtype": "Check",
    "label": " Disable Username/Password Login"
@@ -456,7 +456,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-05-29 09:44:16.369302",
+ "modified": "2025-06-04 17:05:22.936388",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
