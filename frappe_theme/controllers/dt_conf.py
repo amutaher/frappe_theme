@@ -37,9 +37,7 @@ class DTConf():
     def get_workflow_with_dt(dt):
         exists = frappe.db.exists('Workflow', {'document_type': dt})
         if exists:
-            frappe.set_user('Administrator')
             wf_doc = frappe.get_doc('Workflow', exists)
-            frappe.set_user(frappe.session.user)
             return wf_doc.as_dict()
         else:
             frappe.throw('No workflow found for this doctype')
@@ -94,18 +92,18 @@ class DTConf():
             
             return fields_dict
 
-    def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List"):
+    def get_dt_list(doctype,doc=None,ref_doctype=None, filters=None, fields=None, limit_page_length=None, order_by=None, limit_start=None, _type="List",unfiltered=0):
         if _type == 'Report': 
-            return DTConf.report_list(doctype,doc,ref_doctype, filters, limit_page_length,limit_start)
+            return DTConf.report_list(doctype,doc,ref_doctype, filters, limit_page_length,limit_start,unfiltered)
         else:
             return DTConf.doc_type_list(doctype,filters, fields, limit_page_length, order_by, limit_start)
 
-    def report_list(doctype,doc=None,ref_doctype=None, filters=None, limit_page_length=None,limit_start=None):
+    def report_list(doctype,doc=None,ref_doctype=None, filters=None, limit_page_length=None,limit_start=None,unfiltered=0):
         doc_filters = DTConf.get_report_filters(doctype)
             # convert filters to sql conditions
         conditions = ""
         for f in doc_filters:
-            if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
+            if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype and unfiltered == 0:
                 conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
         if filters:
             conditions = conditions +' AND '+ DTConf.filters_to_sql_conditions(filters)
@@ -125,13 +123,13 @@ class DTConf():
                         limit_page_length=limit_page_length, 
                         order_by=order_by, limit_start=limit_start)
         
-    def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List"):
+    def get_dt_count(doctype,doc=None,ref_doctype=None, filters=None,_type="List",unfiltered=False):
         if _type == 'Report': 
             doc_filters = DTConf.get_report_filters(doctype)
             # convert filters to sql conditions
             conditions = ""
             for f in doc_filters:
-                if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype:
+                if f.get('fieldname') and f.get('fieldname') not in filters and f.get('options') == ref_doctype and unfiltered == 0:
                     conditions += f" AND t.{f.get('fieldname')} = '{doc}'"
             if filters:
                 conditions = conditions +' AND '+ DTConf.filters_to_sql_conditions(filters)

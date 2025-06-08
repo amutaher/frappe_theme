@@ -63,16 +63,16 @@ function formatCurrencyWithSuffix(amount) {
     return formatCurrency(amount, currencyCode);
 }
 
-function custom_eval(expr,doc) {
+function custom_eval(expr, doc) {
     if (expr.startsWith('eval:')) {
         expr = expr.slice(5);
     }
     let result = new Function('doc', `return ${expr};`)(doc);
     return result;
 }
-function getDistrictRoute(state_name){
+function getDistrictRoute(state_name) {
     let base_route = '/assets/frappe_theme/boundaries/district/'
-    state_name = state_name?.replace("&","and");
+    state_name = state_name?.replace("&", "and");
     let state = state_name?.toLowerCase()?.split(" ")?.join("-");
     const final_route = `${base_route}${state}.json`
     return final_route;
@@ -80,3 +80,53 @@ function getDistrictRoute(state_name){
 frappe.utils.format_currency = formatCurrencyWithSuffix;
 frappe.utils.custom_eval = custom_eval;
 frappe.utils.get_district_json_route = getDistrictRoute;
+
+function toggleFieldError(context, fieldname, message, toggle = true, is_child = false) {
+    if (!is_child) {
+        let field = context.fields_dict[fieldname];
+        let error_message = '';
+        if (field?.description) {
+            error_message = `<span class="text-danger">${__(message)}</span><br>${field?.description}`;
+        } else {
+            error_message = `<span class="text-danger">${__(message)}</span>`;
+        }
+        if (toggle) {
+            context.set_df_property(fieldname, 'description', error_message);
+            $(field.$wrapper).addClass('has-error');
+            frappe.validate = false;
+            throw new Error(message);
+        } else {
+            if (field?.description) {
+                context.set_df_property(fieldname, 'description', field?.description);
+            } else {
+                context.set_df_property(fieldname, 'description', '');
+            }
+            $(field.$wrapper).removeClass('has-error');
+            frappe.validate = true;
+        }
+    } else {
+        if (toggle) {
+            const isDialog = context?.$wrapper && context.get_value;
+            const isForm = context?.fields_dict && context.doc;
+
+        // Show error message
+        if (isDialog && context?.show_message) {
+            context.show_message('');
+            context.show_message(__(message), 'red');
+            frappe.validate = false;
+            throw new Error(message);
+            } 
+            else if (isForm) {
+                frappe.throw(message);
+            }
+        } else {
+            const isDialog = context?.$wrapper && context.get_value;
+            if (isDialog && context?.show_message) {
+                context.show_message('');
+                console.log('running')
+            }
+        }
+    }
+}
+
+frappe.utils.toggleFieldError = toggleFieldError;

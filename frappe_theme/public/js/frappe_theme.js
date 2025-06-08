@@ -1,5 +1,5 @@
 // window.dev_server = 0;
-const getElements = async (selector, waitSeconds=2) => {
+const getElements = async (selector, waitSeconds = 2) => {
     let timeTaken = 0;
     return new Promise((resolve, reject) => {
         let interval = setInterval(() => {
@@ -8,14 +8,14 @@ const getElements = async (selector, waitSeconds=2) => {
             if (elements?.length) {
                 clearInterval(interval);
                 resolve(elements);
-            }else if(timeTaken >= waitSeconds){
+            } else if (timeTaken >= waitSeconds) {
                 clearInterval(interval)
                 resolve([]);
             }
         }, 500);
     });
 }
-const getElement = async (selector, waitSeconds=2) => {
+const getElement = async (selector, waitSeconds = 2) => {
     let timeTaken = 0;
     return new Promise((resolve, reject) => {
         let interval = setInterval(() => {
@@ -24,7 +24,7 @@ const getElement = async (selector, waitSeconds=2) => {
             if (element?.length) {
                 clearInterval(interval);
                 resolve(element);
-            }else if(timeTaken >= waitSeconds){
+            } else if (timeTaken >= waitSeconds) {
                 clearInterval(interval)
                 resolve(null);
             }
@@ -67,18 +67,18 @@ const getTheme = async () => {
 
 const getUserRoles = (theme) => {
     let currentUser = frappe?.boot?.user?.roles;
-    if(!currentUser){
+    if (!currentUser) {
         return false;
     }
-    if(currentUser.includes('Administrator')){
-        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+    if (currentUser.includes('Administrator')) {
+        if (theme.hide_search.map(u => u.role).includes('Administrator')) {
             return true;
-        }else{
+        } else {
             return false;
         }
     }
     let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
-    if(!roles){
+    if (!roles) {
         return false;
     }
     return roles;
@@ -119,6 +119,22 @@ const hide_comments_and_like_from_list = async () => {
         if (count_string) {
             document.querySelector('#custom_count_renderer').innerText = count_string;
         }
+    }
+}
+const addCustomLogo = () => {
+    const navbarBreadcrumbs = document.querySelector('#navbar-breadcrumbs');
+    const logoUrl = frappe.boot.my_theme?.custom_logo;
+
+    if (navbarBreadcrumbs && logoUrl) {
+        const customLogo = document.createElement('div');
+        customLogo.className = 'custom-logo';
+
+        const logoHeight = frappe.boot.my_theme?.custom_logo_height || 36;
+
+        customLogo.innerHTML = `
+            <img src="${logoUrl}" alt="Custom Logo" style="height: ${logoHeight}px; margin-right: 15px;">
+        `;
+        navbarBreadcrumbs.parentNode.insertBefore(customLogo, navbarBreadcrumbs);
     }
 }
 const applyTheme = async () => {
@@ -196,7 +212,7 @@ const applyTheme = async () => {
 
         /* Navbar */
         .input-group.search-bar.text-muted {
-           display: ${ getUserRoles(theme) ? 'none' : ''} !important;
+           display: ${getUserRoles(theme) ? 'none' : ''} !important;
         }
      
         .navbar {
@@ -332,5 +348,6 @@ const applyTheme = async () => {
     `;
     await observer_function(theme);
     document.head.appendChild(style);
+    addCustomLogo();
 }
 applyTheme()
