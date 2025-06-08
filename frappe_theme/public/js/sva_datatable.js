@@ -733,6 +733,7 @@ class SvaDataTable {
             if (name) {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
+                    f.default = ''
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -1035,7 +1036,7 @@ class SvaDataTable {
             title: __(`${mode == 'view' ? 'View' : mode == 'create' ? 'Create' : 'Update'} ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
-            primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
+            primary_action_label: name ? 'Update' : 'Create',
             primary_action: async (values) => {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
@@ -1113,7 +1114,7 @@ class SvaDataTable {
                 dialog.clear();
                 dialog.hide();
             },
-            secondary_action_label: 'Cancel',
+            secondary_action_label: ['create', 'write'].includes(mode) ? 'Cancel' : 'Close',
             secondary_action: () => {
                 if (additional_action) {
                     additional_action(false);
@@ -1123,9 +1124,9 @@ class SvaDataTable {
             }
         });
         if (['create', 'write'].includes(mode)) {
-            dialog.get_secondary_btn().show();
+            dialog.get_primary_btn().show();
         } else {
-            dialog.get_secondary_btn().hide();
+            dialog.get_primary_btn().hide();
         }
         this.form_dialog = dialog;
         dialog.show();
