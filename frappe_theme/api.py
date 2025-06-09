@@ -798,3 +798,42 @@ def load_all_comments(doctype_name, docname):
         frappe.log_error(f"Error in load_all_comments: {str(e)}")
         return []
 
+@frappe.whitelist()
+def get_all_field_comment_counts(doctype_name, docname):
+    """Get comment counts for all fields in a document in a single call"""
+    try:
+        # Get all parent comment documents for the document
+        comment_docs = frappe.get_all(
+            'DocType Field Comment',
+            filters={
+                'doctype_name': doctype_name,
+                'docname': docname
+            },
+            fields=['name', 'field_name'],
+            ignore_permissions=True
+        )
+
+        if not comment_docs:
+            return {}
+
+        # Create a dictionary to store counts
+        field_counts = {}
+        
+        # Get all comment logs for these parent documents
+        for doc in comment_docs:
+            count = frappe.db.count(
+                'DocType Field Comment Log',
+                filters={
+                    'parent': doc.name,
+                    'parenttype': 'DocType Field Comment',
+                    'parentfield': 'comment_log'
+                }
+            )
+            field_counts[doc.field_name] = count
+
+        return field_counts
+
+    except Exception as e:
+        frappe.log_error(f"Error in get_all_field_comment_counts: {str(e)}")
+        return {}
+
