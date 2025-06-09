@@ -19,7 +19,7 @@ app_include_css = [
     f"/assets/frappe_theme/css/number_card_mapper.css?ver={time.time()}"
 ]
 app_include_js = [
-    f"/assets/frappe_theme/js/field_comments.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/fields_comment.js?ver={time.time()}",
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
     f"/assets/frappe_theme/js/extended_chart.js?ver={time.time()}",

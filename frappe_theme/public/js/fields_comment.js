@@ -172,10 +172,10 @@ function load_field_comments(fieldName, field, frm) {
                 const field_section = $(`
                     <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                            <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${field.df.label || fieldName}</h5>
+                            <h5 style="margin: 0; font-size: 15px;">${field.df.label || fieldName}</h5>
                             <div style="display: flex; gap: 8px;">
                                 <button class="btn btn-default btn-sm new-thread-btn" style="padding: 4px 8px; display: none;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
                                         <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
                                     </svg>
                                 </button>
@@ -196,31 +196,14 @@ function load_field_comments(fieldName, field, frm) {
                         const thread_section = $(`
                             <div class="thread-section" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: ${index === 0 ? 'var(--fg-color)' : 'var(--bg-color)'}; border: 1px solid var(--border-color);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <div class="status-selector" style="display: none; margin-left: auto;">
-                                        <select class="form-control status-select" style="
-                                            font-size: 12px;
-                                            padding: 2px 8px;
-                                            height: 24px;
-                                            border-radius: 12px;
-                                            border: 1px solid var(--border-color);
-                                            background-color: var(--control-bg);
-                                            color: var(--text-color);
-                                            cursor: pointer;
-                                            transition: all 0.2s ease;
-                                            min-width: 100px;
-                                            text-align: center;
-                                            font-weight: 500;
-                                        ">
-                                            <option value="Open">Open</option>
-                                            <option value="Resolved">Resolved</option>
-                                            <option value="Closed">Closed</option>
-                                        </select>
+                                    <div class="status-pill-container" style="margin-left: auto;">
+                                        ${renderStatusPill(thread.status || 'Open')}
                                     </div>
                                 </div>
                                 <div class="field-comments"></div>
                                 <div class="comment-input" style="margin-top: 15px; display: none;">
                                     <div style="display: flex; align-items: center;">
-                                        <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                                        <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
                                             <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
                                         </div>
                                     </div>
@@ -233,73 +216,97 @@ function load_field_comments(fieldName, field, frm) {
 
                         // Set initial status and show status selector only if there are comments
                         if (thread.comments && thread.comments.length > 0) {
-                            thread_section.find('.status-selector').show();
-                            thread_section.find('.status-select').val(currentStatus);
-
+                            thread_section.find('.status-pill-container').show();
                             // Disable status select if status is Closed
                             if (currentStatus === 'Closed') {
-                                thread_section.find('.status-select').prop('disabled', true);
-                                thread_section.find('.status-select').css({
+                                thread_section.find('.status-pill').css({
                                     'opacity': '0.7',
-                                    'cursor': 'not-allowed',
-                                    'background-color': '#f5f5f5'
+                                    'cursor': 'not-allowed'
                                 });
+                                thread_section.find('.comment-input').hide();
                             }
                         }
 
                         // Add status change handler
-                        thread_section.find('.status-select').on('change', function () {
-                            const newStatus = $(this).val();
+                        thread_section.find('.status-pill').click((e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
 
-                            // If current status is Closed, prevent change
-                            if (currentStatus === 'Closed') {
-                                $(this).val('Closed');
-                                frappe.show_alert({
-                                    message: __('Cannot change status of closed comments'),
-                                    indicator: 'red'
-                                });
-                                return;
-                            }
+                        thread_section.find('.status-option').click((e) => {
+                            e.preventDefault();
+                            const newStatus = $(e.target).data('status');
+                            const statusPill = thread_section.find('.status-pill');
 
-                            frappe.db.set_value('DocType Field Comment', thread.name, 'status', newStatus)
-                                .then(() => {
-                                    currentStatus = newStatus;  // Update current status
+                            // Check permissions before allowing status change
+                            check_comment_permissions().then(permissions => {
+                                if (!permissions.includes('write')) {
                                     frappe.show_alert({
-                                        message: __('Status updated successfully'),
-                                        indicator: 'green'
+                                        message: __('You do not have permission to change status'),
+                                        indicator: 'red'
                                     });
+                                    return;
+                                }
 
-                                    // Update status select styling
-                                    $(this).css({
-                                        'background-color': getStatusColor(newStatus),
-                                        'color': '#fff',
-                                        'border-color': getStatusColor(newStatus)
-                                    });
-
-                                    // If status is Closed, disable the select
-                                    if (newStatus === 'Closed') {
-                                        thread_section.find('.status-select').prop('disabled', true);
-                                        thread_section.find('.status-select').css({
-                                            'opacity': '0.7',
-                                            'cursor': 'not-allowed'
-                                        });
-                                        thread_section.find('.comment-input').hide();
-                                    } else {
-                                        thread_section.find('.status-select').prop('disabled', false);
-                                        thread_section.find('.status-select').css({
-                                            'opacity': '1',
-                                            'cursor': 'pointer'
-                                        });
-                                        thread_section.find('.comment-input').show();
+                                // Validate status transition
+                                if (!isValidStatusTransition(currentStatus, newStatus)) {
+                                    let validNextStatuses = '';
+                                    if (currentStatus === 'Open') {
+                                        validNextStatuses = 'Resolved';
+                                    } else if (currentStatus === 'Resolved') {
+                                        validNextStatuses = 'Open or Closed';
+                                    } else if (currentStatus === 'Closed') {
+                                        validNextStatuses = 'Resolved';
                                     }
 
-                                    // Show/hide new thread button based on status
-                                    if (newStatus === 'Closed') {
-                                        field_section.find('.new-thread-btn').show();
-                                    } else {
-                                        field_section.find('.new-thread-btn').hide();
-                                    }
-                                });
+                                    frappe.show_alert({
+                                        message: __(`Invalid status change. Status can only be changed from ${currentStatus} to ${validNextStatuses}`),
+                                        indicator: 'red'
+                                    });
+                                    return;
+                                }
+
+                                frappe.db.set_value('DocType Field Comment', thread.name, 'status', newStatus)
+                                    .then(() => {
+                                        currentStatus = newStatus;
+                                        frappe.show_alert({
+                                            message: __('Status updated successfully'),
+                                            indicator: 'green'
+                                        });
+
+                                        // If status is Closed, remove dropdown and disable the pill
+                                        if (newStatus === 'Closed') {
+                                            // Remove dropdown menu
+                                            thread_section.find('.dropdown-menu').remove();
+                                            // Remove dropdown toggle attributes
+                                            statusPill.removeAttr('data-toggle')
+                                                .removeAttr('aria-haspopup')
+                                                .removeAttr('aria-expanded');
+                                            // Update styling
+                                            statusPill.css({
+                                                'opacity': '0.7',
+                                                'cursor': 'not-allowed'
+                                            });
+                                            thread_section.find('.comment-input').hide();
+                                        } else {
+                                            statusPill.css({
+                                                'opacity': '1',
+                                                'cursor': 'pointer'
+                                            });
+                                            thread_section.find('.comment-input').show();
+                                        }
+
+                                        // Show/hide new thread button based on status
+                                        if (newStatus === 'Closed') {
+                                            field_section.find('.new-thread-btn').show();
+                                        } else {
+                                            field_section.find('.new-thread-btn').hide();
+                                        }
+
+                                        // Update the status text
+                                        updateStatusPill(statusPill, newStatus);
+                                    });
+                            });
                         });
 
                         // Hide comment input if status is Closed
@@ -366,7 +373,7 @@ function load_field_comments(fieldName, field, frm) {
                                 </div>
                                 <div class="comment-input" style="margin-top: 15px;">
                                     <div style="display: flex; align-items: center;">
-                                        <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                                        <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
                                             <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
                                         </div>
                                     </div>
@@ -387,6 +394,7 @@ function load_field_comments(fieldName, field, frm) {
                 }
 
                 comments_list.append(field_section);
+                initializeDropdowns();
                 resolve();
             },
             error: function (err) {
@@ -433,32 +441,15 @@ function load_all_comments(frm) {
                     const field_section = $(`
                         <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                                <h5 style="margin: 0; font-weight: 600; font-size: 15px;">${data.field_label || data.field_name}</h5>
-                                <div class="status-selector" style="display: none; margin-left: auto;">
-                                    <select class="form-control status-select" style="
-                                        font-size: 12px;
-                                        padding: 2px 8px;
-                                        height: 24px;
-                                        border-radius: 12px;
-                                        border: 1px solid var(--border-color);
-                                        background-color: var(--control-bg);
-                                        color: var(--text-color);
-                                        cursor: pointer;
-                                        transition: all 0.2s ease;
-                                        min-width: 100px;
-                                        text-align: center;
-                                        font-weight: 500;
-                                    ">
-                                        <option value="Open">Open</option>
-                                        <option value="Resolved">Resolved</option>
-                                        <option value="Closed">Closed</option>
-                                    </select>
+                                <h5 style="margin: 0; font-size: 15px;">${data.field_label || data.field_name}</h5>
+                                <div class="status-pill-container" style="margin-left: auto;">
+                                    ${renderStatusPill(data.status || 'Open')}
                                 </div>
                             </div>
                             <div class="field-comments"></div>
                             <div class="comment-input" style="margin-top: 15px; display: none;">
                                 <div style="display: flex; align-items: center;">
-                                    <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                                    <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
                                         <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
                                     </div>
                                 </div>
@@ -471,16 +462,12 @@ function load_all_comments(frm) {
 
                     // Set initial status and show status selector only if there are comments
                     if (data.comments && data.comments.length > 0) {
-                        field_section.find('.status-selector').show();
-                        field_section.find('.status-select').val(currentStatus);
-
+                        field_section.find('.status-pill-container').show();
                         // Disable status select if status is Closed
                         if (currentStatus === 'Closed') {
-                            field_section.find('.status-select').prop('disabled', true);
-                            field_section.find('.status-select').css({
+                            field_section.find('.status-pill').css({
                                 'opacity': '0.7',
-                                'cursor': 'not-allowed',
-                                'background-color': '#f5f5f5'
+                                'cursor': 'not-allowed'
                             });
                             // Hide comment input if status is Closed
                             field_section.find('.comment-input').hide();
@@ -488,62 +475,89 @@ function load_all_comments(frm) {
                     }
 
                     // Add status change handler
-                    field_section.find('.status-select').on('change', function () {
-                        const newStatus = $(this).val();
+                    field_section.find('.status-pill').click((e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
 
-                        // If current status is Closed, prevent change
-                        if (currentStatus === 'Closed') {
-                            $(this).val('Closed');
-                            frappe.show_alert({
-                                message: __('Cannot change status of closed comments'),
-                                indicator: 'red'
-                            });
-                            return;
-                        }
+                    field_section.find('.status-option').click((e) => {
+                        e.preventDefault();
+                        const newStatus = $(e.target).data('status');
+                        const statusPill = field_section.find('.status-pill');
 
-                        frappe.db.get_list('DocType Field Comment', {
-                            filters: {
-                                doctype_name: frm.doctype,
-                                docname: frm.docname,
-                                field_name: data.field_name
-                            },
-                            fields: ['name'],
-                            limit: 1
-                        }).then(comment_doc_list => {
-                            if (comment_doc_list && comment_doc_list.length > 0) {
-                                frappe.db.set_value('DocType Field Comment', comment_doc_list[0].name, 'status', newStatus)
-                                    .then(() => {
-                                        currentStatus = newStatus;  // Update current status
-                                        frappe.show_alert({
-                                            message: __('Status updated successfully'),
-                                            indicator: 'green'
-                                        });
-
-                                        // Update status select styling
-                                        $(this).css({
-                                            'background-color': getStatusColor(newStatus),
-                                            'color': '#fff',
-                                            'border-color': getStatusColor(newStatus)
-                                        });
-
-                                        // If status is Closed, disable the select and hide comment input
-                                        if (newStatus === 'Closed') {
-                                            field_section.find('.status-select').prop('disabled', true);
-                                            field_section.find('.status-select').css({
-                                                'opacity': '0.7',
-                                                'cursor': 'not-allowed'
-                                            });
-                                            field_section.find('.comment-input').hide();
-                                        } else {
-                                            field_section.find('.status-select').prop('disabled', false);
-                                            field_section.find('.status-select').css({
-                                                'opacity': '1',
-                                                'cursor': 'pointer'
-                                            });
-                                            field_section.find('.comment-input').show();
-                                        }
-                                    });
+                        // Check permissions before allowing status change
+                        check_comment_permissions().then(permissions => {
+                            if (!permissions.includes('write')) {
+                                frappe.show_alert({
+                                    message: __('You do not have permission to change status'),
+                                    indicator: 'red'
+                                });
+                                return;
                             }
+
+                            // Validate status transition
+                            if (!isValidStatusTransition(currentStatus, newStatus)) {
+                                let validNextStatuses = '';
+                                if (currentStatus === 'Open') {
+                                    validNextStatuses = 'Resolved';
+                                } else if (currentStatus === 'Resolved') {
+                                    validNextStatuses = 'Open or Closed';
+                                } else if (currentStatus === 'Closed') {
+                                    validNextStatuses = 'Resolved';
+                                }
+
+                                frappe.show_alert({
+                                    message: __(`Invalid status change. Status can only be changed from ${currentStatus} to ${validNextStatuses}`),
+                                    indicator: 'red'
+                                });
+                                return;
+                            }
+
+                            frappe.db.get_list('DocType Field Comment', {
+                                filters: {
+                                    doctype_name: frm.doctype,
+                                    docname: frm.docname,
+                                    field_name: data.field_name
+                                },
+                                fields: ['name'],
+                                limit: 1
+                            }).then(comment_doc_list => {
+                                if (comment_doc_list && comment_doc_list.length > 0) {
+                                    frappe.db.set_value('DocType Field Comment', comment_doc_list[0].name, 'status', newStatus)
+                                        .then(() => {
+                                            currentStatus = newStatus;
+                                            frappe.show_alert({
+                                                message: __('Status updated successfully'),
+                                                indicator: 'green'
+                                            });
+
+                                            // If status is Closed, remove dropdown and disable the pill
+                                            if (newStatus === 'Closed') {
+                                                // Remove dropdown menu
+                                                field_section.find('.dropdown-menu').remove();
+                                                // Remove dropdown toggle attributes
+                                                statusPill.removeAttr('data-toggle')
+                                                    .removeAttr('aria-haspopup')
+                                                    .removeAttr('aria-expanded');
+                                                // Update styling
+                                                statusPill.css({
+                                                    'opacity': '0.7',
+                                                    'cursor': 'not-allowed'
+                                                });
+                                                field_section.find('.comment-input').hide();
+                                            } else {
+                                                statusPill.css({
+                                                    'opacity': '1',
+                                                    'cursor': 'pointer'
+                                                });
+                                                field_section.find('.comment-input').show();
+                                            }
+
+                                            // Update the status text
+                                            updateStatusPill(statusPill, newStatus);
+                                        });
+                                }
+                            });
                         });
                     });
 
@@ -585,6 +599,7 @@ function load_all_comments(frm) {
                     }
                 });
 
+                initializeDropdowns();
                 resolve();
             },
             error: function (err) {
@@ -658,8 +673,8 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
                         indicator: 'green'
                     });
 
-                    // Show status selector after first comment
-                    field_section.find('.status-selector').show();
+                    // Show status pill after first comment
+                    field_section.find('.status-pill-container').show();
 
                     // Send notifications to mentioned users
                     if (mentions.length > 0) {
@@ -704,56 +719,54 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
     return control;
 }
 
+// Add this at the top of the file with other constants
+let commentCountCache = {};
+
 // Move updateCommentCount function outside the refresh event handler
 function updateCommentCount(fieldName, frm) {
+    // Get the comment count badge element
+    const commentCountBadge = $(frm.fields_dict[fieldName].label_area).find('.comment-count-badge');
+    if (!commentCountBadge.length) return;
+
+    // Use cached count if available
+    if (commentCountCache[fieldName] !== undefined) {
+        const count = commentCountCache[fieldName];
+        commentCountBadge.text(count);
+        commentCountBadge.css({
+            'display': 'flex !important',
+            'visibility': 'visible',
+            'opacity': count > 0 ? 1 : 0.9,
+            'transform': count > 0 ? 'scale(1)' : 'scale(0.9)',
+            'background': count > 0 ? primaryColor : '#e0e0e0',
+            'color': count > 0 ? '#fff' : '#666',
+            'boxShadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
+        });
+        return;
+    }
+
+    // Get all comment counts in one call
     frappe.call({
-        method: "frappe_theme.api.get_comment_count",
+        method: 'frappe_theme.api.get_all_field_comment_counts',
         args: {
             doctype_name: frm.doctype,
-            docname: frm.docname,
-            field_name: fieldName
+            docname: frm.docname
         },
-        callback: function (response) {
-            // Ensure we have a valid number
-            let count = 0;
-            if (typeof response.message === 'number') {
-                count = response.message;
-            } else if (typeof response.message === 'string') {
-                count = parseInt(response.message) || 0;
-            }
+        callback: function (r) {
+            if (r.message) {
+                // Update cache
+                commentCountCache = r.message;
 
-            const comment_icon = $(frm.fields_dict[fieldName].label_area).find('.field-comment-icon');
-            if (comment_icon.length) {
-                const badge = comment_icon.find('.comment-count-badge');
-                badge.text(count);
-
-                // Always show the badge with appropriate styling
-                badge.css({
-                    display: 'flex !important',
-                    visibility: 'visible',
-                    opacity: count > 0 ? 1 : 0.9,
-                    transform: count > 0 ? 'scale(1)' : 'scale(0.9)',
-                    background: count > 0 ? primaryColor : '#e0e0e0',
-                    color: count > 0 ? '#fff' : '#666',
-                    boxShadow: count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
-                    zIndex: 9999
-                });
-            }
-        },
-        error: function (err) {
-            // Set default state on error
-            const comment_icon = $(frm.fields_dict[fieldName].label_area).find('.field-comment-icon');
-            if (comment_icon.length) {
-                const badge = comment_icon.find('.comment-count-badge');
-                badge.text('0');
-                badge.css({
-                    display: 'flex !important',
-                    visibility: 'visible',
-                    opacity: 0.9,
-                    transform: 'scale(0.9)',
-                    background: '#e0e0e0',
-                    color: '#666',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                // Update the specific field's count
+                const count = r.message[fieldName] || 0;
+                commentCountBadge.text(count);
+                commentCountBadge.css({
+                    'display': 'flex !important',
+                    'visibility': 'visible',
+                    'opacity': count > 0 ? 1 : 0.9,
+                    'transform': count > 0 ? 'scale(1)' : 'scale(0.9)',
+                    'background': count > 0 ? primaryColor : '#e0e0e0',
+                    'color': count > 0 ? '#fff' : '#666',
+                    'boxShadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
                 });
             }
         }
@@ -764,6 +777,11 @@ function updateCommentCount(fieldName, frm) {
 function setupFieldComments(frm) {
     if (!frm.is_new()) {
         if (!frm.doc || !frm.doc.doctype) return;
+
+        // Check if field comments are disabled globally
+        if (frappe.boot.my_theme && frappe.boot.my_theme.hide_fields_comment) {
+            return;
+        }
 
         // Check permissions first
         check_comment_permissions().then(permissions => {
@@ -782,16 +800,16 @@ function setupFieldComments(frm) {
                     <div class="field-comments-sidebar" style="display: none; position: fixed; right: -400px; top: 48px; width: 400px; height: calc(100vh - 48px); background: var(--fg-color); box-shadow: -2px 0 8px rgba(0,0,0,0.1); z-index: 100; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
                         <div style="padding: 15px; border-bottom: none;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h5 style="margin: 0; font-size: 18px; font-weight: 600;">Comment</h5>
+                                <h5 style="margin: 0; font-size: 18px; font-weight: 600;">Comments</h5>
                                 <div style="display: flex; gap: 8px;">
                                     <button class="btn btn-default btn-sm refresh-comments" style="padding: 4px 8px;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="vertical-align: middle;" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
                                             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
                                             <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
                                         </svg>
                                     </button>
                                     <button class="btn btn-default btn-sm close-comments" style="padding: 4px 8px;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" style="vertical-align: middle;" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
                                             <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
                                         </svg>
                                     </button>
@@ -856,7 +874,7 @@ function setupFieldComments(frm) {
 
             // Add comment button to form only if user has create permission
             if (permissions.includes('create') && !frm.page.sidebar.find('.field-comments-btn').length) {
-                frm.add_custom_button(__('Comment'), function () {
+                frm.add_custom_button(__('Comments'), function () {
                     $('.field-comments-sidebar').show();
                     // Force a reflow to ensure the transition works
                     $('.field-comments-sidebar')[0].offsetHeight;
@@ -867,89 +885,109 @@ function setupFieldComments(frm) {
                 });
             }
 
-            // Add comment icons to each field only if user has read permission
-            Object.keys(frm.fields_dict).forEach(fieldname => {
-                const field = frm.fields_dict[fieldname];
-                if (!field || !field.df) return;
-                if (['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
-                    return;
-                }
+            // Get all comment counts in one call when form loads
+            frappe.call({
+                method: 'frappe_theme.api.get_all_field_comment_counts',
+                args: {
+                    doctype_name: frm.doctype,
+                    docname: frm.docname
+                },
+                callback: function (r) {
+                    if (r.message) {
+                        // Update cache
+                        commentCountCache = r.message;
 
-                // Create comment icon if not exists
-                if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
-                    const comment_icon = $(`
-                        <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
-                            <button class="btn" style="padding: 2px 8px; position: relative;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
-                                    <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"></path>
-                                </svg>
-                                <span class="comment-count-badge" style="
-                                    position: absolute;
-                                    top: -4px;
-                                    right: -8px;
-                                    background: #ff5722;
-                                    color: #fff;
-                                    border-radius: 50%;
-                                    min-width: 16px;
-                                    height: 16px;
-                                    font-size: 10px;
-                                    font-weight: 600;
-                                    display: flex !important;
-                                    align-items: center;
-                                    justify-content: center;
-                                    padding: 0 4px;
-                                    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-                                    border: 1.5px solid #fff;
-                                    z-index: 9999;
-                                    opacity: 1;
-                                    transition: all 0.2s ease;
-                                    transform-origin: center;
-                                ">0</span>
-                            </button>
-                        </div>
-                    `);
+                        // Add comment icons to each field
+                        Object.keys(frm.fields_dict).forEach(fieldname => {
+                            const field = frm.fields_dict[fieldname];
+                            if (!field || !field.df) return;
 
-                    // Add icon to the field wrapper
-                    $(field.label_area).css('position', 'relative');
-                    $(field.label_area).append(comment_icon);
+                            // Skip if field is read-only or is a layout field
+                            if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
+                                return;
+                            }
 
-                    // Update comment count initially
-                    updateCommentCount(fieldname, frm);
+                            // Create comment icon if not exists
+                            if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                                const count = commentCountCache[fieldname] || 0;
+                                const comment_icon = $(`
+                                    <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
+                                        <button class="btn" style="padding: 2px 8px; position: relative;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
+                                                <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+                                            </svg>
+                                            <span class="comment-count-badge" style="
+                                                position: absolute;
+                                                top: -4px;
+                                                right: -8px;
+                                                background: ${count > 0 ? primaryColor : '#e0e0e0'};
+                                                color: ${count > 0 ? '#fff' : '#666'};
+                                                border-radius: 50%;
+                                                min-width: 16px;
+                                                height: 16px;
+                                                font-size: 10px;
+                                                font-weight: 600;
+                                                display: flex !important;
+                                                align-items: center;
+                                                justify-content: center;
+                                                padding: 0 4px;
+                                                box-shadow: ${count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
+                                                border: 1.5px solid #fff;
+                                                z-index: 9999;
+                                                opacity: ${count > 0 ? 1 : 0.9};
+                                                transition: all 0.2s ease;
+                                                transform-origin: center;
+                                                transform: ${count > 0 ? 'scale(1)' : 'scale(0.9)'};
+                                            ">${count}</span>
+                                        </button>
+                                    </div>
+                                `);
 
-                    // Show/hide icon on hover
-                    $(field.$wrapper).hover(
-                        function () {
-                            comment_icon.show();
-                            updateCommentCount(fieldname, frm);
-                        },
-                        function () { comment_icon.hide(); }
-                    );
+                                // Add icon to the field wrapper
+                                $(field.label_area).css('position', 'relative');
+                                $(field.label_area).append(comment_icon);
 
-                    // Handle click on comment icon
-                    comment_icon.click(() => {
-                        // Show sidebar
-                        $('.field-comments-sidebar').show();
-                        // Force a reflow to ensure the transition works
-                        $('.field-comments-sidebar')[0].offsetHeight;
-                        $('.field-comments-sidebar').css('right', '0');
+                                // Show/hide icon on hover
+                                $(field.$wrapper).hover(
+                                    function () {
+                                        comment_icon.show();
+                                    },
+                                    function () { comment_icon.hide(); }
+                                );
 
-                        // Set context when viewing comments for a specific field
-                        current_field_context = { fieldName: fieldname, field: field, frm: frm };
+                                // Handle click on comment icon
+                                comment_icon.click(() => {
+                                    // Show sidebar
+                                    $('.field-comments-sidebar').show();
+                                    // Force a reflow to ensure the transition works
+                                    $('.field-comments-sidebar')[0].offsetHeight;
+                                    $('.field-comments-sidebar').css('right', '0');
 
-                        // Load only this field's comments
-                        load_field_comments(fieldname, field, frm);
-                    });
+                                    // Set context when viewing comments for a specific field
+                                    current_field_context = { fieldName: fieldname, field: field, frm: frm };
+
+                                    // Load only this field's comments
+                                    load_field_comments(fieldname, field, frm);
+                                });
+                            } else {
+                                // Update existing comment count badge
+                                const commentCountBadge = $(field.label_area).find('.comment-count-badge');
+                                if (commentCountBadge.length) {
+                                    const count = commentCountCache[fieldname] || 0;
+                                    commentCountBadge.text(count);
+                                    commentCountBadge.css({
+                                        'background': count > 0 ? primaryColor : '#e0e0e0',
+                                        'color': count > 0 ? '#fff' : '#666',
+                                        'box-shadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+                                        'opacity': count > 0 ? 1 : 0.9,
+                                        'transform': count > 0 ? 'scale(1)' : 'scale(0.9)'
+                                    });
+                                }
+                            }
+                        });
+                    }
                 }
             });
-        }).catch(err => {
-            console.error('Error checking permissions:', err);
-        });
-    } else {
-        Object.keys(frm.fields_dict).forEach(fieldname => {
-            const field = frm.fields_dict[fieldname];
-            if (field && field.label_area) {
-                $(field.label_area).find('.field-comment-icon').remove();
-            }
         });
     }
 }
@@ -960,3 +998,153 @@ frappe.ui.form.on('*', {
         setupFieldComments(frm);
     }
 });
+
+function getStatusPillStyle(status) {
+    if (status === 'Closed') {
+        return {
+            dot: '#218838',
+            bg: '#E6F4EA',
+            text: '#218838'
+        };
+    }
+    if (status === 'Open') {
+        return {
+            dot: '#D32F2F',
+            bg: '#FDEAEA',
+            text: '#D32F2F'
+        };
+    }
+    // Resolved or default
+    return {
+        dot: '#444',
+        bg: '#F2F2F2',
+        text: '#444'
+    };
+}
+
+function renderStatusPill(status) {
+    const style = getStatusPillStyle(status);
+    const isClosed = status === 'Closed';
+
+    return `
+        <div class="status-pill-container" style="position: relative;">
+            <button class="status-pill" type="button"
+                ${isClosed ? '' : 'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"'}
+                style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 2px 18px 2px 12px;
+                    border-radius: 999px;
+                    background: ${style.bg} !important;
+                    color: ${style.text} !important;
+                    font-weight: 500 !important;
+                    font-size: 13px !important;
+                    line-height: 1.2;
+                    cursor: ${isClosed ? 'not-allowed' : 'pointer'};
+                    border: none;
+                    margin: 0;
+                    opacity: ${isClosed ? '0.7' : '1'};
+                    box-shadow: none;
+                ">
+                <span style="
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: ${style.dot};
+                    margin-right: 6px;
+                "></span>
+                ${status}
+            </button>
+            ${!isClosed ? `
+                <div class="dropdown-menu" style="
+                    min-width: 120px;
+                    padding: 8px 0;
+                    margin: 0;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                ">
+                    <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
+                    <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
+                    <a class="dropdown-item status-option" data-status="Closed" href="#">Closed</a>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Add this function to initialize dropdowns
+function initializeDropdowns() {
+    // Check permissions first
+    check_comment_permissions().then(permissions => {
+        // Only initialize dropdowns if user has write permission
+        if (permissions.includes('write')) {
+            $('.status-pill').each(function () {
+                $(this).dropdown();
+            });
+        } else {
+            // For read-only users, remove dropdown functionality
+            $('.status-pill').each(function () {
+                $(this).removeAttr('data-toggle')
+                    .removeAttr('aria-haspopup')
+                    .removeAttr('aria-expanded')
+                    .css('cursor', 'default');
+            });
+            // Remove dropdown menus
+            $('.dropdown-menu').remove();
+        }
+    });
+}
+
+// Update the status change handlers to use the new button structure
+function updateStatusPill(element, newStatus) {
+    const style = getStatusPillStyle(newStatus);
+    element.attr('style', `
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 18px 2px 12px;
+        border-radius: 999px;
+        background: ${style.bg} !important;
+        color: ${style.text} !important;
+        font-weight: 500 !important;
+        font-size: 13px !important;
+        line-height: 1.2;
+        cursor: ${newStatus === 'Closed' ? 'not-allowed' : 'pointer'};
+        border: none;
+        margin: 0;
+        opacity: ${newStatus === 'Closed' ? '0.7' : '1'};
+        box-shadow: none;
+    `);
+    element.html(`
+        <span style="
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: ${style.dot};
+            margin-right: 6px;
+        "></span>
+        ${newStatus}
+    `);
+}
+
+frappe.router.on('change', function () {
+    // Hide the sidebar and move it off-screen
+    $('.field-comments-sidebar').css('right', '-400px');
+    setTimeout(() => {
+        $('.field-comments-sidebar').hide();
+    }, 400);
+});
+
+// Add this helper function at the top with other helper functions
+function isValidStatusTransition(currentStatus, newStatus) {
+    const validTransitions = {
+        'Open': ['Resolved'],
+        'Resolved': ['Open', 'Closed'],
+        'Closed': ['Resolved'] // Allow reopening from Closed to Resolved
+    };
+    return validTransitions[currentStatus]?.includes(newStatus) || false;
+}

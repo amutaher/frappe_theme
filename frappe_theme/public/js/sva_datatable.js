@@ -1604,8 +1604,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, options: field.options } });
-
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1,mandatory_depends_on: field.mandatory_depends_on,depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
