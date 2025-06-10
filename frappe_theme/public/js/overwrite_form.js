@@ -7,9 +7,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         this.dts = {};
         this.mountedComponents = new Map(); // Track mounted components and their cleanup functions
     }
-    async refresh(docname, frm) {
+    refresh(docname) {
         try {
-            await super.refresh(docname);
+            super.refresh(docname);
             if (!window.sva_datatable_configuration) {
                 window.sva_datatable_configuration = {};
             }
