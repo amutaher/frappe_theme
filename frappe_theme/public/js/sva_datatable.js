@@ -733,6 +733,7 @@ class SvaDataTable {
             if (name) {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
+                    f.default = ''
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -1035,7 +1036,7 @@ class SvaDataTable {
             title: __(`${mode == 'view' ? 'View' : mode == 'create' ? 'Create' : 'Update'} ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
-            primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
+            primary_action_label: name ? 'Update' : 'Create',
             primary_action: async (values) => {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
@@ -1113,7 +1114,7 @@ class SvaDataTable {
                 dialog.clear();
                 dialog.hide();
             },
-            secondary_action_label: 'Cancel',
+            secondary_action_label: ['create', 'write'].includes(mode) ? 'Cancel' : 'Close',
             secondary_action: () => {
                 if (additional_action) {
                     additional_action(false);
@@ -1123,9 +1124,9 @@ class SvaDataTable {
             }
         });
         if (['create', 'write'].includes(mode)) {
-            dialog.get_secondary_btn().show();
+            dialog.get_primary_btn().show();
         } else {
-            dialog.get_secondary_btn().hide();
+            dialog.get_primary_btn().hide();
         }
         this.form_dialog = dialog;
         dialog.show();
@@ -1603,8 +1604,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, options: field.options } });
-
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1,mandatory_depends_on: field.mandatory_depends_on,depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
@@ -1990,17 +1990,23 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
+                btn.classList.add('btn', 'btn-secondary', 'btn-xs');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
-                td.appendChild(btn)
-                if (col?.width) {
-                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
-                } else {
-                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    let formattedElement = formatter(btn, column, row);
+                    td.appendChild(formattedElement);
+                }else{
+                    td.appendChild(btn)
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
+                    }
                 }
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
