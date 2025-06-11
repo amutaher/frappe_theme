@@ -734,6 +734,9 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.default = ''
+                    if (f.hidden === "0"){
+                        f.hidden = 0;
+                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -864,6 +867,10 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
+                    // if hidden is 0, then set hidden to 0
+                    if (f.hidden === "0"){
+                        f.hidden = 0;
+                    }
                     // if (this.frm && this.frm?.doc?.[f.fieldname]) {
                     //     f.default = this.frm?.doc[f.fieldname];
                     //     f.read_only = 1;
