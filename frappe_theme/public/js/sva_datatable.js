@@ -734,6 +734,9 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.default = ''
+                    if (f.hidden === "0"){
+                        f.hidden = 0;
+                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -864,6 +867,10 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
+                    // if hidden is 0, then set hidden to 0
+                    if (f.hidden === "0"){
+                        f.hidden = 0;
+                    }
                     // if (this.frm && this.frm?.doc?.[f.fieldname]) {
                     //     f.default = this.frm?.doc[f.fieldname];
                     //     f.read_only = 1;
@@ -984,6 +991,9 @@ class SvaDataTable {
             for (const f of fields) {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
+                }
+                if (f.hidden === "0"){
+                    f.hidden = 0;
                 }
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
@@ -1551,7 +1561,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if (((this.frm ? this.frm?.doc.docstatus === 0 : true) && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if ((this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';
