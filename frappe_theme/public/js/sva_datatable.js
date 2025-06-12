@@ -698,9 +698,9 @@ class SvaDataTable {
         });
     }
     get_permissions(doctype) {
-        if(this.connection.connection_type === 'Report') {
+        if (this.connection.connection_type === 'Report') {
             return this.conf_perms ? this.conf_perms : ['read']
-        }else{
+        } else {
             return new Promise((rslv, rjct) => {
                 frappe.call({
                     method: 'frappe_theme.api.get_permissions',
@@ -734,7 +734,7 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.default = ''
-                    if (f.hidden === "0"){
+                    if (f.hidden === "0") {
                         f.hidden = 0;
                     }
                     f.onchange = this.onFieldValueChange?.bind(this)
@@ -868,7 +868,7 @@ class SvaDataTable {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
                     // if hidden is 0, then set hidden to 0
-                    if (f.hidden === "0"){
+                    if (f.hidden === "0") {
                         f.hidden = 0;
                     }
                     // if (this.frm && this.frm?.doc?.[f.fieldname]) {
@@ -992,7 +992,7 @@ class SvaDataTable {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
                 }
-                if (f.hidden === "0"){
+                if (f.hidden === "0") {
                     f.hidden = 0;
                 }
                 if (f.fieldtype === "Table") {
@@ -1053,8 +1053,10 @@ class SvaDataTable {
                         let change = this.frm['dt_events'][this.doctype]['validate']
                         if (this.isAsync(change)) {
                             await change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         } else {
                             change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         }
                     }
                     if (!name) {
@@ -1614,7 +1616,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1,mandatory_depends_on: field.mandatory_depends_on,depends_on: field.depends_on, options: field.options } });
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
@@ -2010,7 +2012,7 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     let formattedElement = formatter(btn, column, row);
                     td.appendChild(formattedElement);
-                }else{
+                } else {
                     td.appendChild(btn)
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
