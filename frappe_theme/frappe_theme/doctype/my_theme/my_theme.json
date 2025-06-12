@@ -21,6 +21,7 @@
   "login_box_position",
   "page_heading_text_color",
   "login_box_background_color",
+  "disable_usr_pass_login",
   "navbar_tab",
   "navbar_section",
   "navbar_color",
@@ -28,6 +29,8 @@
   "hide_search",
   "column_break_jevx",
   "navbar_text_color",
+  "custom_logo",
+  "custom_logo_height",
   "buttons_tab",
   "primary_button_section",
   "button_background_color",
@@ -74,7 +77,9 @@
   "input_label_color",
   "workspace_remapping_tab",
   "sidebar_element_selector",
-  "workspace"
+  "workspace",
+  "features_tab",
+  "hide_fields_comment"
  ],
  "fields": [
   {
@@ -429,13 +434,42 @@
    "fieldname": "hide_print_icon",
    "fieldtype": "Check",
    "label": "Hide Print Icon"
+  },
+  {
+   "fieldname": "custom_logo",
+   "fieldtype": "Attach Image",
+   "label": "Custom Logo"
+  },
+  {
+   "default": "45",
+   "description": "Set the height of your custom logo in pixels. The width will adjust automatically to maintain the aspect ratio. Recommended height is between 30-60 pixels.",
+   "fieldname": "custom_logo_height",
+   "fieldtype": "Int",
+   "label": "Logo Height (px)"
+  },
+  {
+   "default": "1",
+   "fieldname": "disable_usr_pass_login",
+   "fieldtype": "Check",
+   "label": " Disable Username/Password Login"
+  },
+  {
+   "fieldname": "features_tab",
+   "fieldtype": "Tab Break",
+   "label": "Features"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_fields_comment",
+   "fieldtype": "Check",
+   "label": "Hide Fields Comment"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-16 15:24:05.907651",
+ "modified": "2025-06-09 12:11:29.645572",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
@@ -461,6 +495,7 @@
    "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": []

@@ -19,8 +19,10 @@ app_include_css = [
     f"/assets/frappe_theme/css/number_card_mapper.css?ver={time.time()}"
 ]
 app_include_js = [
+    f"/assets/frappe_theme/js/fields_comment.js?ver={time.time()}",
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/extended_chart.js?ver={time.time()}",
     f"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
     f"/assets/frappe_theme/js/heatmap.js?ver={time.time()}",
     f"/assets/frappe_theme/filters/filter_area.js?ver={time.time()}",
@@ -159,13 +161,13 @@ jinja = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Version": {
+		"validate": "frappe_theme.controllers.timeline.validate",
+		# "on_cancel": "method",
+		# "on_trash": "method"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
