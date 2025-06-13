@@ -97,7 +97,7 @@ function get_comment_html(comment, commentMap) {
                     ` : `
                         <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
                     `}
-                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word; white-space: pre-wrap;">${renderedComment}</div>
+                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word; white-space: pre-wrap;word-break: break-all; overflow-wrap: anywhere;">${renderedComment}</div>
                 </div>
                 <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
                     ${isCurrentUser ? `
@@ -374,7 +374,7 @@ function load_field_comments(fieldName, field, frm) {
                                 <div class="comment-input" style="margin-top: 15px;">
                                     <div style="display: flex; align-items: center;">
                                         <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                            <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                            <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px; "></div>
                                         </div>
                                     </div>
                                 </div>
@@ -450,7 +450,7 @@ function load_all_comments(frm) {
                             <div class="comment-input" style="margin-top: 15px; display: none;">
                                 <div style="display: flex; align-items: center;">
                                     <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px; "></div>
                                     </div>
                                 </div>
                             </div>
@@ -627,8 +627,9 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         only_input: true,
         enable_mentions: true,
     });
-
     // Remove comment-input-header and adjust spacing
+    $(commentBox).find('.avatar-frame.standard-image').css('min-width', '33px');
+    $(commentBox).find('[data-fieldtype="Comment"]').css('max-width', '252px');
     $(commentBox).find('.comment-input-header').remove();
     $(commentBox).closest('.comment-input').css({
         'margin': '0',
@@ -636,7 +637,7 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
     });
     $(commentBox).closest('.comment-box').css({
         'margin': '0',
-        'padding': '0'
+        'padding': '0',
     });
 
     // Handle comment submission using Frappe's built-in button
@@ -648,12 +649,11 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
 
         // Extract mentions from comment
         const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
-        const mentions = [];
+        const mentions = new Set();
         let match;
         while ((match = mentionRegex.exec(comment)) !== null) {
-            mentions.push(match[1]);
+            mentions.add(match[1]);
         }
-
         // Call the server-side method to save the comment
         frappe.call({
             method: "frappe_theme.api.save_field_comment",
@@ -675,10 +675,9 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
 
                     // Show status pill after first comment
                     field_section.find('.status-pill-container').show();
-
                     // Send notifications to mentioned users
-                    if (mentions.length > 0) {
-                        mentions.forEach(mention => {
+                    if (mentions.size > 0) {
+                        Array.from(mentions).forEach(mention => {
                             frappe.call({
                                 method: 'frappe_theme.api.send_mention_notification',
                                 args: {
