@@ -871,14 +871,9 @@ class SvaDataTable {
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    // if hidden is 0, then set hidden to 0
                     if (f.hidden === "0") {
                         f.hidden = 0;
                     }
-                    // if (this.frm && this.frm?.doc?.[f.fieldname]) {
-                    //     f.default = this.frm?.doc[f.fieldname];
-                    //     f.read_only = 1;
-                    // }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
@@ -1042,15 +1037,16 @@ class SvaDataTable {
                     }
                     continue;
                 }
+                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    f.hidden = 1;
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
                 } else {
                     f.default = '';
                     f.read_only = 1;
-                }
-                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    f.hidden = 1;
                 }
             }
         }
