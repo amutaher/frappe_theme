@@ -620,7 +620,8 @@ def get_comment_count(doctype_name, docname, field_name):
             filters={
                 'doctype_name': doctype_name,
                 'docname': docname,
-                'field_name': field_name
+                'field_name': field_name,
+                'status': ['IN', ['Open', 'Resolved']]
             },
             fields=['name', 'doctype_name', 'docname', 'field_name'],
             limit=1,
@@ -807,7 +808,8 @@ def get_all_field_comment_counts(doctype_name, docname):
             'DocType Field Comment',
             filters={
                 'doctype_name': doctype_name,
-                'docname': docname
+                'docname': docname,
+                'status': ['IN', ['Open', 'Resolved']]
             },
             fields=['name', 'field_name'],
             ignore_permissions=True
