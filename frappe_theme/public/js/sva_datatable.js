@@ -737,10 +737,6 @@ class SvaDataTable {
                     if (f.hidden === "0") {
                         f.hidden = 0;
                     }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                        f.hidden = 1;
-                        continue;
-                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -867,6 +863,10 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             } else {
                 for (const f of fields) {
@@ -874,10 +874,6 @@ class SvaDataTable {
                     // if hidden is 0, then set hidden to 0
                     if (f.hidden === "0") {
                         f.hidden = 0;
-                    }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
-                        f.hidden = 1;
-                        continue;
                     }
                     // if (this.frm && this.frm?.doc?.[f.fieldname]) {
                     //     f.default = this.frm?.doc[f.fieldname];
@@ -992,6 +988,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             }
         } else {
@@ -1003,9 +1003,7 @@ class SvaDataTable {
                 if (f.hidden === "0") {
                     f.hidden = 0;
                 }
-                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    f.hidden = 1;
-                }
+
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
@@ -1050,6 +1048,9 @@ class SvaDataTable {
                 } else {
                     f.default = '';
                     f.read_only = 1;
+                }
+                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    f.hidden = 1;
                 }
             }
         }
