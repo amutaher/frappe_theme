@@ -1962,6 +1962,42 @@ class SvaDataTable {
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
+            if (['Duration'].includes(columnField.fieldtype)) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                } else {
+                    let result = frappe.utils.seconds_to_duration(row[column.fieldname]);
+
+                    if (result) {
+                        const { days, hours, minutes, seconds } = result;
+                        let parts = [];
+
+                        if (days) {
+                            parts.push(`${days} ${days > 1 ? 'days' : 'day'}`);
+                        }
+                        if (hours) {
+                            parts.push(`${hours} ${hours > 1 ? 'hrs' : 'hr'}`);
+                        }
+                        if (minutes) {
+                            parts.push(`${minutes} ${minutes > 1 ? 'mins' : 'min'}`);
+                        }
+                        if (seconds && !days && !hours && !minutes) {
+                            // only show seconds if no larger unit is present
+                            parts.push(`${seconds} ${seconds > 1 ? 'secs' : 'sec'}`);
+                        }
+                        result = parts.join(' ');
+                    }
+                    td.innerHTML = `<span>${result}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    }
+                }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                return;
+            }
             if (['Percent'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
