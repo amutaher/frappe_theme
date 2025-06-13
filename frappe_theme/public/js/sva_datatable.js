@@ -698,9 +698,9 @@ class SvaDataTable {
         });
     }
     get_permissions(doctype) {
-        if(this.connection.connection_type === 'Report') {
+        if (this.connection.connection_type === 'Report') {
             return this.conf_perms ? this.conf_perms : ['read']
-        }else{
+        } else {
             return new Promise((rslv, rjct) => {
                 frappe.call({
                     method: 'frappe_theme.api.get_permissions',
@@ -734,6 +734,9 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.default = ''
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -860,10 +863,18 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
+                    // if hidden is 0, then set hidden to 0
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     // if (this.frm && this.frm?.doc?.[f.fieldname]) {
                     //     f.default = this.frm?.doc[f.fieldname];
                     //     f.read_only = 1;
@@ -977,6 +988,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             }
         } else {
@@ -985,6 +1000,10 @@ class SvaDataTable {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
                 }
+                if (f.hidden === "0") {
+                    f.hidden = 0;
+                }
+
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
@@ -1030,6 +1049,9 @@ class SvaDataTable {
                     f.default = '';
                     f.read_only = 1;
                 }
+                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    f.hidden = 1;
+                }
             }
         }
         const dialog = new frappe.ui.Dialog({
@@ -1043,8 +1065,10 @@ class SvaDataTable {
                         let change = this.frm['dt_events'][this.doctype]['validate']
                         if (this.isAsync(change)) {
                             await change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         } else {
                             change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         }
                     }
                     if (!name) {
@@ -1551,7 +1575,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if (((this.frm ? this.frm?.doc.docstatus === 0 : true) && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if ((this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';
@@ -1604,7 +1628,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1,mandatory_depends_on: field.mandatory_depends_on,depends_on: field.depends_on, options: field.options } });
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
@@ -2000,7 +2024,7 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     let formattedElement = formatter(btn, column, row);
                     td.appendChild(formattedElement);
-                }else{
+                } else {
                     td.appendChild(btn)
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
