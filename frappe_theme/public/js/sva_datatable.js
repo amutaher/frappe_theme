@@ -190,6 +190,10 @@ class SvaDataTable {
             }
         }
     }
+    setTitle(label){
+        this.label = label;
+        this.header_element.querySelector('p').innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`;
+    }
     hideSkeletonLoader(reLoad = false) {
         if (this.skeletonLoader) {
             this.skeletonLoader.remove();
