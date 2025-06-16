@@ -190,6 +190,10 @@ class SvaDataTable {
             }
         }
     }
+    setTitle(label){
+        this.label = label;
+        this.header_element.querySelector('p').innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`;
+    }
     hideSkeletonLoader(reLoad = false) {
         if (this.skeletonLoader) {
             this.skeletonLoader.remove();
@@ -698,9 +702,9 @@ class SvaDataTable {
         });
     }
     get_permissions(doctype) {
-        if(this.connection.connection_type === 'Report') {
+        if (this.connection.connection_type === 'Report') {
             return this.conf_perms ? this.conf_perms : ['read']
-        }else{
+        } else {
             return new Promise((rslv, rjct) => {
                 frappe.call({
                     method: 'frappe_theme.api.get_permissions',
@@ -733,6 +737,10 @@ class SvaDataTable {
             if (name) {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
+                    f.default = ''
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -859,14 +867,17 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    // if (this.frm && this.frm?.doc?.[f.fieldname]) {
-                    //     f.default = this.frm?.doc[f.fieldname];
-                    //     f.read_only = 1;
-                    // }
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
@@ -976,6 +987,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             }
         } else {
@@ -984,6 +999,10 @@ class SvaDataTable {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
                 }
+                if (f.hidden === "0") {
+                    f.hidden = 0;
+                }
+
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
@@ -1022,6 +1041,10 @@ class SvaDataTable {
                     }
                     continue;
                 }
+                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    f.hidden = 1;
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
@@ -1035,15 +1058,17 @@ class SvaDataTable {
             title: __(`${mode == 'view' ? 'View' : mode == 'create' ? 'Create' : 'Update'} ${__(this.connection?.title || doctype)}`),
             size: this.getDialogSize(fields),  // Available sizes: 'small', 'medium', 'large', 'extra-large'
             fields: fields || [],
-            primary_action_label: ['create', 'write'].includes(mode) ? (name ? 'Update' : 'Create') : 'Close',
+            primary_action_label: name ? 'Update' : 'Create',
             primary_action: async (values) => {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
                         let change = this.frm['dt_events'][this.doctype]['validate']
                         if (this.isAsync(change)) {
                             await change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         } else {
                             change(this, mode, values);
+                            values = dialog.get_values(true, false);
                         }
                     }
                     if (!name) {
@@ -1113,7 +1138,7 @@ class SvaDataTable {
                 dialog.clear();
                 dialog.hide();
             },
-            secondary_action_label: 'Cancel',
+            secondary_action_label: ['create', 'write'].includes(mode) ? 'Cancel' : 'Close',
             secondary_action: () => {
                 if (additional_action) {
                     additional_action(false);
@@ -1123,9 +1148,9 @@ class SvaDataTable {
             }
         });
         if (['create', 'write'].includes(mode)) {
-            dialog.get_secondary_btn().show();
+            dialog.get_primary_btn().show();
         } else {
-            dialog.get_secondary_btn().hide();
+            dialog.get_primary_btn().hide();
         }
         this.form_dialog = dialog;
         dialog.show();
@@ -1550,7 +1575,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if (((this.frm ? this.frm?.doc.docstatus === 0 : true) && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if ((this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';
@@ -1603,8 +1628,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, options: field.options } });
-
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
@@ -1938,6 +1962,42 @@ class SvaDataTable {
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
+            if (['Duration'].includes(columnField.fieldtype)) {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                } else {
+                    let result = frappe.utils.seconds_to_duration(row[column.fieldname]);
+
+                    if (result) {
+                        const { days, hours, minutes, seconds } = result;
+                        let parts = [];
+
+                        if (days) {
+                            parts.push(`${days} ${days > 1 ? 'days' : 'day'}`);
+                        }
+                        if (hours) {
+                            parts.push(`${hours} ${hours > 1 ? 'hrs' : 'hr'}`);
+                        }
+                        if (minutes) {
+                            parts.push(`${minutes} ${minutes > 1 ? 'mins' : 'min'}`);
+                        }
+                        if (seconds && !days && !hours && !minutes) {
+                            // only show seconds if no larger unit is present
+                            parts.push(`${seconds} ${seconds > 1 ? 'secs' : 'sec'}`);
+                        }
+                        result = parts.join(' ');
+                    }
+                    td.innerHTML = `<span>${result}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
+                    }
+                }
+                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                return;
+            }
             if (['Percent'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
@@ -2000,7 +2060,7 @@ class SvaDataTable {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                     let formattedElement = formatter(btn, column, row);
                     td.appendChild(formattedElement);
-                }else{
+                } else {
                     td.appendChild(btn)
                     if (col?.width) {
                         $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
