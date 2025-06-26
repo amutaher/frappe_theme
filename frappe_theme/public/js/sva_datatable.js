@@ -1063,11 +1063,12 @@ class SvaDataTable {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
                         let change = this.frm['dt_events'][this.doctype]['validate']
+                        let has_aditional_action = additional_action ? true : false
                         if (this.isAsync(change)) {
-                            await change(this, mode, values);
+                            await change(this, mode, values, has_aditional_action);
                             values = dialog.get_values(true, false);
                         } else {
-                            change(this, mode, values);
+                            change(this, mode, values, has_aditional_action);
                             values = dialog.get_values(true, false);
                         }
                     }
