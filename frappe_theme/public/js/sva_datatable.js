@@ -1557,7 +1557,7 @@ class SvaDataTable {
                                     await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
                                 } else {
                                     try {
-                                        await this.wf_action(link, primaryKey, el, originalState);
+                                        await this.wf_action(link, primaryKey, el, originalState,row);
                                     } catch (error) {
                                         el.value = ''; // Reset dropdown value
                                         el.title = originalState;
@@ -1608,16 +1608,16 @@ class SvaDataTable {
     }
 
     // ================================ Workflow Action  Logic ================================
-    async wf_action(selected_state_info, docname, wf_select_el, prevState) {
+    async wf_action(selected_state_info, docname, wf_select_el, prevState,doc) {
         let me = this;
         let workflowFormValue;
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
             if (this.isAsync(change)) {
-                await change(me, selected_state_info, docname, prevState);
+                await change(me, selected_state_info, docname, prevState,doc);
             } else {
-                change(me, selected_state_info, docname, prevState);
+                change(me, selected_state_info, docname, prevState,doc);
             }
         }
 
@@ -1704,7 +1704,11 @@ class SvaDataTable {
         }
         if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
-            change(this, selected_state_info, docname, prevState);
+            if (this.isAsync(change)) {
+                await change(this, selected_state_info, docname, prevState,doc);
+            } else {
+                change(this, selected_state_info, docname, prevState,doc);
+            }
         }
     }
 
