@@ -10,7 +10,7 @@ def get_my_theme():
 
 @frappe.whitelist(allow_guest=True)
 def get_property_set(doctype):
-        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter"]]},ignore_permissions=True)
+        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter","wf_state_field"]]},ignore_permissions=True)
     
 
 @frappe.whitelist()
