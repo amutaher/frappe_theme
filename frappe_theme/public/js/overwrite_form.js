@@ -104,9 +104,9 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                             if (frm._workflow_dialog_open) {
                                 return;
                             }
-                            
+
                             frm._workflow_dialog_open = true;
-                            
+
                             try {
                                 let workflow_state_bg = await frappe.db.get_list("Workflow State", {
                                     fields: ['name', 'style']
@@ -145,35 +145,29 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                         frm._workflow_dialog_open = false;
                                     },
                                     primary_action: (values) => {
-                                        // Set form values from popup
-                                        Object.keys(values).forEach((key) => {
-                                            frm.set_value(key, values[key]);
-                                        });
-                                        dailog.hide();
-                                        
+                                        frappe.dom.freeze();
                                         // Apply workflow after a small delay to ensure values are set
-                                        setTimeout(() => {
-                                            frappe.xcall("frappe.model.workflow.apply_workflow", {
-                                                doc: frm.doc,
-                                                action: action
-                                            }).then((doc) => {
-                                                frappe.model.sync(doc);
-                                                frm.refresh();
-                                                action = null;
-                                                frm.script_manager.trigger("after_workflow_action");
-                                            }).finally(() => {
-                                                frappe.dom.unfreeze();
-                                                frm._workflow_dialog_open = false;
-                                            });
-                                        }, 100);
+                                        frappe.xcall("frappe.model.workflow.apply_workflow", {
+                                            doc: {...frm.doc, wf_dialog_fields:values},
+                                            action: action
+                                        }).then((doc) => {
+                                            frappe.model.sync(doc);
+                                            frm.refresh();
+                                            action = null;
+                                            frm.script_manager.trigger("after_workflow_action");
+                                        }).finally(() => {
+                                            dailog.hide();
+                                            frappe.dom.unfreeze();
+                                            frm._workflow_dialog_open = false;
+                                        });
                                     }
                                 });
-                                
+
                                 // Handle dialog close event to reset the flag
                                 dailog.$wrapper.on('hidden.bs.modal', () => {
                                     frm._workflow_dialog_open = false;
                                 });
-                                
+
                                 dailog.show();
                                 return dailog;
                             } catch (error) {
