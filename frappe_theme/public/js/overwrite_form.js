@@ -1,20 +1,22 @@
-frappe.ui.FileUploader = class CustomFileUploader extends frappe.ui.FileUploader {
-	constructor(options = {}) {
-		// Override or enforce disable_file_browser
-		options.disable_file_browser = true;
-		// Call parent constructor with modified options
-
-        /* Other available flags
-        make_attachments_public,
-		allow_web_link,
-		allow_take_photo,
-		allow_toggle_private,
-		allow_toggle_optimize,
-
-        */
-		super(options);
-	}
-};
+if(frappe.ui?.FileUploader){
+    frappe.ui.FileUploader = class CustomFileUploader extends frappe.ui?.FileUploader {
+        constructor(options = {}) {
+            // Override or enforce disable_file_browser
+            options.disable_file_browser = true;
+            // Call parent constructor with modified options
+    
+            /* Other available flags
+            make_attachments_public,
+            allow_web_link,
+            allow_take_photo,
+            allow_toggle_private,
+            allow_toggle_optimize,
+    
+            */
+            super(options);
+        }
+    };
+}
 
 frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     constructor(...args) {
