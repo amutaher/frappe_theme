@@ -1,4 +1,4 @@
-frappe.ui.FileUploader = class CustomFileUploader extends frappe.ui.FileUploader {
+frappe.ui.FileUploader = class CustomFileUploader extends frappe.ui?.FileUploader {
 	constructor(options = {}) {
 		// Override or enforce disable_file_browser
 		options.disable_file_browser = true;
