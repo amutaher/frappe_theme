@@ -166,6 +166,9 @@ doc_events = {
 		"validate": "frappe_theme.controllers.timeline.validate",
 		# "on_cancel": "method",
 		# "on_trash": "method"
+	},
+	"*": {
+		"validate": "frappe_theme.controllers.validate.validate"
 	}
 }
 
