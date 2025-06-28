@@ -166,9 +166,6 @@ doc_events = {
 		"validate": "frappe_theme.controllers.timeline.validate",
 		# "on_cancel": "method",
 		# "on_trash": "method"
-	},
-	"*": {
-		"validate": "frappe_theme.controllers.validate.validate"
 	}
 }
 
@@ -204,6 +201,11 @@ doc_events = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "frappe_theme.event.get_events"
 # }
+
+override_whitelisted_methods = {
+    "frappe.model.workflow.apply_workflow": "frappe_theme.overrides.workflow.custom_apply_workflow"
+}
+
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
