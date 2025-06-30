@@ -1063,11 +1063,12 @@ class SvaDataTable {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
                         let change = this.frm['dt_events'][this.doctype]['validate']
+                        let has_aditional_action = additional_action ? true : false
                         if (this.isAsync(change)) {
-                            await change(this, mode, values);
+                            await change(this, mode, values, has_aditional_action);
                             values = dialog.get_values(true, false);
                         } else {
-                            change(this, mode, values);
+                            change(this, mode, values, has_aditional_action);
                             values = dialog.get_values(true, false);
                         }
                     }
@@ -1557,7 +1558,7 @@ class SvaDataTable {
                                     await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
                                 } else {
                                     try {
-                                        await this.wf_action(link, primaryKey, el, originalState);
+                                        await this.wf_action(link, primaryKey, el, originalState,row);
                                     } catch (error) {
                                         el.value = ''; // Reset dropdown value
                                         el.title = originalState;
@@ -1608,16 +1609,16 @@ class SvaDataTable {
     }
 
     // ================================ Workflow Action  Logic ================================
-    async wf_action(selected_state_info, docname, wf_select_el, prevState) {
+    async wf_action(selected_state_info, docname, wf_select_el, prevState,doc) {
         let me = this;
         let workflowFormValue;
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
             if (this.isAsync(change)) {
-                await change(me, selected_state_info, docname, prevState);
+                await change(me, selected_state_info, docname, prevState,doc);
             } else {
-                change(me, selected_state_info, docname, prevState);
+                change(me, selected_state_info, docname, prevState,doc);
             }
         }
 
@@ -1704,7 +1705,11 @@ class SvaDataTable {
         }
         if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
-            change(this, selected_state_info, docname, prevState);
+            if (this.isAsync(change)) {
+                await change(this, selected_state_info, docname, prevState,doc);
+            } else {
+                change(this, selected_state_info, docname, prevState,doc);
+            }
         }
     }
 
@@ -2090,7 +2095,7 @@ class SvaDataTable {
         if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
-                element.addEventListener(event, () => events[event](element, value, column, row));
+                element.addEventListener(event, () => events[event](element, value, column, row,this));
             }
         }
     }
