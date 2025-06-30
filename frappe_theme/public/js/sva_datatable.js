@@ -2095,7 +2095,7 @@ class SvaDataTable {
         if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
-                element.addEventListener(event, () => events[event](element, value, column, row));
+                element.addEventListener(event, () => events[event](element, value, column, row,this));
             }
         }
     }
