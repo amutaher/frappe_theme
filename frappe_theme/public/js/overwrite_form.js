@@ -100,6 +100,14 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
                 dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
+            frappe.db.get_single_value('My Theme', 'hide_form_comment')
+            .then(value => {
+                if (value) {
+                    $('.comment-input-wrapper').hide();
+                } else {
+                    $('.comment-input-wrapper').show();
+                    }
+                });
             frappe.db.get_single_value('My Theme', 'hide_print_icon')
                 .then(value => {
                     if (value) {
