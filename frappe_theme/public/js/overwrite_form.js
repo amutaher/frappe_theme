@@ -104,9 +104,11 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             .then(value => {
                 if (value) {
                     $('.comment-input-wrapper').hide();
+                    $('.new-timeline').hide();
                 } else {
                     $('.comment-input-wrapper').show();
-                    }
+                    $('.new-timeline').show();
+                }
                 });
             frappe.db.get_single_value('My Theme', 'hide_print_icon')
                 .then(value => {
