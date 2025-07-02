@@ -1612,6 +1612,7 @@ class SvaDataTable {
     async wf_action(selected_state_info, docname, wf_select_el, prevState,doc) {
         let me = this;
         let workflowFormValue;
+        let firstAttempt = true;
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
@@ -1647,7 +1648,12 @@ class SvaDataTable {
                     fields: popupFields,
                     primary_action_label: "Proceed",
                     primary_action: (values) => {
-                        resolve(values);
+                        if (firstAttempt){
+                            resolve(values);
+                            firstAttempt = false;
+                        }else{
+                            take_action(values);
+                        }
                     },
                     secondary_action_label: "Cancel",
                     secondary_action: () => {
@@ -1670,47 +1676,50 @@ class SvaDataTable {
                 };
             });
         }
-        try {
-            const updateFields = {
-                [me.workflow.workflow_state_field]: selected_state_info.next_state,
-                ...(workflowFormValue && workflowFormValue),
-            };
-            if (dialog) {
-                dialog?.hide();
+        async function take_action(values=undefined){
+            try {
+                const updateFields = {
+                    [me.workflow.workflow_state_field]: selected_state_info.next_state,
+                    ...(values ? values : (workflowFormValue && workflowFormValue)),
+                };
+                const response = await me.sva_db.set_value(me.doctype, docname, updateFields);
+                if (!response?.exc) {
+                    if (dialog) {
+                        dialog?.hide();
+                    }
+                    const row = me.rows.find((r) => r.name === docname);
+                    row[me.workflow.workflow_state_field] = selected_state_info.next_state;
+                    if (workflowFormValue?.wf_comment) {
+                        row.wf_comment = workflowFormValue.wf_comment;
+                    } else {
+                        const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                        row.wf_comment = comment;
+                    }
+                    Object.assign(row, workflowFormValue);
+                    me.rows[row.rowIndex] = row;
+                    me.updateTableBody();
+                    if (!me.skip_workflow_confirmation) {
+                        frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                    }
+                }
+            } catch (error) {
+                if (error.message) {
+                    frappe.throw({
+                        title: 'Error',
+                        message: error.message
+                    })
+                }
             }
-            const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
-            if (!response?.exc) {
-                const row = me.rows.find((r) => r.name === docname);
-                row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-                if (workflowFormValue?.wf_comment) {
-                    row.wf_comment = workflowFormValue.wf_comment;
+            if (me.frm?.['dt_events']?.[me.doctype]?.['after_workflow_action']) {
+                let change = me.frm['dt_events'][me.doctype]['after_workflow_action']
+                if (me.isAsync(change)) {
+                    await change(me, selected_state_info, docname, prevState,doc);
                 } else {
-                    const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
-                    row.wf_comment = comment;
-                }
-                Object.assign(row, workflowFormValue);
-                me.rows[row.rowIndex] = row;
-                me.updateTableBody();
-                if (!this.skip_workflow_confirmation) {
-                    frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                    change(me, selected_state_info, docname, prevState,doc);
                 }
             }
-        } catch (error) {
-            if (error.message) {
-                frappe.throw({
-                    title: 'Error',
-                    message: error.message
-                })
-            }
         }
-        if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
-            let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
-            if (this.isAsync(change)) {
-                await change(this, selected_state_info, docname, prevState,doc);
-            } else {
-                change(this, selected_state_info, docname, prevState,doc);
-            }
-        }
+        take_action();
     }
 
     // ================================ Workflow Action End ================================
@@ -2095,7 +2104,7 @@ class SvaDataTable {
         if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
-                element.addEventListener(event, () => events[event](element, value, column, row));
+                element.addEventListener(event, () => events[event](element, value, column, row,this));
             }
         }
     }
