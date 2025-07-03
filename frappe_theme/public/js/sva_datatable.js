@@ -1856,14 +1856,16 @@ class SvaDataTable {
             description: ''
         };
         if (column.fieldtype === 'Link') {
+            const value = row[column.fieldname];
             if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
                 td.innerHTML = `<span>${frappe.utils.get_link_title(column.options, row[column.fieldname])}</span>`;
                 td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
             } else {
                 try {
                     frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
-                        td.innerHTML = `<span>${res || ""}</span>`;
+                        td.innerHTML = `<span style="cursor: pointer; text-decoration: none;">${res || ""}</span>`;
                         td.title = res || "";
+                        this.bindColumnEvents(td.firstElementChild, value, column, row);
                     })
                 } catch (error) {
                     td.innerHTML = `<span>${row[column.fieldname] || ""}</span>`;
@@ -1873,11 +1875,12 @@ class SvaDataTable {
             if (col?.width) {
                 $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             } else {
-                $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                $(td).css({ height: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
             }
-            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
-            return;
+            // this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+            // return;
         }
+
         if (['HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,
@@ -1990,7 +1993,7 @@ class SvaDataTable {
                     }
                     td.innerHTML = `<span>${result}</span>`;
                     if (col?.width) {
-                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                     } else {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
