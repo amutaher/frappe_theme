@@ -791,7 +791,7 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         const commentButton = $(commentBox).find('.btn-comment');
         if (commentButton.length) {
             const buttonWrapper = $(`
-                <div class="comment-action-container" style="display: flex; align-items: end; gap: 10px; margin: 8px;">
+                <div class="comment-action-container" style="display: flex; align-items: end; gap: 10px; margin: 8px; flex-direction: row-reverse; justify-content: end;">
                 </div>
             `);
             commentButton.wrap(buttonWrapper);
