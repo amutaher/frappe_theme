@@ -1536,7 +1536,7 @@ class SvaDataTable {
                         el.style['text-align'] = 'center';
                         wfActionTd.appendChild(el);
                     } else {
-                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
+                        el.disabled = (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
                         el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
@@ -1551,7 +1551,7 @@ class SvaDataTable {
                         });
                         el.addEventListener('change', async (event) => {
                             const action = event.target.value;
-                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            const link = this.workflow.transitions.find(l => l.state == row[workflow_state_field] && l.action === action && frappe.user_roles.includes(l.allowed));
                             const originalState = el?.getAttribute('title');
                             if (link) {
                                 if (window.onWorkflowStateChange) {
@@ -1870,26 +1870,52 @@ class SvaDataTable {
             description: ''
         };
         if (column.fieldtype === 'Link') {
-            if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
-                td.innerHTML = `<span>${frappe.utils.get_link_title(column.options, row[column.fieldname])}</span>`;
-                td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+            let spanElement;
+            if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
+                    td.innerHTML = formatter(frappe.utils.get_link_title(column.options, row[column.fieldname]), column, row,this);
+                    td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                } else {
+                    try {
+                        frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
+                            td.innerHTML = formatter(res || "", column, row, this);
+                            td.title = res || "";
+                        })
+                    } catch (error) {
+                        td.innerHTML = formatter(row[column.fieldname] || "", column, row, this);
+                        td.title = row[column.fieldname] || "";
+                    }
+                }
             } else {
-                try {
-                    frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
-                        td.innerHTML = `<span>${res || ""}</span>`;
-                        td.title = res || "";
-                    })
-                } catch (error) {
-                    td.innerHTML = `<span>${row[column.fieldname] || ""}</span>`;
-                    td.title = row[column.fieldname] || "";
+                if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
+                    spanElement = document.createElement('span');
+                    spanElement.textContent = frappe.utils.get_link_title(column.options, row[column.fieldname]);
+                    td.appendChild(spanElement);
+                    td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                } else {
+                    spanElement = document.createElement('span');
+                    td.appendChild(spanElement);
+                    try {
+                        frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
+                            spanElement.textContent = res || "";
+                            td.title = res || "";
+                        })
+                    } catch (error) {
+                        spanElement.textContent = row[column.fieldname] || "";
+                        td.title = row[column.fieldname] || "";
+                    }
+                }
+
+                // Apply CSS styles
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                } else {
+                    $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
-            if (col?.width) {
-                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
-            } else {
-                $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
-            }
-            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+
+            this.bindColumnEvents(td.firstElementChild || spanElement, row[column.fieldname], column, row);
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1936,7 +1962,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span') || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
@@ -1973,43 +1999,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
-                return;
-            }
-            if (['Duration'].includes(columnField.fieldtype)) {
-                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
-                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
-                } else {
-                    let result = frappe.utils.seconds_to_duration(row[column.fieldname]);
-
-                    if (result) {
-                        const { days, hours, minutes, seconds } = result;
-                        let parts = [];
-
-                        if (days) {
-                            parts.push(`${days} ${days > 1 ? 'days' : 'day'}`);
-                        }
-                        if (hours) {
-                            parts.push(`${hours} ${hours > 1 ? 'hrs' : 'hr'}`);
-                        }
-                        if (minutes) {
-                            parts.push(`${minutes} ${minutes > 1 ? 'mins' : 'min'}`);
-                        }
-                        if (seconds && !days && !hours && !minutes) {
-                            // only show seconds if no larger unit is present
-                            parts.push(`${seconds} ${seconds > 1 ? 'secs' : 'sec'}`);
-                        }
-                        result = parts.join(' ');
-                    }
-                    td.innerHTML = `<span>${result}</span>`;
-                    if (col?.width) {
-                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px'});
-                    } else {
-                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
-                    }
-                }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span') || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
@@ -2027,7 +2017,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
@@ -2064,23 +2054,17 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.classList.add('btn', 'btn-secondary', 'btn-xs');
+                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
-                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
-                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    let formattedElement = formatter(btn, column, row);
-                    td.appendChild(formattedElement);
+                td.appendChild(btn)
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
                 } else {
-                    td.appendChild(btn)
-                    if (col?.width) {
-                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
-                    } else {
-                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
-                    }
+                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
