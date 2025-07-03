@@ -790,9 +790,15 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
     setTimeout(() => {
         const commentButton = $(commentBox).find('.btn-comment');
         if (commentButton.length) {
+            const buttonWrapper = $(`
+                <div class="comment-action-container" style="display: flex; align-items: end; gap: 10px; margin: 8px;">
+                </div>
+            `);
+            commentButton.wrap(buttonWrapper);
+
             // Only show checkbox if NOT NGO
             if (frappe.boot.user_team !== 'NGO') {
-                commentButton.after(`
+                commentButton.parent().append(`
                     <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px; padding: 4px 8px; border-radius: 6px;">
                         <input type="checkbox" id="new_comment_external_${fieldName}" class="external-checkbox" style="margin: 0; width: 14px; height: 14px;">
                         <label for="new_comment_external_${fieldName}" style="font-size: 11px; color: var(--text-muted); cursor: pointer; margin: 0; font-weight: 500; user-select: none; white-space: nowrap;">Visible to NGO</label>
