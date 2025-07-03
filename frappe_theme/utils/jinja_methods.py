@@ -91,3 +91,12 @@ def get_loging_url(email):
         url = f"/update-password?key={key}"
         frappe.log_error("url2", url)
         return url
+
+def get_primary_donor_name():
+    try:
+        mg = frappe.get_doc("mGrant Settings")
+        donor = frappe.get_doc("Donor", mg.primary_donor)
+        return donor.donor_name
+    except Exception as e:
+        frappe.log_error(f"Error in getting primary donor: {e}")
+        return {}
