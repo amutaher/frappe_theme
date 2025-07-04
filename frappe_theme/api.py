@@ -501,7 +501,7 @@ def apply_common_permissions(target_perm, common_permissions):
 
 
 @frappe.whitelist()
-def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, is_external=0):
+def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, is_external=0,status='Open'):
     try:
         frappe.log_error(f"Saving comment for: {doctype_name} {docname} {field_name}", "Comment Save Debug")
         
@@ -525,7 +525,7 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
                 'docname': docname,
                 'field_name': field_name,
                 'field_label': field_label,
-                'status': 'Open'  # Set initial status
+                'status': status  # Set initial status
             })
             comment_doc.insert(ignore_permissions=True)
             frappe.log_error(f"Created new comment doc: {comment_doc.name}", "Comment Save Debug")
