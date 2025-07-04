@@ -1953,7 +1953,7 @@ class SvaDataTable {
             if (columnField.fieldtype === 'Currency') {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${formatCurrency(row[column.fieldname], frappe.sys_defaults.currency)}</span>`;
                     if (col?.width) {
@@ -1987,7 +1987,7 @@ class SvaDataTable {
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -2005,7 +2005,7 @@ class SvaDataTable {
             if (['Percent'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -2023,7 +2023,7 @@ class SvaDataTable {
             if (['Date'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname] ? formaDate(row[column.fieldname]) : ''}</span>`;
                     if (col?.width) {
@@ -2060,6 +2060,10 @@ class SvaDataTable {
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
+                if(this.frm?.dt_events?.[this.doctype]?.formatter?.[columnField.fieldname]){
+                    let formatter = this.frm.dt_events[this.doctype].formatter[columnField.fieldname];
+                    btn = formatter(btn,column, row,this);
+                }
                 td.appendChild(btn)
                 if (col?.width) {
                     $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
@@ -2071,7 +2075,7 @@ class SvaDataTable {
             }
             if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                td.innerHTML = formatter(row[column.fieldname], column, row);
+                td.innerHTML = formatter(row[column.fieldname], column, row,this);
             } else {
                 td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
                 if (col?.width) {
