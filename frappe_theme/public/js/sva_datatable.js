@@ -336,6 +336,20 @@ class SvaDataTable {
                 },
             });
         }
+        
+        // add action button with dropdown
+        let action_button = document.createElement('div');
+        action_button.id = 'action_button';
+      
+        frappe.require("dt.action.bundle.js").then(() => {
+            new frappe.ui.DTAction({
+                wrapper: action_button,
+                frm: this.frm
+            });
+        })
+        list_filter.appendChild(action_button);
+        
+        // 
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
