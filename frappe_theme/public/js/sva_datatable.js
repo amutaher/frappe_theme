@@ -190,6 +190,10 @@ class SvaDataTable {
             }
         }
     }
+    setTitle(label){
+        this.label = label;
+        this.header_element.querySelector('p').innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`;
+    }
     hideSkeletonLoader(reLoad = false) {
         if (this.skeletonLoader) {
             this.skeletonLoader.remove();
@@ -332,6 +336,20 @@ class SvaDataTable {
                 },
             });
         }
+        
+        // add action button with dropdown
+        let action_button = document.createElement('div');
+        action_button.id = 'action_button';
+      
+        frappe.require("dt.action.bundle.js").then(() => {
+            new frappe.ui.DTAction({
+                wrapper: action_button,
+                frm: this.frm
+            });
+        })
+        list_filter.appendChild(action_button);
+        
+        // 
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
@@ -698,9 +716,9 @@ class SvaDataTable {
         });
     }
     get_permissions(doctype) {
-        if(this.connection.connection_type === 'Report') {
+        if (this.connection.connection_type === 'Report') {
             return this.conf_perms ? this.conf_perms : ['read']
-        }else{
+        } else {
             return new Promise((rslv, rjct) => {
                 frappe.call({
                     method: 'frappe_theme.api.get_permissions',
@@ -734,6 +752,9 @@ class SvaDataTable {
                 let doc = await this.sva_db.get_doc(doctype, name);
                 for (const f of fields) {
                     f.default = ''
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     f.onchange = this.onFieldValueChange?.bind(this)
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -860,14 +881,17 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             } else {
                 for (const f of fields) {
                     f.onchange = this.onFieldValueChange?.bind(this)
-                    // if (this.frm && this.frm?.doc?.[f.fieldname]) {
-                    //     f.default = this.frm?.doc[f.fieldname];
-                    //     f.read_only = 1;
-                    // }
+                    if (f.hidden === "0") {
+                        f.hidden = 0;
+                    }
                     if (['Attach', 'Attach Image'].includes(f.fieldtype)) {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
@@ -977,6 +1001,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
+                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
+                        f.hidden = 1;
+                        continue;
+                    }
                 }
             }
         } else {
@@ -985,6 +1013,10 @@ class SvaDataTable {
                 if (f.fieldtype === 'Table MultiSelect') {
                     continue;
                 }
+                if (f.hidden === "0") {
+                    f.hidden = 0;
+                }
+
                 if (f.fieldtype === "Table") {
                     let res = await this.sva_db.call({ method: 'frappe_theme.api.get_meta_fields', doctype: f.options });
                     let tableFields = res?.message;
@@ -1023,6 +1055,10 @@ class SvaDataTable {
                     }
                     continue;
                 }
+                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    f.hidden = 1;
+                    continue;
+                }
                 if (doc[f.fieldname]) {
                     f.default = doc[f.fieldname];
                     f.read_only = 1;
@@ -1041,10 +1077,13 @@ class SvaDataTable {
                 if (['create', 'write'].includes(mode)) {
                     if (this.frm?.['dt_events']?.[this.doctype]?.['validate']) {
                         let change = this.frm['dt_events'][this.doctype]['validate']
+                        let has_aditional_action = additional_action ? true : false
                         if (this.isAsync(change)) {
-                            await change(this, mode, values);
+                            await change(this, mode, values, has_aditional_action);
+                            values = dialog.get_values(true, false);
                         } else {
-                            change(this, mode, values);
+                            change(this, mode, values, has_aditional_action);
+                            values = dialog.get_values(true, false);
                         }
                     }
                     if (!name) {
@@ -1511,7 +1550,7 @@ class SvaDataTable {
                         el.style['text-align'] = 'center';
                         wfActionTd.appendChild(el);
                     } else {
-                        el.disabled = this.frm?.doc?.docstatus !== 0 || closureStates.includes(row[workflow_state_field]) ||
+                        el.disabled = (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
                         el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(this.workflow.transitions
@@ -1526,14 +1565,14 @@ class SvaDataTable {
                         });
                         el.addEventListener('change', async (event) => {
                             const action = event.target.value;
-                            const link = this.workflow.transitions.find(l => l.action === action && frappe.user_roles.includes(l.allowed));
+                            const link = this.workflow.transitions.find(l => l.state == row[workflow_state_field] && l.action === action && frappe.user_roles.includes(l.allowed));
                             const originalState = el?.getAttribute('title');
                             if (link) {
                                 if (window.onWorkflowStateChange) {
                                     await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
                                 } else {
                                     try {
-                                        await this.wf_action(link, primaryKey, el, originalState);
+                                        await this.wf_action(link, primaryKey, el, originalState,row);
                                     } catch (error) {
                                         el.value = ''; // Reset dropdown value
                                         el.title = originalState;
@@ -1551,7 +1590,7 @@ class SvaDataTable {
                 }
 
                 // ========================= Workflow End ===================
-                if (((this.frm ? this.frm?.doc.docstatus === 0 : true) && this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+                if ((this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
                     const actionTd = document.createElement('td');
                     actionTd.style.minWidth = '50px';
                     actionTd.style.textAlign = 'center';
@@ -1584,16 +1623,17 @@ class SvaDataTable {
     }
 
     // ================================ Workflow Action  Logic ================================
-    async wf_action(selected_state_info, docname, wf_select_el, prevState) {
+    async wf_action(selected_state_info, docname, wf_select_el, prevState,doc) {
         let me = this;
         let workflowFormValue;
+        let firstAttempt = true;
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
             if (this.isAsync(change)) {
-                await change(me, selected_state_info, docname, prevState);
+                await change(me, selected_state_info, docname, prevState,doc);
             } else {
-                change(me, selected_state_info, docname, prevState);
+                change(me, selected_state_info, docname, prevState,doc);
             }
         }
 
@@ -1604,7 +1644,7 @@ class SvaDataTable {
         });
         const fields = meta?.message?.fields?.filter(field => {
             return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1,mandatory_depends_on: field.mandatory_depends_on,depends_on: field.depends_on, options: field.options } });
+        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
         const popupFields = [
             {
                 label: "Action Test",
@@ -1622,7 +1662,12 @@ class SvaDataTable {
                     fields: popupFields,
                     primary_action_label: "Proceed",
                     primary_action: (values) => {
-                        resolve(values);
+                        if (firstAttempt){
+                            resolve(values);
+                            firstAttempt = false;
+                        }else{
+                            take_action(values);
+                        }
                     },
                     secondary_action_label: "Cancel",
                     secondary_action: () => {
@@ -1645,43 +1690,50 @@ class SvaDataTable {
                 };
             });
         }
-        try {
-            const updateFields = {
-                [me.workflow.workflow_state_field]: selected_state_info.next_state,
-                ...(workflowFormValue && workflowFormValue),
-            };
-            if (dialog) {
-                dialog?.hide();
+        async function take_action(values=undefined){
+            try {
+                const updateFields = {
+                    [me.workflow.workflow_state_field]: selected_state_info.next_state,
+                    ...(values ? values : (workflowFormValue && workflowFormValue)),
+                };
+                const response = await me.sva_db.set_value(me.doctype, docname, updateFields);
+                if (!response?.exc) {
+                    if (dialog) {
+                        dialog?.hide();
+                    }
+                    const row = me.rows.find((r) => r.name === docname);
+                    row[me.workflow.workflow_state_field] = selected_state_info.next_state;
+                    if (workflowFormValue?.wf_comment) {
+                        row.wf_comment = workflowFormValue.wf_comment;
+                    } else {
+                        const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                        row.wf_comment = comment;
+                    }
+                    Object.assign(row, workflowFormValue);
+                    me.rows[row.rowIndex] = row;
+                    me.updateTableBody();
+                    if (!me.skip_workflow_confirmation) {
+                        frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                    }
+                }
+            } catch (error) {
+                if (error.message) {
+                    frappe.throw({
+                        title: 'Error',
+                        message: error.message
+                    })
+                }
             }
-            const response = await this.sva_db.set_value(me.doctype, docname, updateFields);
-            if (!response?.exc) {
-                const row = me.rows.find((r) => r.name === docname);
-                row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-                if (workflowFormValue?.wf_comment) {
-                    row.wf_comment = workflowFormValue.wf_comment;
+            if (me.frm?.['dt_events']?.[me.doctype]?.['after_workflow_action']) {
+                let change = me.frm['dt_events'][me.doctype]['after_workflow_action']
+                if (me.isAsync(change)) {
+                    await change(me, selected_state_info, docname, prevState,doc);
                 } else {
-                    const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
-                    row.wf_comment = comment;
-                }
-                Object.assign(row, workflowFormValue);
-                me.rows[row.rowIndex] = row;
-                me.updateTableBody();
-                if (!this.skip_workflow_confirmation) {
-                    frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                    change(me, selected_state_info, docname, prevState,doc);
                 }
             }
-        } catch (error) {
-            if (error.message) {
-                frappe.throw({
-                    title: 'Error',
-                    message: error.message
-                })
-            }
         }
-        if (this.frm?.['dt_events']?.[this.doctype]?.['after_workflow_action']) {
-            let change = this.frm['dt_events'][this.doctype]['after_workflow_action']
-            change(this, selected_state_info, docname, prevState);
-        }
+        take_action();
     }
 
     // ================================ Workflow Action End ================================
@@ -1832,26 +1884,52 @@ class SvaDataTable {
             description: ''
         };
         if (column.fieldtype === 'Link') {
-            if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
-                td.innerHTML = `<span>${frappe.utils.get_link_title(column.options, row[column.fieldname])}</span>`;
-                td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+            let spanElement;
+            if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
+                    td.innerHTML = formatter(frappe.utils.get_link_title(column.options, row[column.fieldname]), column, row,this);
+                    td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                } else {
+                    try {
+                        frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
+                            td.innerHTML = formatter(res || "", column, row, this);
+                            td.title = res || "";
+                        })
+                    } catch (error) {
+                        td.innerHTML = formatter(row[column.fieldname] || "", column, row, this);
+                        td.title = row[column.fieldname] || "";
+                    }
+                }
             } else {
-                try {
-                    frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
-                        td.innerHTML = `<span>${res || ""}</span>`;
-                        td.title = res || "";
-                    })
-                } catch (error) {
-                    td.innerHTML = `<span>${row[column.fieldname] || ""}</span>`;
-                    td.title = row[column.fieldname] || "";
+                if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
+                    spanElement = document.createElement('span');
+                    spanElement.textContent = frappe.utils.get_link_title(column.options, row[column.fieldname]);
+                    td.appendChild(spanElement);
+                    td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
+                } else {
+                    spanElement = document.createElement('span');
+                    td.appendChild(spanElement);
+                    try {
+                        frappe.utils.fetch_link_title(column.options, row[column.fieldname]).then(res => {
+                            spanElement.textContent = res || "";
+                            td.title = res || "";
+                        })
+                    } catch (error) {
+                        spanElement.textContent = row[column.fieldname] || "";
+                        td.title = row[column.fieldname] || "";
+                    }
+                }
+
+                // Apply CSS styles
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                } else {
+                    $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
                 }
             }
-            if (col?.width) {
-                $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
-            } else {
-                $(td).css({ height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
-            }
-            this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+
+            this.bindColumnEvents(td.firstElementChild || spanElement, row[column.fieldname], column, row);
             return;
         }
         if (['HTML'].includes(columnField.fieldtype)) {
@@ -1889,7 +1967,7 @@ class SvaDataTable {
             if (columnField.fieldtype === 'Currency') {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${formatCurrency(row[column.fieldname], frappe.sys_defaults.currency)}</span>`;
                     if (col?.width) {
@@ -1898,7 +1976,7 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span') || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (columnField.fieldtype === 'Attach') {
@@ -1923,7 +2001,7 @@ class SvaDataTable {
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -1935,13 +2013,13 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span') || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (['Percent'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -1953,13 +2031,13 @@ class SvaDataTable {
                         $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px', textAlign: 'right' });
                     }
                 }
-                this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
+                this.bindColumnEvents(td.firstElementChild || td.querySelector('span'), row[column.fieldname], column, row);
                 return;
             }
             if (['Date'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row,this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname] ? formaDate(row[column.fieldname]) : ''}</span>`;
                     if (col?.width) {
@@ -1990,30 +2068,28 @@ class SvaDataTable {
             }
             if (columnField.fieldtype == 'Button') {
                 let btn = document.createElement('button');
-                btn.classList.add('btn', 'btn-secondary', 'btn-xs');
+                btn.classList.add('btn', 'btn-secondary', 'btn-sm');
                 btn.setAttribute('data-dt', this.doctype);
                 btn.setAttribute('data-dn', row.name);
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
-                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
-                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    let formattedElement = formatter(btn, column, row);
-                    td.appendChild(formattedElement);
-                }else{
-                    td.appendChild(btn)
-                    if (col?.width) {
-                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
-                    } else {
-                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
-                    }
+                if(this.frm?.dt_events?.[this.doctype]?.formatter?.[columnField.fieldname]){
+                    let formatter = this.frm.dt_events[this.doctype].formatter[columnField.fieldname];
+                    btn = formatter(btn,column, row,this);
+                }
+                td.appendChild(btn)
+                if (col?.width) {
+                    $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
+                } else {
+                    $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', padding: '0px 5px' });
                 }
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
             if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                td.innerHTML = formatter(row[column.fieldname], column, row);
+                td.innerHTML = formatter(row[column.fieldname], column, row,this);
             } else {
                 td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
                 if (col?.width) {
@@ -2030,7 +2106,7 @@ class SvaDataTable {
         if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
-                element.addEventListener(event, () => events[event](element, value, column, row));
+                element.addEventListener(event, () => events[event](element, value, column, row,this));
             }
         }
     }

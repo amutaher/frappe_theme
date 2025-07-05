@@ -10,7 +10,7 @@ def get_my_theme():
 
 @frappe.whitelist(allow_guest=True)
 def get_property_set(doctype):
-        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter"]]},ignore_permissions=True)
+        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter","wf_state_field"]]},ignore_permissions=True)
     
 
 @frappe.whitelist()
@@ -501,7 +501,7 @@ def apply_common_permissions(target_perm, common_permissions):
 
 
 @frappe.whitelist()
-def save_field_comment(doctype_name, docname, field_name, field_label, comment_text):
+def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, is_external=0,status='Open'):
     try:
         frappe.log_error(f"Saving comment for: {doctype_name} {docname} {field_name}", "Comment Save Debug")
         
@@ -525,7 +525,7 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
                 'docname': docname,
                 'field_name': field_name,
                 'field_label': field_label,
-                'status': 'Open'  # Set initial status
+                'status': status  # Set initial status
             })
             comment_doc.insert(ignore_permissions=True)
             frappe.log_error(f"Created new comment doc: {comment_doc.name}", "Comment Save Debug")
@@ -538,7 +538,8 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'parentfield': 'comment_log',
             'comment': comment_text,
             'user': frappe.session.user,
-            'creation_date': frappe.utils.now_datetime()
+            'creation_date': frappe.utils.now_datetime(),
+            'is_external': int(is_external)  # Convert to integer and use the passed value
         })
 
         # Insert the child document, ignoring permissions
@@ -555,7 +556,8 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'parent': comment_doc.name,
             'comment': comment_text,
             'user': frappe.session.user,
-            'creation_date': comment_log_entry.creation_date
+            'creation_date': comment_log_entry.creation_date,
+            'is_external': comment_log_entry.is_external
         }
 
     except Exception as e:
@@ -620,7 +622,8 @@ def get_comment_count(doctype_name, docname, field_name):
             filters={
                 'doctype_name': doctype_name,
                 'docname': docname,
-                'field_name': field_name
+                'field_name': field_name,
+                'status': ['IN', ['Open', 'Resolved']]
             },
             fields=['name', 'doctype_name', 'docname', 'field_name'],
             limit=1,
@@ -704,6 +707,8 @@ def load_field_comments(doctype_name, docname, field_name):
     """Load all comment threads for a specific field"""
     try:
         # Get all parent comment documents for the field
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
         comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
@@ -724,18 +729,22 @@ def load_field_comments(doctype_name, docname, field_name):
         # Get all comment logs for these parent documents
         threads = []
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+
             comment_logs = frappe.get_all(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                },
-                fields=['name', 'comment', 'user', 'creation_date'],
+                filters=filters,
+                fields=['name', 'comment', 'user', 'creation_date', 'is_external'],
                 order_by='creation_date asc',
                 ignore_permissions=True
             )
-
             threads.append({
                 'name': doc.name,
                 'status': doc.status,
@@ -757,6 +766,8 @@ def load_all_comments(doctype_name, docname):
     """Load all comments for a document"""
     try:
         # Get all parent comment documents for the document
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
         comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
@@ -773,14 +784,18 @@ def load_all_comments(doctype_name, docname):
         # Get all comment logs for these parent documents
         all_comments = []
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+                
             comment_logs = frappe.get_all(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                },
-                fields=['name', 'comment', 'user', 'creation_date'],
+                filters=filters,
+                fields=['name', 'comment', 'user', 'creation_date', 'is_external'],
                 order_by='creation_date asc',
                 ignore_permissions=True
             )
@@ -791,7 +806,6 @@ def load_all_comments(doctype_name, docname):
                 'status': doc.status,
                 'comments': comment_logs
             })
-
         return all_comments
 
     except Exception as e:
@@ -802,12 +816,17 @@ def load_all_comments(doctype_name, docname):
 def get_all_field_comment_counts(doctype_name, docname):
     """Get comment counts for all fields in a document in a single call"""
     try:
+        # Get user type for filtering
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
+        
         # Get all parent comment documents for the document
         comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
                 'doctype_name': doctype_name,
-                'docname': docname
+                'docname': docname,
+                'status': ['IN', ['Open', 'Resolved']]
             },
             fields=['name', 'field_name'],
             ignore_permissions=True
@@ -821,13 +840,19 @@ def get_all_field_comment_counts(doctype_name, docname):
         
         # Get all comment logs for these parent documents
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+            
+            # For NGO users, only count external comments
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+                
             count = frappe.db.count(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                }
+                filters=filters
             )
             field_counts[doc.field_name] = count
 
@@ -836,4 +861,19 @@ def get_all_field_comment_counts(doctype_name, docname):
     except Exception as e:
         frappe.log_error(f"Error in get_all_field_comment_counts: {str(e)}")
         return {}
+
+@frappe.whitelist()
+def update_comment_external_flag(comment_name, is_external):
+    """Update the external flag for a comment"""
+    try:
+        # Check if the comment exists
+        if not frappe.db.exists('DocType Field Comment Log', comment_name):
+            frappe.throw(f"Comment {comment_name} does not exist")
+        # Update the external flag
+        frappe.db.set_value('DocType Field Comment Log', comment_name, 'is_external', is_external)
+        
+        return True
+    except Exception as e:
+        frappe.log_error(f"Error updating external flag for comment {comment_name}: {str(e)}")
+        return False
 

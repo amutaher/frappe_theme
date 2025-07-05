@@ -74,7 +74,6 @@ function get_comment_html(comment, commentMap) {
 
     // Render the comment content as Markdown
     const renderedComment = frappe.format(comment.comment, 'Markdown');
-
     return `
         <div class="comment-item" style="margin-bottom: 28px; position: relative; display: flex; ${isCurrentUser ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
             ${!isCurrentUser ? `
@@ -88,6 +87,11 @@ function get_comment_html(comment, commentMap) {
                         <div style="font-weight: 600; font-size: 13px; color: ${userColor}; display: flex; align-items: center; gap: 6px;">
                             ${frappe.user.full_name(comment.user)}
                             <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">${frappe.datetime.prettyDate(comment.creation_date)}</span>
+                            ${comment.is_external && frappe.boot.user_team !== 'NGO' ? `
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#1976d2">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                    </svg>
+                            ` : ''}
                         </div>
                     </div>
                 ` : ''}
@@ -97,19 +101,31 @@ function get_comment_html(comment, commentMap) {
                     ` : `
                         <div style="position: absolute; right: -7px; top: 16px; width: 12px; height: 12px; background: #f5f7fa; border-right: 1px solid #ececec; border-bottom: 1px solid #ececec; transform: rotate(45deg);"></div>
                     `}
-                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word; white-space: pre-wrap;">${renderedComment}</div>
+                    <div style="font-size: 14px; line-height: 1.6; color: #222; word-wrap: break-word; white-space: pre-wrap;word-break: break-all; overflow-wrap: anywhere;">${renderedComment}</div>
                 </div>
-                <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px;">
+                <div style="display: flex; justify-content: ${isCurrentUser ? 'flex-end' : 'flex-start'}; margin-top: 4px; align-items: center; gap: 8px;">
                     ${isCurrentUser ? `
-                <div style="font-size: 11px; color: var(--text-muted);">${frappe.datetime.prettyDate(comment.creation_date)}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            ${frappe.datetime.prettyDate(comment.creation_date)}
+                        </div>
                     ` : ''}
                 </div>
             </div>
-            ${isCurrentUser ? `
-                <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ${frappe.user.full_name(comment.user).charAt(0).toUpperCase()}
-                </div>
-            ` : ''}
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; align-items: center; gap: 8px; flex-direction: column; margin-left: 10px;">
+                ${isCurrentUser ? `
+                    <div style="background: ${userColor}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        ${frappe.user.full_name(comment.user).charAt(0).toUpperCase()}
+                    </div>
+               
+                    ${comment.is_external && frappe.boot.user_team !== 'NGO' ? `
+                        <span style="margin-left: 10px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="#1976d2">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </span>
+                    ` : ''}
+                 ` : ''}
+            </div>
         </div>
     `;
 }
@@ -192,7 +208,15 @@ function load_field_comments(fieldName, field, frm) {
 
                 // Process each thread
                 if (response.message && response.message.threads) {
-                    response.message.threads.forEach((thread, index) => {
+                    // Filter threads for NGO users - only show threads that have comments
+                    let threadsToShow = response.message.threads;
+                    if (frappe.boot.user_team === 'NGO') {
+                        threadsToShow = response.message.threads.filter(thread => 
+                            thread.comments && thread.comments.length > 0
+                        );
+                    }
+                    
+                    threadsToShow.forEach((thread, index) => {
                         const thread_section = $(`
                             <div class="thread-section" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: ${index === 0 ? 'var(--fg-color)' : 'var(--bg-color)'}; border: 1px solid var(--border-color);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -357,7 +381,7 @@ function load_field_comments(fieldName, field, frm) {
                     });
 
                     // If no threads exist, create a new thread section with comment input
-                    if (response.message.threads.length === 0) {
+                    if (threadsToShow.length === 0) {
                         const new_thread_section = $(`
                             <div class="thread-section" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: var(--fg-color); border: 1px solid var(--border-color);">
                                 <div class="field-comments">
@@ -374,7 +398,7 @@ function load_field_comments(fieldName, field, frm) {
                                 <div class="comment-input" style="margin-top: 15px;">
                                     <div style="display: flex; align-items: center;">
                                         <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                            <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                            <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px; "></div>
                                         </div>
                                     </div>
                                 </div>
@@ -417,7 +441,15 @@ function load_all_comments(frm) {
                 const comments_list = $('.field-comments-sidebar').find('.comments-list');
                 comments_list.empty();
 
-                if (!response.message || response.message.length === 0) {
+                // Filter fields for NGO users - only show fields that have comments
+                let fieldsToShow = response.message || [];
+                if (frappe.boot.user_team === 'NGO') {
+                    fieldsToShow = (response.message || []).filter(data => 
+                        data.comments && data.comments.length > 0
+                    );
+                }
+
+                if (!response.message || response.message.length === 0 || (frappe.boot.user_team === 'NGO' && fieldsToShow.length === 0)) {
                     comments_list.html(`
                         <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
                             <div class="text-muted" style="text-align: center;">
@@ -434,7 +466,7 @@ function load_all_comments(frm) {
                 }
 
                 // Create HTML for each field's comments
-                response.message.forEach(data => {
+                fieldsToShow.forEach(data => {
                     const field = frm.fields_dict[data.field_name];
                     if (!field) return; // Skip if field doesn't exist in the form
 
@@ -450,7 +482,7 @@ function load_all_comments(frm) {
                             <div class="comment-input" style="margin-top: 15px; display: none;">
                                 <div style="display: flex; align-items: center;">
                                     <div style="flex-grow: 1; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 6px; background-color: var(--control-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px;"></div>
+                                        <div class="comment-box" style="flex-grow: 1; min-height: 24px; margin-right: 8px; "></div>
                                     </div>
                                 </div>
                             </div>
@@ -599,6 +631,119 @@ function load_all_comments(frm) {
                     }
                 });
 
+                // Add comment icons to each field (but NOT for NGO users)
+                if (frappe.boot.user_team !== 'NGO') {
+                    Object.keys(frm.fields_dict).forEach(fieldname => {
+                        const field = frm.fields_dict[fieldname];
+                        if (!field || !field.df) return;
+
+                        // Skip if field is read-only or is a layout field
+                        if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
+                            return;
+                        }
+
+                        // Create comment icon if not exists
+                        if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                            const count = commentCountCache[fieldname] || 0;
+                            const comment_icon = $(`
+                                <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
+                                    <button class="btn" style="padding: 2px 8px; position: relative;" tabindex="-1" type="button">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
+                                            <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+                                        </svg>
+                                        <span class="comment-count-badge" style="
+                                            position: absolute;
+                                            top: -4px;
+                                            right: -8px;
+                                            background: ${count > 0 ? primaryColor : '#e0e0e0'};
+                                            color: ${count > 0 ? '#fff' : '#666'};
+                                            border-radius: 50%;
+                                            min-width: 16px;
+                                            height: 16px;
+                                            font-size: 10px;
+                                            font-weight: 600;
+                                            display: flex !important;
+                                            align-items: center;
+                                            justify-content: center;
+                                            padding: 0 4px;
+                                            box-shadow: ${count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
+                                            border: 1.5px solid #fff;
+                                            z-index: 9999;
+                                            opacity: ${count > 0 ? 1 : 0.9};
+                                            transition: all 0.2s ease;
+                                            transform-origin: center;
+                                            transform: ${count > 0 ? 'scale(1)' : 'scale(0.9)'};
+                                        ">${count}</span>
+                                    </button>
+                                </div>
+                            `);
+
+                            // Add icon to the field wrapper
+                            $(field.label_area).css('position', 'relative');
+                            $(field.label_area).append(comment_icon);
+
+                            // Show/hide icon on hover
+                            $(field.$wrapper).hover(
+                                function () {
+                                    comment_icon.show();
+                                },
+                                function () { comment_icon.hide(); }
+                            );
+
+                            // Handle click on comment icon - only respond to mouse clicks
+                            comment_icon.find('button').on('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                // Show sidebar
+                                $('.field-comments-sidebar').show();
+                                // Force a reflow to ensure the transition works
+                                $('.field-comments-sidebar')[0].offsetHeight;
+                                $('.field-comments-sidebar').css('right', '0');
+
+                                // Set context when viewing comments for a specific field
+                                current_field_context = { fieldName: fieldname, field: field, frm: frm };
+
+                                // Load only this field's comments
+                                load_field_comments(fieldname, field, frm);
+                            });
+
+                            // Prevent keyboard events from triggering the button
+                            comment_icon.find('button').on('keydown keyup keypress', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                            });
+                        } else {
+                            // Update existing comment count badge
+                            const commentCountBadge = $(field.label_area).find('.comment-count-badge');
+                            if (commentCountBadge.length) {
+                                const count = commentCountCache[fieldname] || 0;
+                                commentCountBadge.text(count);
+                                commentCountBadge.css({
+                                    'background': count > 0 ? primaryColor : '#e0e0e0',
+                                    'color': count > 0 ? '#fff' : '#666',
+                                    'box-shadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+                                    'opacity': count > 0 ? 1 : 0.9,
+                                    'transform': count > 0 ? 'scale(1)' : 'scale(0.9)'
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    // For NGO users, remove any existing comment icons
+                    Object.keys(frm.fields_dict).forEach(fieldname => {
+                        const field = frm.fields_dict[fieldname];
+                        if (!field || !field.label_area) return;
+                        
+                        // Remove any existing comment icons
+                        const existingIcon = $(field.label_area).find('.field-comment-icon');
+                        if (existingIcon.length) {
+                            existingIcon.remove();
+                        }
+                    });
+                }
+
                 initializeDropdowns();
                 resolve();
             },
@@ -627,8 +772,10 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         only_input: true,
         enable_mentions: true,
     });
-
+    
     // Remove comment-input-header and adjust spacing
+    $(commentBox).find('.avatar-frame.standard-image').css('min-width', '33px');
+    $(commentBox).find('[data-fieldtype="Comment"]').css('max-width', '252px');
     $(commentBox).find('.comment-input-header').remove();
     $(commentBox).closest('.comment-input').css({
         'margin': '0',
@@ -636,8 +783,30 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
     });
     $(commentBox).closest('.comment-box').css({
         'margin': '0',
-        'padding': '0'
+        'padding': '0',
     });
+
+    // Add checkbox after the comment button only if not NGO
+    setTimeout(() => {
+        const commentButton = $(commentBox).find('.btn-comment');
+        if (commentButton.length) {
+            const buttonWrapper = $(`
+                <div class="comment-action-container" style="display: flex; align-items: end; gap: 10px; margin: 8px; flex-direction: row-reverse; justify-content: end;">
+                </div>
+            `);
+            commentButton.wrap(buttonWrapper);
+
+            // Only show checkbox if NOT NGO
+            if (frappe.boot.user_team !== 'NGO') {
+                commentButton.parent().append(`
+                    <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px; padding: 4px 8px; border-radius: 6px;">
+                        <input type="checkbox" id="new_comment_external_${fieldName}" class="external-checkbox" style="margin: 0; width: 14px; height: 14px;">
+                        <label for="new_comment_external_${fieldName}" style="font-size: 11px; color: var(--text-muted); cursor: pointer; margin: 0; font-weight: 500; user-select: none; white-space: nowrap;">Visible to NGO</label>
+                    </div>
+                `);
+            }
+        }
+    }, 100);
 
     // Handle comment submission using Frappe's built-in button
     $(commentBox).find('.btn-comment').off('click').on('click', () => {
@@ -646,14 +815,22 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         const comment = control.get_value();
         if (!comment) return;
 
-        // Extract mentions from comment
-        const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
-        const mentions = [];
-        let match;
-        while ((match = mentionRegex.exec(comment)) !== null) {
-            mentions.push(match[1]);
+        // Set is_external based on user_team
+        let isExternal = 0;
+        if (frappe.boot.user_team === 'NGO') {
+            isExternal = 1;
+        } else {
+            isExternal = $(`#new_comment_external_${fieldName}`).is(':checked') ? 1 : 0;
         }
 
+        // Extract mentions from comment
+        const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
+        const mentions = new Set();
+        let match;
+        while ((match = mentionRegex.exec(comment)) !== null) {
+            mentions.add(match[1]);
+        }
+        
         // Call the server-side method to save the comment
         frappe.call({
             method: "frappe_theme.api.save_field_comment",
@@ -662,12 +839,16 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
                 docname: field.frm.docname,
                 field_name: fieldName,
                 field_label: field.df.label || fieldName,
-                comment_text: comment
+                comment_text: comment,
+                is_external: isExternal
             },
             callback: function (response) {
                 if (response.message) {
                     const newCommentEntry = response.message;
                     control.set_value('');
+                    // Reset the external checkbox (if present)
+                    $(`#new_comment_external_${fieldName}`).prop('checked', false);
+                    
                     frappe.show_alert({
                         message: __('Comment added successfully'),
                         indicator: 'green'
@@ -675,10 +856,9 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
 
                     // Show status pill after first comment
                     field_section.find('.status-pill-container').show();
-
                     // Send notifications to mentioned users
-                    if (mentions.length > 0) {
-                        mentions.forEach(mention => {
+                    if (mentions.size > 0) {
+                        Array.from(mentions).forEach(mention => {
                             frappe.call({
                                 method: 'frappe_theme.api.send_mention_notification',
                                 args: {
@@ -782,7 +962,6 @@ function setupFieldComments(frm) {
         if (frappe.boot.my_theme && frappe.boot.my_theme.hide_fields_comment) {
             return;
         }
-
         // Check permissions first
         check_comment_permissions().then(permissions => {
             // Only proceed if user has read permission
@@ -873,7 +1052,7 @@ function setupFieldComments(frm) {
             }
 
             // Add comment button to form only if user has create permission
-            if (permissions.includes('create') && !frm.page.sidebar.find('.field-comments-btn').length) {
+            if (permissions.includes('read') && !frm.page.sidebar.find('.field-comments-btn').length) {
                 frm.add_custom_button(__('Comments'), function () {
                     $('.field-comments-sidebar').show();
                     // Force a reflow to ensure the transition works
@@ -897,94 +1076,118 @@ function setupFieldComments(frm) {
                         // Update cache
                         commentCountCache = r.message;
 
-                        // Add comment icons to each field
-                        Object.keys(frm.fields_dict).forEach(fieldname => {
-                            const field = frm.fields_dict[fieldname];
-                            if (!field || !field.df) return;
+                        // Add comment icons to each field (but NOT for NGO users)
+                        if (frappe.boot.user_team !== 'NGO') {
+                            Object.keys(frm.fields_dict).forEach(fieldname => {
+                                const field = frm.fields_dict[fieldname];
+                                if (!field || !field.df) return;
 
-                            // Skip if field is read-only or is a layout field
-                            if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
-                                return;
-                            }
-
-                            // Create comment icon if not exists
-                            if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
-                                const count = commentCountCache[fieldname] || 0;
-                                const comment_icon = $(`
-                                    <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
-                                        <button class="btn" style="padding: 2px 8px; position: relative;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
-                                                <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
-                                            </svg>
-                                            <span class="comment-count-badge" style="
-                                                position: absolute;
-                                                top: -4px;
-                                                right: -8px;
-                                                background: ${count > 0 ? primaryColor : '#e0e0e0'};
-                                                color: ${count > 0 ? '#fff' : '#666'};
-                                                border-radius: 50%;
-                                                min-width: 16px;
-                                                height: 16px;
-                                                font-size: 10px;
-                                                font-weight: 600;
-                                                display: flex !important;
-                                                align-items: center;
-                                                justify-content: center;
-                                                padding: 0 4px;
-                                                box-shadow: ${count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
-                                                border: 1.5px solid #fff;
-                                                z-index: 9999;
-                                                opacity: ${count > 0 ? 1 : 0.9};
-                                                transition: all 0.2s ease;
-                                                transform-origin: center;
-                                                transform: ${count > 0 ? 'scale(1)' : 'scale(0.9)'};
-                                            ">${count}</span>
-                                        </button>
-                                    </div>
-                                `);
-
-                                // Add icon to the field wrapper
-                                $(field.label_area).css('position', 'relative');
-                                $(field.label_area).append(comment_icon);
-
-                                // Show/hide icon on hover
-                                $(field.$wrapper).hover(
-                                    function () {
-                                        comment_icon.show();
-                                    },
-                                    function () { comment_icon.hide(); }
-                                );
-
-                                // Handle click on comment icon
-                                comment_icon.click(() => {
-                                    // Show sidebar
-                                    $('.field-comments-sidebar').show();
-                                    // Force a reflow to ensure the transition works
-                                    $('.field-comments-sidebar')[0].offsetHeight;
-                                    $('.field-comments-sidebar').css('right', '0');
-
-                                    // Set context when viewing comments for a specific field
-                                    current_field_context = { fieldName: fieldname, field: field, frm: frm };
-
-                                    // Load only this field's comments
-                                    load_field_comments(fieldname, field, frm);
-                                });
-                            } else {
-                                // Update existing comment count badge
-                                const commentCountBadge = $(field.label_area).find('.comment-count-badge');
-                                if (commentCountBadge.length) {
-                                    const count = commentCountCache[fieldname] || 0;
-                                    commentCountBadge.text(count);
-                                    commentCountBadge.css({
-                                        'background': count > 0 ? primaryColor : '#e0e0e0',
-                                        'color': count > 0 ? '#fff' : '#666',
-                                        'box-shadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
-                                        'opacity': count > 0 ? 1 : 0.9,
-                                        'transform': count > 0 ? 'scale(1)' : 'scale(0.9)'
-                                    });
+                                // Skip if field is read-only or is a layout field
+                                if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
+                                    return;
                                 }
-                            }
-                        });
+
+                                // Create comment icon if not exists
+                                if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                                    const count = commentCountCache[fieldname] || 0;
+                                    const comment_icon = $(`
+                                        <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
+                                            <button class="btn" style="padding: 2px 8px; position: relative;" tabindex="-1" type="button">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
+                                                    <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+                                                </svg>
+                                                <span class="comment-count-badge" style="
+                                                    position: absolute;
+                                                    top: -4px;
+                                                    right: -8px;
+                                                    background: ${count > 0 ? primaryColor : '#e0e0e0'};
+                                                    color: ${count > 0 ? '#fff' : '#666'};
+                                                    border-radius: 50%;
+                                                    min-width: 16px;
+                                                    height: 16px;
+                                                    font-size: 10px;
+                                                    font-weight: 600;
+                                                    display: flex !important;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    padding: 0 4px;
+                                                    box-shadow: ${count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
+                                                    border: 1.5px solid #fff;
+                                                    z-index: 9999;
+                                                    opacity: ${count > 0 ? 1 : 0.9};
+                                                    transition: all 0.2s ease;
+                                                    transform-origin: center;
+                                                    transform: ${count > 0 ? 'scale(1)' : 'scale(0.9)'};
+                                                ">${count}</span>
+                                            </button>
+                                        </div>
+                                    `);
+
+                                    // Add icon to the field wrapper
+                                    $(field.label_area).css('position', 'relative');
+                                    $(field.label_area).append(comment_icon);
+
+                                    // Show/hide icon on hover
+                                    $(field.$wrapper).hover(
+                                        function () {
+                                            comment_icon.show();
+                                        },
+                                        function () { comment_icon.hide(); }
+                                    );
+
+                                    // Handle click on comment icon - only respond to mouse clicks
+                                    comment_icon.find('button').on('click', function(e) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        
+                                        // Show sidebar
+                                        $('.field-comments-sidebar').show();
+                                        // Force a reflow to ensure the transition works
+                                        $('.field-comments-sidebar')[0].offsetHeight;
+                                        $('.field-comments-sidebar').css('right', '0');
+
+                                        // Set context when viewing comments for a specific field
+                                        current_field_context = { fieldName: fieldname, field: field, frm: frm };
+
+                                        // Load only this field's comments
+                                        load_field_comments(fieldname, field, frm);
+                                    });
+
+                                    // Prevent keyboard events from triggering the button
+                                    comment_icon.find('button').on('keydown keyup keypress', function(e) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return false;
+                                    });
+                                } else {
+                                    // Update existing comment count badge
+                                    const commentCountBadge = $(field.label_area).find('.comment-count-badge');
+                                    if (commentCountBadge.length) {
+                                        const count = commentCountCache[fieldname] || 0;
+                                        commentCountBadge.text(count);
+                                        commentCountBadge.css({
+                                            'background': count > 0 ? primaryColor : '#e0e0e0',
+                                            'color': count > 0 ? '#fff' : '#666',
+                                            'box-shadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+                                            'opacity': count > 0 ? 1 : 0.9,
+                                            'transform': count > 0 ? 'scale(1)' : 'scale(0.9)'
+                                        });
+                                    }
+                                }
+                            });
+                        } else {
+                            // For NGO users, remove any existing comment icons
+                            Object.keys(frm.fields_dict).forEach(fieldname => {
+                                const field = frm.fields_dict[fieldname];
+                                if (!field || !field.label_area) return;
+                                
+                                // Remove any existing comment icons
+                                const existingIcon = $(field.label_area).find('.field-comment-icon');
+                                if (existingIcon.length) {
+                                    existingIcon.remove();
+                                }
+                            });
+                        }
                     }
                 }
             });
@@ -1026,6 +1229,21 @@ function renderStatusPill(status) {
     const style = getStatusPillStyle(status);
     const isClosed = status === 'Closed';
 
+    // Only show Open/Resolved for NGO
+    let statusOptions = '';
+    if (frappe.boot.user_team === 'NGO') {
+        statusOptions = `
+            <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
+            <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
+        `;
+    } else {
+        statusOptions = `
+            <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
+            <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
+            <a class="dropdown-item status-option" data-status="Closed" href="#">Closed</a>
+        `;
+    }
+
     return `
         <div class="status-pill-container" style="position: relative;">
             <button class="status-pill" type="button"
@@ -1066,9 +1284,7 @@ function renderStatusPill(status) {
                     border-radius: 8px;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 ">
-                    <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
-                    <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
-                    <a class="dropdown-item status-option" data-status="Closed" href="#">Closed</a>
+                    ${statusOptions}
                 </div>
             ` : ''}
         </div>
@@ -1148,3 +1364,103 @@ function isValidStatusTransition(currentStatus, newStatus) {
     };
     return validTransitions[currentStatus]?.includes(newStatus) || false;
 }
+
+// Function to update the external flag for a comment
+function updateExternalFlag(commentName, isExternal) {
+    frappe.call({
+        method: 'frappe_theme.api.update_comment_external_flag',
+        args: {
+            comment_name: commentName,
+            is_external: isExternal ? 1 : 0  // Convert boolean to integer
+        },
+        callback: function(response) {
+            if (response.message) {
+                frappe.show_alert({
+                    message: __('External flag updated successfully'),
+                    indicator: 'green'
+                });
+            } else {
+                frappe.show_alert({
+                    message: __('Error updating external flag'),
+                    indicator: 'red'
+                });
+                // Revert the checkbox state if update failed
+                const checkbox = document.getElementById(`external_${commentName}`);
+                if (checkbox) {
+                    checkbox.checked = !isExternal;
+                }
+            }
+        },
+        error: function(err) {
+            frappe.show_alert({
+                message: __('Error updating external flag'),
+                indicator: 'red'
+            });
+            // Revert the checkbox state if update failed
+            const checkbox = document.getElementById(`external_${commentName}`);
+            if (checkbox) {
+                checkbox.checked = !isExternal;
+            }
+        }
+    });
+}
+
+// Add CSS styles for better checkbox appearance
+$(document).ready(function() {
+    // Add custom styles for external checkbox
+    const style = document.createElement('style');
+    style.textContent = `
+        .external-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 16px !important;
+            height: 16px !important;
+            border: 2px solid #cbd5e0;
+            border-radius: 3px;
+            background-color: white;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            margin: 0 !important;
+        }
+        
+        .external-checkbox:checked {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .external-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            line-height: 1;
+        }
+        
+        .external-checkbox:hover {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+        }
+        
+        .external-checkbox:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+        }
+        
+        .comment-item .external-checkbox-container {
+            transition: all 0.2s ease;
+        }
+        
+        .comment-item .external-checkbox-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    `;
+    document.head.appendChild(style);
+});
