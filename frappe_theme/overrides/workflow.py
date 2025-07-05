@@ -46,7 +46,7 @@ def custom_apply_workflow(doc, action):
             value = 1 if str(value) in ("1", "true", "True") else 0
         elif field.fieldtype in ("Int", "Float"):
             try:
-                value = float(value) if field.fieldtype == "Float" else int(value)
+                value = float(value) if field.fieldtype in ("Float", "Currency","Percent") else int(value)
             except ValueError:
                 frappe.throw(f"Invalid value for field {fieldname}")
 
