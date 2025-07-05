@@ -1094,7 +1094,11 @@ class SvaDataTable {
                             }
                         });
                         if (response) {
-                            this.rows.push(response);
+                            if (this.rows.length == this.limit) {
+                                this.rows.pop();
+                            }
+                            this.rows = [response,...this.rows]
+                            // this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_insert']) {
@@ -1703,32 +1707,27 @@ class SvaDataTable {
                 // let _doc = await frappe.db.get_doc(me.doctype, doc.name);
                 const updateFields = {
                     ...doc,
-                    wf_comment : comment,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
+                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) ,wf_comment: comment},
                     doctype: me.doctype
                 };
                 // ==========================================
-                console.log(updateFields, 'updateFields')
-                frappe.xcall("frappe.model.workflow.apply_workflow", {
+                frappe.xcall("frappe.model.workflow.apply_workflow",{
                     doc: updateFields,
                     action: selected_state_info.action
                 }).then((doc) => {
-                    console.log('doc=========================================================', doc);
                     const row = me.rows.find((r) => r.name === docname);
-                    row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-                    row.wf_comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
+                    updateFields[me.workflow.workflow_state_field] = selected_state_info.next_state;
                     Object.assign(row, updateFields);
                     me.rows[row.rowIndex] = row;
                     me.updateTableBody();
                     if (!me.skip_workflow_confirmation) {
-                        frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                        frappe.show_alert({ message: "Action completed successfully", indicator: "green" });
                     }
-                }).finally(() => {
                     if (dialog) {
                         dialog?.hide();
                     }
-                });
-
+                })
                 // ==========================================
                 // const response = await me.sva_db.set_value(me.doctype, docname, updateFields);
                 // if (!response?.exc) {
