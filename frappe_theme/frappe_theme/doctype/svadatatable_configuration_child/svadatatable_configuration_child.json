@@ -36,6 +36,7 @@
   "disable_edit_depends_on",
   "redirect_to_main_form",
   "keep_workflow_enabled_form_submission",
+  "full_screen_dialog",
   "disable_delete_depends_on"
  ],
  "fields": [
@@ -260,12 +261,18 @@
    "fieldname": "keep_workflow_enabled_form_submission",
    "fieldtype": "Check",
    "label": "Keep workflow enabled even after main form submission"
+  },
+  {
+   "default": "0",
+   "fieldname": "full_screen_dialog",
+   "fieldtype": "Check",
+   "label": "Make Dialogs Fullscreen"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-07-03 14:48:54.453038",
+ "modified": "2025-07-05 09:40:05.201087",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Configuration Child",
