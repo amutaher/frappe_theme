@@ -190,7 +190,7 @@ class SvaDataTable {
             }
         }
     }
-    setTitle(label){
+    setTitle(label) {
         this.label = label;
         this.header_element.querySelector('p').innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`;
     }
@@ -336,6 +336,20 @@ class SvaDataTable {
                 },
             });
         }
+
+        // add action button with dropdown
+        let action_button = document.createElement('div');
+        action_button.id = 'action_button';
+
+        frappe.require("dt.action.bundle.js").then(() => {
+            new frappe.ui.DTAction({
+                wrapper: action_button,
+                frm: this.frm
+            });
+        })
+        list_filter.appendChild(action_button);
+
+        // 
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
@@ -1154,6 +1168,9 @@ class SvaDataTable {
             dialog.get_primary_btn().hide();
         }
         this.form_dialog = dialog;
+        if (this?.connection?.full_screen_dialog) {
+            frappe.utils.make_dialog_fullscreen(dialog);
+        }
         dialog.show();
         for (let [fieldname, field] of Object.entries(dialog.fields_dict)?.filter(([fieldname, field]) => field.df.fieldtype == "Date")) {
             if (field?.df?.min_max_depends_on) {
@@ -1558,7 +1575,7 @@ class SvaDataTable {
                                     await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
                                 } else {
                                     try {
-                                        await this.wf_action(link, primaryKey, el, originalState,row);
+                                        await this.wf_action(link, primaryKey, el, originalState, row);
                                     } catch (error) {
                                         el.value = ''; // Reset dropdown value
                                         el.title = originalState;
@@ -1609,7 +1626,7 @@ class SvaDataTable {
     }
 
     // ================================ Workflow Action  Logic ================================
-    async wf_action(selected_state_info, docname, wf_select_el, prevState,doc) {
+    async wf_action(selected_state_info, docname, wf_select_el, prevState, doc) {
         let me = this;
         let workflowFormValue;
         let firstAttempt = true;
@@ -1617,9 +1634,9 @@ class SvaDataTable {
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
             if (this.isAsync(change)) {
-                await change(me, selected_state_info, docname, prevState,doc);
+                await change(me, selected_state_info, docname, prevState, doc);
             } else {
-                change(me, selected_state_info, docname, prevState,doc);
+                change(me, selected_state_info, docname, prevState, doc);
             }
         }
 
@@ -1648,10 +1665,10 @@ class SvaDataTable {
                     fields: popupFields,
                     primary_action_label: "Proceed",
                     primary_action: (values) => {
-                        if (firstAttempt){
+                        if (firstAttempt) {
                             resolve(values);
                             firstAttempt = false;
-                        }else{
+                        } else {
                             take_action(values);
                         }
                     },
@@ -1676,7 +1693,7 @@ class SvaDataTable {
                 };
             });
         }
-        async function take_action(values=undefined){
+        async function take_action(values = undefined) {
             try {
                 const updateFields = {
                     [me.workflow.workflow_state_field]: selected_state_info.next_state,
@@ -1713,9 +1730,9 @@ class SvaDataTable {
             if (me.frm?.['dt_events']?.[me.doctype]?.['after_workflow_action']) {
                 let change = me.frm['dt_events'][me.doctype]['after_workflow_action']
                 if (me.isAsync(change)) {
-                    await change(me, selected_state_info, docname, prevState,doc);
+                    await change(me, selected_state_info, docname, prevState, doc);
                 } else {
-                    change(me, selected_state_info, docname, prevState,doc);
+                    change(me, selected_state_info, docname, prevState, doc);
                 }
             }
         }
@@ -1747,6 +1764,9 @@ class SvaDataTable {
         });
         // let dialog_width = await frappe.db.get_single_value('My Theme', 'dialog_width');
         // $(dialog.$wrapper).find('.modal-dialog').css('max-width', dialog_width ?? '70%');
+        if (link?.full_screen_dialog) {
+            frappe.utils.make_dialog_fullscreen(dialog);
+        }
         dialog.show();
         new SvaDataTable({
             wrapper: dialog.body.querySelector(`#${doctype?.split(' ').length > 1 ? doctype?.split(' ')?.join('-')?.toLowerCase() : doctype.toLowerCase()}`), // Wrapper element
@@ -1874,7 +1894,7 @@ class SvaDataTable {
             if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
                 if (frappe.utils.get_link_title(column.options, row[column.fieldname])) {
-                    td.innerHTML = formatter(frappe.utils.get_link_title(column.options, row[column.fieldname]), column, row,this);
+                    td.innerHTML = formatter(frappe.utils.get_link_title(column.options, row[column.fieldname]), column, row, this);
                     td.title = frappe.utils.get_link_title(column.options, row[column.fieldname]) || "";
                 } else {
                     try {
@@ -1953,7 +1973,7 @@ class SvaDataTable {
             if (columnField.fieldtype === 'Currency') {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row, this);
                 } else {
                     td.innerHTML = `<span>${formatCurrency(row[column.fieldname], frappe.sys_defaults.currency)}</span>`;
                     if (col?.width) {
@@ -1987,7 +2007,7 @@ class SvaDataTable {
             if (['Int', 'Float'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row, this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -2005,7 +2025,7 @@ class SvaDataTable {
             if (['Percent'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row, this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname].toLocaleString('en-US', {
                         minimumFractionDigits: 0,
@@ -2023,7 +2043,7 @@ class SvaDataTable {
             if (['Date'].includes(columnField.fieldtype)) {
                 if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                     let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                    td.innerHTML = formatter(row[column.fieldname], column, row);
+                    td.innerHTML = formatter(row[column.fieldname], column, row, this);
                 } else {
                     td.innerHTML = `<span>${row[column.fieldname] ? formaDate(row[column.fieldname]) : ''}</span>`;
                     if (col?.width) {
@@ -2060,6 +2080,10 @@ class SvaDataTable {
                 btn.setAttribute('data-fieldname', columnField.fieldname);
                 btn.onclick = this.onFieldClick;
                 btn.textContent = columnField.label;
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[columnField.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[columnField.fieldname];
+                    btn = formatter(btn, column, row, this);
+                }
                 td.appendChild(btn)
                 if (col?.width) {
                     $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', padding: '0px 5px' });
@@ -2071,7 +2095,7 @@ class SvaDataTable {
             }
             if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
                 let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
-                td.innerHTML = formatter(row[column.fieldname], column, row);
+                td.innerHTML = formatter(row[column.fieldname], column, row, this);
             } else {
                 td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
                 if (col?.width) {
@@ -2088,7 +2112,7 @@ class SvaDataTable {
         if (this.frm?.dt_events?.[this.doctype]?.columnEvents?.[column.fieldname]) {
             let events = this.frm.dt_events[this.doctype].columnEvents[column.fieldname];
             for (let event in events) {
-                element.addEventListener(event, () => events[event](element, value, column, row,this));
+                element.addEventListener(event, () => events[event](element, value, column, row, this));
             }
         }
     }
@@ -2207,7 +2231,7 @@ class SvaDataTable {
         if (!this.wrapper.querySelector('#noPermissionPage')) {
             this.wrapper.appendChild(noPermissionPage);
         }
-    }
+    }    
     getDialogSize(fields) {
         let hasChildTable = fields.some(field => field.fieldtype === "Table");
         let hasMultipleColumns = false;
