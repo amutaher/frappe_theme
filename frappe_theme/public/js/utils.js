@@ -130,3 +130,22 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
 }
 
 frappe.utils.toggleFieldError = toggleFieldError;
+
+function makeDialogFullScreen(dialog) {
+    // Write logic to ensure that the dialog is full screen
+    let dbody = $(dialog.$wrapper).find('.modal-dialog');
+    let dbody_content = $(dialog.$wrapper).find('.modal-content');
+    dbody?.css({
+        'min-width': '100%',
+        'width': '100%',
+        'max-width': '100%',
+        'margin': '0',
+        'padding': '0',
+    });
+    dbody_content?.css({
+        'min-height': '100vh',
+        'height': '100vh !important',
+        'border-radius': '0'
+    });
+}
+frappe.utils.make_dialog_fullscreen = makeDialogFullScreen;
