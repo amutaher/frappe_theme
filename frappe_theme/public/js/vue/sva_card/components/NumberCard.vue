@@ -71,7 +71,7 @@ const getCount = async () => {
 		loading.value = false;
 	}
 }
-
+console.log(props.card)
 onMounted(async () => {
 	// Initial delay based on card position
 	setTimeout(async () => {
@@ -85,9 +85,9 @@ onMounted(async () => {
 	<transition name="fade">
 		<div v-if="showCard">
 			<Skeleton v-if="loading" />
-			<div v-else class="card mb-2" style="padding: 8px 8px 8px 12px;">
+			<div v-else class="card mb-2" :style="`padding: 8px 8px 8px 12px; background-color: ${card.background_color}`">
 				<div class="d-flex justify-content-between">
-					<p class="text-truncate" style="font-size: 11px; width: 90%;" :title="card.card_label">{{ card.card_label?.toUpperCase() }}</p>
+					<p class="text-truncate" :style="`font-size: 11px; width: 90%; color: ${card.text_color}`" :title="card.card_label">{{ card.card_label?.toUpperCase() }}</p>
 					<div class="dropdown" v-if="actions.length">
 						<span title="action" class="pointer d-flex justify-content-center align-items-center" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 							...
@@ -103,7 +103,10 @@ onMounted(async () => {
 					</div>
 				</div>
 				<!-- number -->
-				<h4>{{ data.field_type == 'Currency' ? frappe.utils.format_currency(data.count) : data.count ?? 0 }}</h4>
+				 <div class="d-flex justify-content-between align-items-center">
+					<h4 :style="`color: ${card.value_color}`">{{ data.field_type == 'Currency' ? frappe.utils.format_currency(data.count) : data.count ?? 0 }}</h4>
+					<span v-if="card.icon_value" v-html="frappe.utils.icon(card.icon_value)"></span>
+				 </div>
 			</div>
 		</div>
 	</transition>
