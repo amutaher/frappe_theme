@@ -71,7 +71,6 @@ const getCount = async () => {
 		loading.value = false;
 	}
 }
-console.log(props.card)
 onMounted(async () => {
 	// Initial delay based on card position
 	setTimeout(async () => {

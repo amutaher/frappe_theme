@@ -36,7 +36,13 @@ const executeAction = (action) => {
 
 const exportData = () => {
     frappe.require("data_import_tools.bundle.js").then(()=>{
-      new frappe.data_import.DataExporter(props.dt.doctype,'Filtered Records');
+      let exporter = new frappe.data_import.DataExporter(props.dt.doctype,'Insert New Records');
+      setTimeout(()=>{
+        if(exporter){
+          exporter.dialog.set_value('export_records', 'by_filter');
+          exporter.filter_group.add_filter(props.dt.doctype, props.dt.connection.link_fieldname, 'equals', props.dt.frm.docname);
+        }
+      }, 1000)
     })
 }
 
