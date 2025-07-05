@@ -8,9 +8,15 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
-# fixtures = [
-#     "SVADatatable Configuration"
-# ]
+fixtures = [
+    # "SVADatatable Configuration"
+    # {
+    #     "dt": "Client Script",
+    #     "filters": {
+    #         "name": ["in", ["Workflow Field Setup"]]
+    #     }
+    # }
+]
 # include js, css files in header of desk.html
 import time
 app_include_css = [
