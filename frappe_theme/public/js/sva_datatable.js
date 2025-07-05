@@ -1563,7 +1563,6 @@ class SvaDataTable {
                             method: 'frappe.model.workflow.get_transitions',
                             doc: { ...row, doctype: this.doctype }
                         });
-                        console.log(transitions, 'transitions');
                         el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
                             [...new Set(transitions
                                 ?.map(e => e.action))]
@@ -1703,15 +1702,12 @@ class SvaDataTable {
         }
         async function take_action(values = undefined) {
             try {
-                const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
-                // let _doc = await frappe.db.get_doc(me.doctype, doc.name);
                 const updateFields = {
                     ...doc,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
-                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) ,wf_comment: comment},
+                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue))},
                     doctype: me.doctype
                 };
-                // ==========================================
                 frappe.xcall("frappe.model.workflow.apply_workflow",{
                     doc: updateFields,
                     action: selected_state_info.action
@@ -1728,16 +1724,6 @@ class SvaDataTable {
                         dialog?.hide();
                     }
                 })
-                // ==========================================
-                // const response = await me.sva_db.set_value(me.doctype, docname, updateFields);
-                // if (!response?.exc) {
-                // if (workflowFormValue?.wf_comment) {
-                //     row.wf_comment = workflowFormValue.wf_comment;
-                // } else {
-                //     row.wf_comment = comment;
-                // }
-
-                // }
             } catch (error) {
                 if (error.message) {
                     frappe.throw({
@@ -1746,14 +1732,14 @@ class SvaDataTable {
                     })
                 }
             }
-            // if (me.frm?.['dt_events']?.[me.doctype]?.['after_workflow_action']) {
-            //     let change = me.frm['dt_events'][me.doctype]['after_workflow_action']
-            //     if (me.isAsync(change)) {
-            //         await change(me, selected_state_info, docname, prevState, doc);
-            //     } else {
-            //         change(me, selected_state_info, docname, prevState, doc);
-            //     }
-            // }
+            if (me.frm?.['dt_events']?.[me.doctype]?.['after_workflow_action']) {
+                let change = me.frm['dt_events'][me.doctype]['after_workflow_action']
+                if (me.isAsync(change)) {
+                    await change(me, selected_state_info, docname, prevState, doc);
+                } else {
+                    change(me, selected_state_info, docname, prevState, doc);
+                }
+            }
         }
         take_action();
     }
