@@ -1549,7 +1549,7 @@ let totalCommentCountUpdateTimeout = null;
 
 // Add this new function to update the total comment count badge
 function updateTotalCommentCount(frm) {
-    console.log('updateTotalCommentCount called for:', frm.doctype, frm.docname);
+    // console.log('updateTotalCommentCount called for:', frm.doctype, frm.docname);
 
     // Clear existing timeout
     if (totalCommentCountUpdateTimeout) {
@@ -1558,7 +1558,7 @@ function updateTotalCommentCount(frm) {
 
     // Debounce the API call to prevent too many requests
     totalCommentCountUpdateTimeout = setTimeout(() => {
-        console.log('Updating total comment count for:', frm.doctype, frm.docname);
+        // console.log('Updating total comment count for:', frm.doctype, frm.docname);
         frappe.call({
             method: 'frappe_theme.api.get_total_open_resolved_comment_count',
             args: {
@@ -1566,7 +1566,7 @@ function updateTotalCommentCount(frm) {
                 docname: frm.docname
             },
             callback: function (r) {
-                console.log('Total comment count API response:', r);
+                // console.log('Total comment count API response:', r);
                 let count = r.message || 0;
 
                 // Use the stored button reference if available
@@ -1595,9 +1595,9 @@ function updateTotalCommentCount(frm) {
                         'font-size': '11px',
                         'margin-left': '2px'
                     });
-                    console.log('Successfully updated comments button with count:', count);
+                    // console.log('Successfully updated comments button with count:', count);
                 } else {
-                    console.log('Comments button not found for updating total count');
+                    // console.log('Comments button not found for updating total count');
                 }
             },
             error: function (err) {
