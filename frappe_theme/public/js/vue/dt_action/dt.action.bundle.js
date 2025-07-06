@@ -3,9 +3,9 @@ import { createPinia } from "pinia";
 import App from "./dt_action.vue";
 
 class DTAction {
-    constructor({ wrapper, frm }) {
+    constructor({ wrapper, dt }) {
         this.$wrapper = $(wrapper);
-        this.frm = frm;
+        this.dt = dt;
         this.init();
     }
 
@@ -34,7 +34,7 @@ class DTAction {
         let pinia = createPinia();
         // create a vue instance with dynamic props
         this.app = createApp(App, {
-            frm: this.frm || {},
+            dt: this.dt || {},
         });
         SetVueGlobals(this.app);
         this.app.use(pinia);

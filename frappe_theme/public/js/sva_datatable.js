@@ -166,7 +166,7 @@ class SvaDataTable {
                 }
             } else {
                 this.handleNoPermission();
-                console.log("Permission issues", this.doctype);
+                console.error("Permission issues", this.doctype);
             }
         } else {
             this.table_element = this.createTable();
@@ -344,7 +344,7 @@ class SvaDataTable {
         frappe.require("dt.action.bundle.js").then(() => {
             new frappe.ui.DTAction({
                 wrapper: action_button,
-                frm: this.frm
+                dt: this
             });
         })
         list_filter.appendChild(action_button);
@@ -1094,7 +1094,11 @@ class SvaDataTable {
                             }
                         });
                         if (response) {
-                            this.rows.push(response);
+                            if (this.rows.length == this.limit) {
+                                this.rows.pop();
+                            }
+                            this.rows = [response, ...this.rows]
+                            // this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_insert']) {
@@ -1555,11 +1559,14 @@ class SvaDataTable {
                     } else {
                         el.disabled = (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
+                        let { message: transitions } = await this.sva_db.call({
+                            method: 'frappe.model.workflow.get_transitions',
+                            doc: { ...row, doctype: this.doctype }
+                        });
                         el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>` +
-                            [...new Set(this.workflow.transitions
-                                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
-                                .map(e => e.action))]
-                                .map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
+                            [...new Set(transitions
+                                ?.map(e => e.action))]
+                                ?.map(action => `<option value="${action}" style="background-color:white; color:black; cursor:pointer;" class="rounded p-1">${action}</option>`)
                                 .join('');
                         el.addEventListener('focus', (event) => {
                             const originalState = el?.getAttribute('title');
@@ -1630,6 +1637,7 @@ class SvaDataTable {
         let me = this;
         let workflowFormValue;
         let firstAttempt = true;
+        let wf_dialog_fields = JSON.parse(selected_state_info.custom_selected_fields || "[]");
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
@@ -1645,9 +1653,26 @@ class SvaDataTable {
             method: 'frappe_theme.api.get_meta',
             doctype: me.doctype
         });
-        const fields = meta?.message?.fields?.filter(field => {
-            return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
+        let fields = [];
+        if (wf_dialog_fields?.length) {
+            fields = meta?.message?.fields.filter(field => { return wf_dialog_fields.some(f => f.fieldname == field.fieldname) })
+                .map(field => {
+                    let field_obj = wf_dialog_fields.find(f => f.fieldname == field.fieldname);
+                    return {
+                        label: field.label,
+                        fieldname: field.fieldname,
+                        fieldtype: field.fieldtype,
+                        default: field_obj?.read_only && doc[field.fieldname],
+                        reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
+                        read_only: field_obj?.read_only,
+                        options: field.options
+                    }
+                });
+        } else {
+            fields = meta?.message?.fields?.filter(field => {
+                return field?.wf_state_field == selected_state_info.action
+            })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
+        }
         const popupFields = [
             {
                 label: "Action Test",
@@ -1696,29 +1721,27 @@ class SvaDataTable {
         async function take_action(values = undefined) {
             try {
                 const updateFields = {
-                    [me.workflow.workflow_state_field]: selected_state_info.next_state,
+                    ...doc,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
+                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) },
+                    doctype: me.doctype
                 };
-                const response = await me.sva_db.set_value(me.doctype, docname, updateFields);
-                if (!response?.exc) {
-                    if (dialog) {
-                        dialog?.hide();
-                    }
+                frappe.xcall("frappe.model.workflow.apply_workflow", {
+                    doc: updateFields,
+                    action: selected_state_info.action
+                }).then((doc) => {
                     const row = me.rows.find((r) => r.name === docname);
-                    row[me.workflow.workflow_state_field] = selected_state_info.next_state;
-                    if (workflowFormValue?.wf_comment) {
-                        row.wf_comment = workflowFormValue.wf_comment;
-                    } else {
-                        const comment = `${me.workflow.workflow_state_field} changed to ${selected_state_info.next_state}`;
-                        row.wf_comment = comment;
-                    }
-                    Object.assign(row, workflowFormValue);
+                    updateFields[me.workflow.workflow_state_field] = selected_state_info.next_state;
+                    Object.assign(row, updateFields);
                     me.rows[row.rowIndex] = row;
                     me.updateTableBody();
                     if (!me.skip_workflow_confirmation) {
-                        frappe.show_alert({ message: `${selected_state_info.next_state} successfully`, indicator: "green" });
+                        frappe.show_alert({ message: "Action completed successfully", indicator: "green" });
                     }
-                }
+                    if (dialog) {
+                        dialog?.hide();
+                    }
+                })
             } catch (error) {
                 if (error.message) {
                     frappe.throw({
@@ -2132,7 +2155,7 @@ class SvaDataTable {
                         filters = filters.concat(cond);
                     }
                 } catch (error) {
-                    console.log("Exception: while parsing extended_condition", error);
+                    console.error("Exception: while parsing extended_condition", error);
                 }
             }
             if (this.connection?.connection_type === 'Referenced') {
@@ -2231,7 +2254,7 @@ class SvaDataTable {
         if (!this.wrapper.querySelector('#noPermissionPage')) {
             this.wrapper.appendChild(noPermissionPage);
         }
-    }    
+    }
     getDialogSize(fields) {
         let hasChildTable = fields.some(field => field.fieldtype === "Table");
         let hasMultipleColumns = false;
