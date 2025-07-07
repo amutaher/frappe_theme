@@ -166,7 +166,7 @@ class SvaDataTable {
                 }
             } else {
                 this.handleNoPermission();
-                console.log("Permission issues", this.doctype);
+                console.error("Permission issues", this.doctype);
             }
         } else {
             this.table_element = this.createTable();
@@ -344,7 +344,7 @@ class SvaDataTable {
         frappe.require("dt.action.bundle.js").then(() => {
             new frappe.ui.DTAction({
                 wrapper: action_button,
-                frm: this.frm
+                dt: this
             });
         })
         list_filter.appendChild(action_button);
@@ -1097,7 +1097,7 @@ class SvaDataTable {
                             if (this.rows.length == this.limit) {
                                 this.rows.pop();
                             }
-                            this.rows = [response,...this.rows]
+                            this.rows = [response, ...this.rows]
                             // this.rows.push(response);
                             this.updateTableBody();
                             frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
@@ -1637,6 +1637,7 @@ class SvaDataTable {
         let me = this;
         let workflowFormValue;
         let firstAttempt = true;
+        let wf_dialog_fields = JSON.parse(selected_state_info.custom_selected_fields || "[]");
         let dialog;
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_workflow_action']) {
             let change = this.frm['dt_events'][this.doctype]['before_workflow_action']
@@ -1652,9 +1653,26 @@ class SvaDataTable {
             method: 'frappe_theme.api.get_meta',
             doctype: me.doctype
         });
-        const fields = meta?.message?.fields?.filter(field => {
-            return field?.wf_state_field == selected_state_info.action
-        })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
+        let fields = [];
+        if (wf_dialog_fields?.length) {
+            fields = meta?.message?.fields.filter(field => { return wf_dialog_fields.some(f => f.fieldname == field.fieldname) })
+                .map(field => {
+                    let field_obj = wf_dialog_fields.find(f => f.fieldname == field.fieldname);
+                    return {
+                        label: field.label,
+                        fieldname: field.fieldname,
+                        fieldtype: field.fieldtype,
+                        default: field_obj?.read_only && doc[field.fieldname],
+                        reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
+                        read_only: field_obj?.read_only,
+                        options: field.options
+                    }
+                });
+        } else {
+            fields = meta?.message?.fields?.filter(field => {
+                return field?.wf_state_field == selected_state_info.action
+            })?.map(field => { return { label: field.label, fieldname: field.fieldname, fieldtype: field.fieldtype, reqd: 1, mandatory_depends_on: field.mandatory_depends_on, depends_on: field.depends_on, options: field.options } });
+        }
         const popupFields = [
             {
                 label: "Action Test",
@@ -1705,10 +1723,10 @@ class SvaDataTable {
                 const updateFields = {
                     ...doc,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
-                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue))},
+                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) },
                     doctype: me.doctype
                 };
-                frappe.xcall("frappe.model.workflow.apply_workflow",{
+                frappe.xcall("frappe.model.workflow.apply_workflow", {
                     doc: updateFields,
                     action: selected_state_info.action
                 }).then((doc) => {
@@ -2137,7 +2155,7 @@ class SvaDataTable {
                         filters = filters.concat(cond);
                     }
                 } catch (error) {
-                    console.log("Exception: while parsing extended_condition", error);
+                    console.error("Exception: while parsing extended_condition", error);
                 }
             }
             if (this.connection?.connection_type === 'Referenced') {
