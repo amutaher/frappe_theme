@@ -627,6 +627,15 @@ frappe.ui.form.on('Number Card Child', {
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
 
         // 
+        if(row.fetch_from=='DocField'){
+            let number_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            let number_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            if (number_fields_2.length) {
+                number_fields = number_fields.concat(number_fields_2);
+            }
+            let options = number_fields.map(function (d) { return d.fieldname });
+            frm?.cur_grid?.set_field_property('field', 'options', options);
+        }
        
     },
     fetch_from: async function (frm, cdt, cdn) {

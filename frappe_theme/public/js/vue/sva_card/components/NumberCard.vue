@@ -53,7 +53,9 @@ const getCount = async () => {
 		if(props.card.fetch_from == 'DocField'){
 			data.value['count'] = cur_frm.doc[props.card.field];
 			data.value['field_type'] = cur_frm.fields_dict[props.card.field].df.fieldtype;
-			loading.value = false;
+			setTimeout(() => {
+					loading.value = false;
+			}, 500);
 		}else{
 			let res = await frappe.call({
 				method: 'frappe_theme.dt_api.get_number_card_count',
