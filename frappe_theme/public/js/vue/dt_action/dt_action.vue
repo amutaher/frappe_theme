@@ -31,7 +31,41 @@ const props = defineProps({
 const actionList = ref(JSON.parse(props.dt.connection.action_list || '[]'));
 
 const executeAction = (action) => {
- console.log(action)
+  try {
+    // Check if action is a valid string
+    if (typeof action !== 'string' || !action.trim()) {
+      frappe.show_alert({
+        message: 'Invalid action: Action must be a non-empty string',
+        indicator: 'red'
+      });
+      return;
+    }
+
+    // Try to create and execute the function
+    const actionFunction = new Function(action);
+    actionFunction();
+  } catch (error) {
+    // Handle syntax errors and other execution errors
+    let errorMessage = 'Error executing action';
+    
+    if (error instanceof SyntaxError) {
+      errorMessage = `Syntax error in action: ${error.message}`;
+    } else if (error instanceof ReferenceError) {
+      errorMessage = `Reference error in action: ${error.message}`;
+    } else if (error instanceof TypeError) {
+      errorMessage = `Type error in action: ${error.message}`;
+    } else {
+      errorMessage = `Execution error: ${error.message}`;
+    }
+    
+    frappe.show_alert({
+      message: errorMessage,
+      indicator: 'red'
+    });
+    
+    // Log the full error for debugging
+    console.error('Action execution error:', error);
+  }
 }
 
 const exportData = () => {
