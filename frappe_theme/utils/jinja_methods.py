@@ -28,12 +28,15 @@ def format_currency(value):
     return formatted_value
 
 
-def approver_details(dt, dn):
+def approver_details(dt, dn, workflow_state=""):
     try:
         if not dt or not dn:
-            return ""
+            return {"full_name": '', "email": ''}
         if frappe.db.exists("Workflow Action", {"reference_doctype": dt, "reference_name": dn,"status":"Completed"}):
-            wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, pluck="completed_by",ignore_permissions=True)
+            if workflow_state:
+                wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed","workflow_state":workflow_state}, pluck="completed_by",ignore_permissions=True)
+            else:
+                wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, pluck="completed_by",ignore_permissions=True)
             if wa:
                 user_details = frappe.get_list("SVA User", filters={"email": wa[0]},fields=["name","first_name","last_name","email"],ignore_permissions=True)
                 details = {}
@@ -45,15 +48,15 @@ def approver_details(dt, dn):
                     details['email'] = user_details[0].email
                     return details
                 else:
-                    return ""
+                    return {"full_name": '', "email": ''}
 
             else:
-                return ""
+                return {"full_name": '', "email": ''}
         else:
-            return ""
+            return {"full_name": '', "email": ''}
     except Exception as e:
         frappe.log_error('error in approver details',frappe.get_traceback())
-        return ""
+        return {"full_name": '', "email": ''}
 
 @frappe.whitelist()
 def incode_url(url):
