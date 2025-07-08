@@ -50,21 +50,29 @@ const getCount = async () => {
 	}
 	try {
 		loading.value = true;
-		let res = await frappe.call({
-			method: 'frappe_theme.dt_api.get_number_card_count',
-			args: {
-				type: type,
-				details: details,
-				report: report,
-				doctype: cur_frm.doc.doctype,
-				docname:cur_frm.doc.name
-			}
-		})
-		if(res.message){
-			data.value = res.message;
+		if(props.card.fetch_from == 'DocField'){
+			data.value['count'] = cur_frm.doc[props.card.field];
+			data.value['field_type'] = cur_frm.fields_dict[props.card.field].df.fieldtype;
 			setTimeout(() => {
-				loading.value = false;
+					loading.value = false;
 			}, 500);
+		}else{
+			let res = await frappe.call({
+				method: 'frappe_theme.dt_api.get_number_card_count',
+				args: {
+					type: type,
+					details: details,
+					report: report,
+					doctype: cur_frm.doc.doctype,
+					docname:cur_frm.doc.name
+				}
+			})
+			if(res.message){
+				data.value = res.message;
+				setTimeout(() => {
+					loading.value = false;
+				}, 500);
+			}
 		}
 	} catch (error) {
 		console.error(error);
