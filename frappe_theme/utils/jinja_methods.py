@@ -27,6 +27,12 @@ def format_currency(value):
 
     return formatted_value
 
+def bash_url():
+    base_url = frappe.get_conf().get("hostname")
+    if base_url:
+        return base_url
+    else:
+        return ""
 
 def approver_details(dt, dn, workflow_state=""):
     try:
