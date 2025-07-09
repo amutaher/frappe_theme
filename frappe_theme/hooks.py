@@ -8,9 +8,7 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
-# fixtures = [
-#     "SVADatatable Configuration"
-# ]
+# fixtures = []
 # include js, css files in header of desk.html
 import time
 app_include_css = [
@@ -68,7 +66,9 @@ web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "Workflow" : "public/js/doctype/workflow.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
