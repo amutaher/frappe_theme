@@ -207,14 +207,6 @@ frappe.ui.form.on('Workflow Transition', {
                                 reqd
                             });
                         });
-                    if (selected_fields.length === 0) {
-                        frappe.msgprint({
-                            title: __('No Fields Selected'),
-                            message: __('Please select at least one field to continue.'),
-                            indicator: 'red'
-                        });
-                        return;
-                    }
                     frappe.model.set_value(cdt, cdn, "custom_selected_fields", JSON.stringify(selected_fields));
                     frappe.show_alert({
                         message: __('Fields saved successfully'),

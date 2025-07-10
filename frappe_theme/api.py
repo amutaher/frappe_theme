@@ -893,26 +893,26 @@ def get_eligible_users_for_task(doctype, txt, searchfield, start, page_length, f
     """Get eligible users for a task"""
     try:
         txt = f"%{txt}%" if txt else "%"
-        user_team = filters.get("user_team") if filters else None
+        ngo = filters.get("ngo") if filters else None
 
-        condition = "us.name LIKE %(txt)s"
-        if user_team:
-            condition += " AND rp.custom_belongs_to = %(user_team)s"
+        condition = "sva.email LIKE %(txt)s"
+        if ngo:
+            condition += " AND ngo.name = %(ngo)s"
 
         query = f"""
-            SELECT 
-                us.name,
-                CONCAT(rp.role_profile, ' | ', rp.custom_belongs_to) AS description
-            FROM `tabUser` AS us
-            LEFT JOIN `tabUser Role Profile` AS urp ON us.name = urp.parent
-            LEFT JOIN `tabRole Profile` AS rp ON rp.name = urp.role_profile
+            SELECT
+                sva.email,
+                sva.full_name
+            FROM `tabNGO` AS ngo
+            LEFT JOIN `tabUser Permission` AS up ON ngo.name = up.for_value
+            LEFT JOIN `tabSVA User` AS sva ON up.user = sva.email
             WHERE {condition}
             LIMIT {int(start)}, {int(page_length)}
         """
 
         return frappe.db.sql(query, {
             "txt": txt,
-            "user_team": user_team
+            "ngo": ngo
         })
     except Exception as e:
         frappe.log_error(f"Error in get_eligible_users_for_task: {str(e)}")
