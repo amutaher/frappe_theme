@@ -713,10 +713,11 @@ class mGrantTask {
 
         });
         task_form.set_query('allocated_to', () => {
+            console.log(cur_frm.doc.ngo, 'cur_frm.doc.ngo')
             return {
                 query: 'frappe_theme.api.get_eligible_users_for_task',
                 filters: {
-                    user_team: 'NGO'
+                    ngo: cur_frm.doc.ngo
                 }
             };
         });
