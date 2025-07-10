@@ -144,7 +144,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                                         reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
                                         options: field.options
                                     }
-                                if (['Attach', 'Attach Image', 'Attach File'].includes(field.fieldtype)){
+                                if (!field_obj?.reqd && ['Attach', 'Attach Image', 'Attach File'].includes(field.fieldtype)){
                                     if(field_data?.startsWith('/private/') || field_data?.startsWith('/files/')){
                                         _field.label = '';
                                         _field.fieldtype = 'HTML';
