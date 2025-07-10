@@ -10,6 +10,9 @@ class mGrantTask {
         if (frm) {
             this.show_task();
         }
+        if (frm?.doc?.doctype === 'Project proposal') {
+            this.is_readonly = (frappe.boot.user_team == "NGO" ? frm.doc.proposal_status == "Completed" : (!frm.is_dirty() && (frm.doc.stage == frappe.boot.mgrant_settings?.pp_positive)))
+        }
     }
     getRandomColor() {
         const letters = '0123456789ABCDEF';
@@ -39,7 +42,7 @@ class mGrantTask {
         return tempDiv.textContent || tempDiv.innerText || '';
     }
     getActionBar() {
-        // Only return action bar if user has write permissions
+        // Only return action bar if user has write permissions and not readonly
         // if (!this.permissions.includes('write')) return null;
 
         let actions = [
@@ -125,7 +128,7 @@ class mGrantTask {
         el.className = 'd-flex flex-wrap pb-2 justify-content-between align-items-center';
         let main = document.createElement('div')
         main.className = 'dropdown-task-status dropdown';
-        if (this.permissions.includes('write')) {
+        if (this.permissions.includes('write') && !this.is_readonly) {
             el.appendChild(main);
         }
         main.innerHTML = ` 
@@ -135,7 +138,7 @@ class mGrantTask {
                 ${action_menu.outerHTML} 
         `
         el.innerHTML += `
-        ${this.permissions.includes('delete') ? `
+        ${this.permissions.includes('delete') && !this.is_readonly ? `
             <button id="bulkDeleteButton" class="btn mx-8" style="color: #6E7073;background-color: #FFF1E7;">
                 <i class="fa fa-trash" style="color: #E03636;"></i>
             </button>
@@ -148,8 +151,8 @@ class mGrantTask {
         el.style = 'overflow-y:auto;'
         el.className = 'form-grid-container form-grid';
 
-        // Only show checkbox column if user has write or delete permissions
-        const showActions = this.permissions.includes('write') || this.permissions.includes('delete');
+        // Only show checkbox column if user has write or delete permissions and not readonly
+        const showActions = (this.permissions.includes('write') || this.permissions.includes('delete')) && !this.is_readonly;
 
         el.innerHTML = `
             <table style="margin: 0px !important;" class="table table-bordered">
@@ -200,7 +203,7 @@ class mGrantTask {
                                 <td style="white-space: nowrap;">${task.custom_task_type}</td>
                                 ${cur_frm.doctype === 'Proposal' ? '' : `
                                     <td style="padding: 5px 8px !important;">
-                                        ${this.permissions.includes('write') ? `
+                                        ${this.permissions.includes('write') && !this.is_readonly ? `
                                             <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
                                                 <span title="status" id="dropStatus-${task.name}" class="small dropdown-toggle bg-light pointer badge ${task?.custom_task_status === 'Cancelled' ? 'text-danger' : task?.custom_task_status === 'In Progress' ? 'text-warning' : task?.custom_task_status === 'Done' ? 'text-success' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                     ${task?.custom_task_status ?? 'Status'}
@@ -222,7 +225,7 @@ class mGrantTask {
                                     </td>
                                 `}
                                 <td style="padding: 5px 8px !important;">
-                                    ${this.permissions.includes('write') ? `
+                                    ${this.permissions.includes('write') && !this.is_readonly ? `
                                         <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
                                             <span title="Priority" id="dropPriority-${task.name}" class="small dropdown-toggle badge bg-light pointer ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                 ${task?.priority ?? 'Low'}
@@ -244,7 +247,7 @@ class mGrantTask {
                                 <td style="font-size: 12px !important;max-width: 200px;">
                                    <p style="white-space: nowrap;overflow: hidden;text-overflow:ellipsis;" title="${this.stripHtmlTags(task.description)}">${this.stripHtmlTags(task.description)}</p>
                                 </td>
-                                ${(this.permissions.includes('write') || this.permissions.includes('delete')) ? `
+                                ${(this.permissions.includes('write') || this.permissions.includes('delete')) && !this.is_readonly ? `
                                     <td>
                                         <div class="dropdown">
                                             <span title="action" class="pointer d-flex justify-content-center align-items-center" id="dropdownMenuButton-${task.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -296,7 +299,7 @@ class mGrantTask {
         };
 
         el.innerHTML = `
-            ${this.permissions.includes('create') ? `
+            ${this.permissions.includes('create') && !this.is_readonly ? `
                 <button style="height:30px;" class="btn btn-secondary btn-sm" id="createTask">
                     <svg class="es-icon es-line icon-xs" aria-hidden="true">
                         <use href="#es-line-add"></use>
@@ -415,6 +418,10 @@ class mGrantTask {
                     ['priority', 'custom_task_status'].forEach(type => {
                         document.querySelectorAll(`input[name="${type}"]`).forEach(input => {
                             input.addEventListener('click', (event) => {
+                                if (this.is_readonly) {
+                                    frappe.show_alert({ message: `Cannot update task ${type} in readonly mode`, indicator: 'red' });
+                                    return;
+                                }
                                 selectedIds.length
                                     ? this.updateTaskStatus(selectedIds, event.target.value, type)
                                     : console.error(`No tasks selected for ${type}.`);
@@ -424,6 +431,10 @@ class mGrantTask {
 
                     // bulk delete
                     $('#bulkDeleteButton').on('click', function () {
+                        if (this.is_readonly) {
+                            frappe.show_alert({ message: __('Cannot delete tasks in readonly mode'), indicator: 'red' });
+                            return;
+                        }
                         frappe.confirm('Are you sure you want to delete the selected tasks?', async () => {
                             this.task_list = this.task_list.filter(task => !selectedIds.includes(task.name))
                             for (const taskName of selectedIds) {
@@ -445,6 +456,11 @@ class mGrantTask {
 
             // Bind event for individual checkboxes
             $(document).off('change', '.toggleCheckbox').on('change', '.toggleCheckbox', function (e) {
+                if (this.is_readonly) {
+                    e.currentTarget.checked = false;
+                    frappe.show_alert({ message: __('Cannot select tasks in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const id = $(e.currentTarget).data('id');
                 if (e.currentTarget.checked) {
                     selectedIds.push(id);
@@ -457,6 +473,11 @@ class mGrantTask {
 
             // Bind event for "Select All" checkbox
             $(document).off('change', '#selectAllCheckBox').on('change', '#selectAllCheckBox', function (e) {
+                if (this.is_readonly) {
+                    e.currentTarget.checked = false;
+                    frappe.show_alert({ message: __('Cannot select tasks in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const isChecked = $(e.currentTarget).prop('checked');
                 $('.toggleCheckbox').prop('checked', isChecked);
                 selectedIds = isChecked ? this.task_list?.map(x => x.name) : [];
@@ -465,10 +486,18 @@ class mGrantTask {
 
             // New Task
             $('#createTask').on('click', function () {
+                if (this.is_readonly) {
+                    frappe.show_alert({ message: __('Cannot create tasks in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 this.form(null, 'New Task', this.frm);
             }.bind(this));
 
             $('.delete-btn').on('click', function (e) {
+                if (this.is_readonly) {
+                    frappe.show_alert({ message: __('Cannot delete tasks in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const taskName = $(e.currentTarget).data('task');
                 frappe.confirm('Are you sure you want to delete this task?', () => {
                     this.deleteTask(taskName);
@@ -476,18 +505,30 @@ class mGrantTask {
             }.bind(this));
             // Edit Task
             $('.task-status').on('click', function (e) {
+                if (this.is_readonly) {
+                    frappe.show_alert({ message: __('Cannot update task status in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const taskName = $(e.currentTarget).data('task');
                 const newStatus = $(e.currentTarget).data('status');
                 this.updateTaskStatus([taskName], newStatus, 'custom_task_status'); // Correct
             }.bind(this));
             // Update Task Priority
             $('.task-priority').on('click', function (e) {
+                if (this.is_readonly) {
+                    frappe.show_alert({ message: __('Cannot update task priority in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const taskName = $(e.currentTarget).data('task');
                 const newPriority = $(e.currentTarget).data('priority');
                 this.updateTaskStatus([taskName], newPriority, 'priority'); // Fixed `this.updateTaskStatus`
             }.bind(this));
             // New Task
             $('.edit-btn').on('click', function (e) {
+                if (this.is_readonly) {
+                    frappe.show_alert({ message: __('Cannot edit tasks in readonly mode'), indicator: 'red' });
+                    return;
+                }
                 const taskName = $(e.currentTarget).data('task');
                 let data = this.task_list.filter(task => task.name === taskName);
                 if (data.length) {
@@ -534,6 +575,11 @@ class mGrantTask {
 
     // Update Task Status
     async updateTaskStatus(taskIds, status, key) {
+        if (this.is_readonly) {
+            frappe.show_alert({ message: __('Cannot update tasks in readonly mode'), indicator: 'red' });
+            return;
+        }
+        
         await Promise.allSettled(
             taskIds.map((taskName, index) =>
                 new Promise(resolve => setTimeout(resolve, index * 200)) // Apply delay
@@ -559,6 +605,11 @@ class mGrantTask {
         // if (cur_frm) cur_frm.refresh();
     }
     deleteTask = (taskName) => {
+        if (this.is_readonly) {
+            frappe.show_alert({ message: __('Cannot delete tasks in readonly mode'), indicator: 'red' });
+            return;
+        }
+        
         frappe.db.delete_doc('ToDo', taskName).then(() => {
             this.show_task();
             frappe.show_alert({ message: __(`Task deleted successfully`), indicator: 'green' });
@@ -569,6 +620,11 @@ class mGrantTask {
         });
     }
     async form(data = null, action, frm) {
+        if (this.is_readonly) {
+            frappe.show_alert({ message: __('Cannot create or edit tasks in readonly mode'), indicator: 'red' });
+            return;
+        }
+        
         let label = cur_frm.active_tab_map[cur_frm.doc.name].label;
         let title = action === 'New Task' ? 'New ' + label : 'Edit ' + label;
         let primaryActionLabel = action === 'New Task' ? 'Save' : 'Update';
