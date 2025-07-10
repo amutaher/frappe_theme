@@ -645,6 +645,17 @@ class mGrantTask {
             if (field.fieldname === 'description') {
                 field.max_height = field.max_height || '150px';
             }
+            // if (field.fieldname === 'custom_assigned_to') {
+            //     console.log(field, 'field', cur_dialog)
+            //     cur_dialog?.set_query('custom_assigned_to', () => {
+            //         return {
+            //             query: 'frappe_theme.api.get_eligible_users_for_task',
+            //             filters: {
+            //                 user_team: 'NGO'
+            //             }
+            //         }
+            //     });
+            // }
             return field;
         });
         let task_form = new frappe.ui.Dialog({
@@ -700,6 +711,14 @@ class mGrantTask {
                 }
             }.bind(this)
 
+        });
+        task_form.set_query('allocated_to', () => {
+            return {
+                query: 'frappe_theme.api.get_eligible_users_for_task',
+                filters: {
+                    user_team: 'NGO'
+                }
+            };
         });
 
         if (action === 'Edit Task' && data) {

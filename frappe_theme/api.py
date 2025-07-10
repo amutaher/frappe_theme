@@ -887,3 +887,33 @@ def get_total_open_resolved_comment_count(doctype_name, docname):
     except Exception as e:
         frappe.log_error(f"Error in get_total_open_resolved_comment_count: {str(e)}")
         return 0
+    
+@frappe.whitelist()
+def get_eligible_users_for_task(doctype, txt, searchfield, start, page_length, filters):
+    """Get eligible users for a task"""
+    try:
+        txt = f"%{txt}%" if txt else "%"
+        user_team = filters.get("user_team") if filters else None
+
+        condition = "us.name LIKE %(txt)s"
+        if user_team:
+            condition += " AND rp.custom_belongs_to = %(user_team)s"
+
+        query = f"""
+            SELECT 
+                us.name,
+                CONCAT(rp.role_profile, ' | ', rp.custom_belongs_to) AS description
+            FROM `tabUser` AS us
+            LEFT JOIN `tabUser Role Profile` AS urp ON us.name = urp.parent
+            LEFT JOIN `tabRole Profile` AS rp ON rp.name = urp.role_profile
+            WHERE {condition}
+            LIMIT {int(start)}, {int(page_length)}
+        """
+
+        return frappe.db.sql(query, {
+            "txt": txt,
+            "user_team": user_team
+        })
+    except Exception as e:
+        frappe.log_error(f"Error in get_eligible_users_for_task: {str(e)}")
+        return []
