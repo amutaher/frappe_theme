@@ -712,14 +712,16 @@ class mGrantTask {
             }.bind(this)
 
         });
-        task_form.set_query('allocated_to', () => {
-            return {
-                query: 'frappe_theme.api.get_eligible_users_for_task',
-                filters: {
-                    user_team: 'NGO'
-                }
-            };
-        });
+        if (cur_frm.doc?.ngo) {
+            task_form.set_query('allocated_to', () => {
+                return {
+                    query: 'frappe_theme.api.get_eligible_users_for_task',
+                    filters: {
+                        ngo: cur_frm.doc.ngo
+                    }
+                };
+            });
+        }
 
         if (action === 'Edit Task' && data) {
             task_form.set_values(data);
