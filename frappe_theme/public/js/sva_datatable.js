@@ -81,16 +81,17 @@ class SvaDataTable {
         this.header_element = null;
         this.footer_element = null;
         this.skeletonLoader = null;
-        this.reloadTable();
+        // Initialize crud permissions before reloadTable so crudHandler can modify them
         this.crud = {
-            create: true,
             read: true,
+            create: true,
             write: true,
             delete: true,
             export: true,
             import: true,
             print: true,
-        }
+        } 
+        this.reloadTable();
         // return this.wrapper;
     }
     async reloadTable(reset = false) {
@@ -99,6 +100,14 @@ class SvaDataTable {
         this.showSkeletonLoader(reLoad);
         if (this.frm?.['dt_events']?.[this.doctype]?.['before_load']) {
             let change = this.frm['dt_events'][this.doctype]['before_load']
+            if (this.isAsync(change)) {
+                await change(this);
+            } else {
+                change(this);
+            }
+        }
+        if (this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']) {
+            let change = this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']
             if (this.isAsync(change)) {
                 await change(this);
             } else {
@@ -505,16 +514,8 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-        if (this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']) {
-            let change = this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']
-            if (this.isAsync(change)) {
-                await change(this);
-            } else {
-                change(this);
-            }
-        }
-
-        if (this.crud.create && (this.frm ? this.frm?.doc?.docstatus == 0 : true) && this.conf_perms.length && this.conf_perms.includes('create')) {
+       
+        if (this.crud.create && (this.frm ? this.frm?.doc?.docstatus == 0 : true) && (this.conf_perms.length && this.conf_perms.includes('create'))) {
             if (this.permissions?.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
                     const create_button = document.createElement('button');
@@ -1378,7 +1379,7 @@ class SvaDataTable {
         };
 
         // View Button
-        if (this.crud.read && this.conf_perms.length && this.permissions.length && this.permissions.includes('read')) {
+        if (this.crud.read && (this.conf_perms.length && this.permissions.length && this.permissions.includes('read'))) {
             appendDropdownOption('View', async () => {
                 if (this.connection?.redirect_to_main_form) {
                     let route = frappe.get_route()
@@ -1396,7 +1397,7 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
-            if (this.crud.write && this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable) {
+            if (this.crud.write && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
@@ -1424,7 +1425,7 @@ class SvaDataTable {
                 }
             }
             let is_deletable = this.connection?.disable_delete_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_delete_depends_on, row) : true;
-            if (this.crud.delete && this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable) {
+            if (this.crud.delete && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
