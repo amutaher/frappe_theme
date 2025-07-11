@@ -11,7 +11,7 @@ if (frappe.ui?.FileUploader) {
             allow_take_photo,
             allow_toggle_private,
             allow_toggle_optimize,
-    
+
             */
             super(options);
         }
@@ -134,15 +134,27 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                             fields = frm.meta?.fields.filter(field => { return wf_dialog_fields.some(f => f.fieldname == field.fieldname) })
                             .map(field => {
                                 let field_obj = wf_dialog_fields.find(f => f.fieldname == field.fieldname);
-                                return {
-                                    label: field.label,
-                                    fieldname: field.fieldname,
-                                    fieldtype: field.fieldtype,
-                                    default: field_obj?.read_only && frm.doc[field.fieldname],
-                                    reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
-                                    read_only: field_obj?.read_only,
-                                    options: field.options
+                                let field_data = frm.doc[field.fieldname]
+                                let _field =  {
+                                        label: field.label,
+                                        fieldname: field.fieldname,
+                                        fieldtype: field.fieldtype,
+                                        default: field_obj?.read_only && field_data,
+                                        read_only: field_obj?.read_only,
+                                        reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
+                                        options: field.options
+                                    }
+                                if (!field_obj?.reqd && ['Attach', 'Attach Image', 'Attach File'].includes(field.fieldtype)){
+                                    if(field_data?.startsWith('/private/') || field_data?.startsWith('/files/')){
+                                        _field.label = '';
+                                        _field.fieldtype = 'HTML';
+                                        _field.options = `${field.label} :  <a href="${window.location.origin+field_data}" target="_blank"><i>${field_data}</i></a>`
+                                        _field.default = '';
+                                        _field.read_only = true;
+                                        _field.reqd = 0;
+                                    }
                                 }
+                                return _field;
                             });
                         } else {
                             fields = frm.meta?.fields?.filter(field => {
@@ -727,7 +739,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 }
             });
     }
-    
+
     clearPreviousComponents() {
         try {
             // Clean up mounted components
