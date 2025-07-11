@@ -11,7 +11,7 @@ class mGrantTask {
             this.show_task();
         }
         if (frm?.doc?.doctype === 'Project proposal') {
-            this.is_readonly = (frappe.boot.user_team == "NGO" ? frm.doc.proposal_status == "Completed" : (!frm.is_dirty() && (frm.doc.stage == frappe.boot.mgrant_settings?.pp_positive)))
+            this.is_readonly = (frappe.boot.user_team == "NGO" ? frm.read_only : (!frm.is_dirty() && (frm.doc.stage == frappe.boot.mgrant_settings?.pp_positive)))
         }
     }
     getRandomColor() {
