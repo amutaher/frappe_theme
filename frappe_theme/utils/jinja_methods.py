@@ -27,32 +27,59 @@ def format_currency(value):
 
     return formatted_value
 
+def bash_url():
+    base_url = frappe.get_conf().get("hostname")
+    if base_url:
+        return base_url
+    else:
+        return ""
 
-def approver_details(dt, dn):
+def approver_details(dt, dn, workflow_state=""):
     try:
         if not dt or not dn:
-            return ""
+            return {"full_name": '', "email": '','role':""}
         if frappe.db.exists("Workflow Action", {"reference_doctype": dt, "reference_name": dn,"status":"Completed"}):
-            wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, pluck="completed_by",ignore_permissions=True)
-            if wa:
-                user_details = frappe.get_list("SVA User", filters={"email": wa[0]},fields=["name","first_name","last_name","email"],ignore_permissions=True)
+            if workflow_state:
+                wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed","workflow_state":workflow_state}, fields=["completed_by","completed_by_role"],ignore_permissions=True)
+            else:
+                wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, fields=["completed_by","completed_by_role"],ignore_permissions=True)
+            if len(wa) > 0:
+                user_details = frappe.get_list("SVA User", filters={"email": wa[3].completed_by},fields=["name","first_name","last_name","email"],ignore_permissions=True)
                 details = {}
-                if user_details:
+                if len(user_details) > 0:
                     if user_details[0].last_name:
                         details['full_name'] = user_details[0].first_name + " " + user_details[0].last_name
                     else:
                         details['full_name'] = user_details[0].first_name
                     details['email'] = user_details[0].email
+                    details['role'] = wa[0].completed_by_role
                     return details
                 else:
-                    return ""
+                    return {"full_name": '', "email": '',"role":""}
 
             else:
-                return ""
+                return {"full_name": '', "email": '','role':""}
+        else:
+            return {"full_name": '', "email": '','role':""}
+    except Exception as e:
+        frappe.log_error('error in approver details',frappe.get_traceback())
+        return {"full_name": '', "email": '','role':""}
+
+
+def workflow_allowed_user(dt,state=""):
+    try:
+        workflow = frappe.get_doc("Workflow", {"document_type": dt, "is_active": 1})
+        if workflow:
+            transition = workflow.transitions
+            for t in transition:
+                if not t.state == state:
+                    continue
+                else:
+                    return t.allowed
         else:
             return ""
     except Exception as e:
-        frappe.log_error('error in approver details',frappe.get_traceback())
+        frappe.log_error('error in getting workflow allowed user',frappe.get_traceback())
         return ""
 
 @frappe.whitelist()

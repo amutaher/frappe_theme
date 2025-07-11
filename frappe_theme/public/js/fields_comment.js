@@ -145,6 +145,8 @@ function create_new_comment_thread(fieldName, field, frm) {
                 if (response.message) {
                     // Reload comments to show the new thread
                     load_field_comments(fieldName, field, frm).then(() => {
+                        // Update total comment count badge
+                        updateTotalCommentCount(frm);
                         frappe.show_alert({
                             message: __('New comment thread created'),
                             indicator: 'green'
@@ -211,11 +213,11 @@ function load_field_comments(fieldName, field, frm) {
                     // Filter threads for NGO users - only show threads that have comments
                     let threadsToShow = response.message.threads;
                     if (frappe.boot.user_team === 'NGO') {
-                        threadsToShow = response.message.threads.filter(thread => 
+                        threadsToShow = response.message.threads.filter(thread =>
                             thread.comments && thread.comments.length > 0
                         );
                     }
-                    
+
                     threadsToShow.forEach((thread, index) => {
                         const thread_section = $(`
                             <div class="thread-section" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: ${index === 0 ? 'var(--fg-color)' : 'var(--bg-color)'}; border: 1px solid var(--border-color);">
@@ -298,6 +300,11 @@ function load_field_comments(fieldName, field, frm) {
                                             indicator: 'green'
                                         });
 
+                                        // Update total comment count immediately after status change
+                                        setTimeout(() => {
+                                            updateTotalCommentCount(frm);
+                                        }, 100);
+
                                         // If status is Closed, remove dropdown and disable the pill
                                         if (newStatus === 'Closed') {
                                             // Remove dropdown menu
@@ -329,6 +336,9 @@ function load_field_comments(fieldName, field, frm) {
 
                                         // Update the status text
                                         updateStatusPill(statusPill, newStatus);
+
+                                        // Update total comment count badge after status change
+                                        updateTotalCommentCount(frm);
                                     });
                             });
                         });
@@ -444,7 +454,7 @@ function load_all_comments(frm) {
                 // Filter fields for NGO users - only show fields that have comments
                 let fieldsToShow = response.message || [];
                 if (frappe.boot.user_team === 'NGO') {
-                    fieldsToShow = (response.message || []).filter(data => 
+                    fieldsToShow = (response.message || []).filter(data =>
                         data.comments && data.comments.length > 0
                     );
                 }
@@ -467,13 +477,17 @@ function load_all_comments(frm) {
 
                 // Create HTML for each field's comments
                 fieldsToShow.forEach(data => {
-                    const field = frm.fields_dict[data.field_name];
+                    let fields = [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })]
+                    const field = fields.find((f) => f.df.fieldname == data.field_name);
                     if (!field) return; // Skip if field doesn't exist in the form
 
                     const field_section = $(`
                         <div class="field-comment-section" style="margin-bottom: 25px; padding: 15px; border-radius: 12px; border: none; box-shadow: none;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                                <h5 style="margin: 0; font-size: 15px;">${data.field_label || data.field_name}</h5>
+                                <h5 style="margin: 0; font-size: 15px;">
+                                  ${data.field_label || data.field_name}
+                                  ${field.tab && field.tab.df && field.tab.df.label ? `<span style="color: #888; font-size: 12px; font-weight: 400;">(${field.tab.df.label})</span>` : ''}
+                                </h5>
                                 <div class="status-pill-container" style="margin-left: auto;">
                                     ${renderStatusPill(data.status || 'Open')}
                                 </div>
@@ -563,6 +577,11 @@ function load_all_comments(frm) {
                                                 indicator: 'green'
                                             });
 
+                                            // Update total comment count immediately after status change
+                                            setTimeout(() => {
+                                                updateTotalCommentCount(frm);
+                                            }, 100);
+
                                             // If status is Closed, remove dropdown and disable the pill
                                             if (newStatus === 'Closed') {
                                                 // Remove dropdown menu
@@ -587,6 +606,9 @@ function load_all_comments(frm) {
 
                                             // Update the status text
                                             updateStatusPill(statusPill, newStatus);
+
+                                            // Update total comment count badge after status change
+                                            updateTotalCommentCount(frm);
                                         });
                                 }
                             });
@@ -633,17 +655,21 @@ function load_all_comments(frm) {
 
                 // Add comment icons to each field (but NOT for NGO users)
                 if (frappe.boot.user_team !== 'NGO') {
-                    Object.keys(frm.fields_dict).forEach(fieldname => {
-                        const field = frm.fields_dict[fieldname];
+                    [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].forEach(f => {
+                        const field = f;
+                        const fieldname = f?.df?.fieldname || 'details_tab';
                         if (!field || !field.df) return;
 
+                        const selector = field?.label_area || field?.tab_link || field?.head;
+                        if (!selector) return;
+
                         // Skip if field is read-only or is a layout field
-                        if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
+                        if (field.df.read_only || [, 'Column Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
                             return;
                         }
 
                         // Create comment icon if not exists
-                        if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                        if (selector && !$(selector).find('.field-comment-icon').length) {
                             const count = commentCountCache[fieldname] || 0;
                             const comment_icon = $(`
                                 <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
@@ -679,8 +705,8 @@ function load_all_comments(frm) {
                             `);
 
                             // Add icon to the field wrapper
-                            $(field.label_area).css('position', 'relative');
-                            $(field.label_area).append(comment_icon);
+                            $(selector).css('position', 'relative');
+                            $(selector).append(comment_icon);
 
                             // Show/hide icon on hover
                             $(field.$wrapper).hover(
@@ -691,10 +717,10 @@ function load_all_comments(frm) {
                             );
 
                             // Handle click on comment icon - only respond to mouse clicks
-                            comment_icon.find('button').on('click', function(e) {
+                            comment_icon.find('button').on('click', function (e) {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                
+
                                 // Show sidebar
                                 $('.field-comments-sidebar').show();
                                 // Force a reflow to ensure the transition works
@@ -709,14 +735,14 @@ function load_all_comments(frm) {
                             });
 
                             // Prevent keyboard events from triggering the button
-                            comment_icon.find('button').on('keydown keyup keypress', function(e) {
+                            comment_icon.find('button').on('keydown keyup keypress', function (e) {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 return false;
                             });
                         } else {
                             // Update existing comment count badge
-                            const commentCountBadge = $(field.label_area).find('.comment-count-badge');
+                            const commentCountBadge = $(selector).find('.comment-count-badge');
                             if (commentCountBadge.length) {
                                 const count = commentCountCache[fieldname] || 0;
                                 commentCountBadge.text(count);
@@ -732,12 +758,12 @@ function load_all_comments(frm) {
                     });
                 } else {
                     // For NGO users, remove any existing comment icons
-                    Object.keys(frm.fields_dict).forEach(fieldname => {
-                        const field = frm.fields_dict[fieldname];
-                        if (!field || !field.label_area) return;
-                        
+                    [[...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })]].forEach(f => {
+                        const field = f;
+                        if (!field || !selector) return;
+
                         // Remove any existing comment icons
-                        const existingIcon = $(field.label_area).find('.field-comment-icon');
+                        const existingIcon = $(selector).find('.field-comment-icon');
                         if (existingIcon.length) {
                             existingIcon.remove();
                         }
@@ -772,7 +798,7 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         only_input: true,
         enable_mentions: true,
     });
-    
+
     // Remove comment-input-header and adjust spacing
     $(commentBox).find('.avatar-frame.standard-image').css('min-width', '33px');
     $(commentBox).find('[data-fieldtype="Comment"]').css('max-width', '252px');
@@ -830,7 +856,7 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
         while ((match = mentionRegex.exec(comment)) !== null) {
             mentions.add(match[1]);
         }
-        
+
         // Call the server-side method to save the comment
         frappe.call({
             method: "frappe_theme.api.save_field_comment",
@@ -848,7 +874,7 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
                     control.set_value('');
                     // Reset the external checkbox (if present)
                     $(`#new_comment_external_${fieldName}`).prop('checked', false);
-                    
+
                     frappe.show_alert({
                         message: __('Comment added successfully'),
                         indicator: 'green'
@@ -877,14 +903,24 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
                     // Reload comments based on current view
                     const isAllCommentsView = $('.field-comments-sidebar').find('.comments-list').children().length > 1;
                     if (isAllCommentsView) {
-                        load_all_comments(field.frm);
+                        load_all_comments(field.frm).then(() => {
+                            // Update total comment count badge
+                            updateTotalCommentCount(field.frm);
+                        });
                     } else {
                         // For field-specific view, reload the comments immediately
                         load_field_comments(fieldName, field, field.frm).then(() => {
                             // Update comment count badge
                             updateCommentCount(fieldName, field.frm);
+                            // Update total comment count badge
+                            updateTotalCommentCount(field.frm);
                         });
                     }
+
+                    // Also call updateTotalCommentCount directly after a short delay to ensure it runs
+                    setTimeout(() => {
+                        updateTotalCommentCount(field.frm);
+                    }, 500);
                 } else {
                     console.error('Error saving comment:', response);
                     frappe.show_alert({
@@ -902,10 +938,14 @@ function initializeCommentControl(field_section, fieldName, field, get_comment_h
 // Add this at the top of the file with other constants
 let commentCountCache = {};
 
+
+
 // Move updateCommentCount function outside the refresh event handler
 function updateCommentCount(fieldName, frm) {
     // Get the comment count badge element
-    const commentCountBadge = $(frm.fields_dict[fieldName].label_area).find('.comment-count-badge');
+    const field = [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].find((f) => f.df.fieldname == fieldName)
+    let selector = field?.label_area || field?.tab_link || field?.head;
+    const commentCountBadge = $(selector).find('.comment-count-badge');
     if (!commentCountBadge.length) return;
 
     // Use cached count if available
@@ -948,6 +988,9 @@ function updateCommentCount(fieldName, frm) {
                     'color': count > 0 ? '#fff' : '#666',
                     'boxShadow': count > 0 ? '0 2px 6px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
                 });
+
+                // Also update the total comment count badge
+                updateTotalCommentCount(frm);
             }
         }
     });
@@ -1034,6 +1077,9 @@ function setupFieldComments(frm) {
                         refreshBtn.prop('disabled', false);
                         refreshBtn.find('svg').css('animation', '');
 
+                        // Update total comment count badge
+                        updateTotalCommentCount(frm);
+
                         frappe.show_alert({
                             message: __('Comments refreshed'),
                             indicator: 'green'
@@ -1053,14 +1099,39 @@ function setupFieldComments(frm) {
 
             // Add comment button to form only if user has create permission
             if (permissions.includes('read') && !frm.page.sidebar.find('.field-comments-btn').length) {
-                frm.add_custom_button(__('Comments'), function () {
-                    $('.field-comments-sidebar').show();
-                    // Force a reflow to ensure the transition works
-                    $('.field-comments-sidebar')[0].offsetHeight;
-                    $('.field-comments-sidebar').css('right', '0');
-                    // Set context to null when viewing all comments
-                    current_field_context = null;
-                    load_all_comments(frm);
+                frappe.call({
+                    method: 'frappe_theme.api.get_total_open_resolved_comment_count',
+                    args: {
+                        doctype_name: frm.doctype,
+                        docname: frm.docname
+                    },
+                    callback: function (r) {
+                        let count = r.message || 0;
+                        let label = count > 0
+                            ? __('Comments') + ` <span class="comments-badge">${count}</span>`
+                            : __('Comments');
+                        let btn = frm.add_custom_button(label, function () {
+                            $('.field-comments-sidebar').show();
+                            $('.field-comments-sidebar')[0].offsetHeight;
+                            $('.field-comments-sidebar').css('right', '0');
+                            current_field_context = null;
+                            load_all_comments(frm);
+                        });
+                        // Style the badge
+                        $(btn).find('.comments-badge').css({
+                            'background': primaryColor,
+                            'color': '#fff',
+                            'border-radius': '10px',
+                            'padding': '3px 6px ',
+                            'font-size': '10px',
+                            'margin-left': '2px'
+                        });
+
+                        // Store the button reference for later updates
+                        btn.addClass('field-comments-btn');
+                        // Store the button reference globally for this form
+                        frm.commentsButton = btn;
+                    }
                 });
             }
 
@@ -1078,20 +1149,24 @@ function setupFieldComments(frm) {
 
                         // Add comment icons to each field (but NOT for NGO users)
                         if (frappe.boot.user_team !== 'NGO') {
-                            Object.keys(frm.fields_dict).forEach(fieldname => {
-                                const field = frm.fields_dict[fieldname];
+                            [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].forEach(f => {
+                                const field = f;
+                                const fieldname = f?.df?.fieldname || 'details_tab';
                                 if (!field || !field.df) return;
 
+                                const selector = field?.label_area || field?.tab_link || field?.head;
+                                if (!selector) return;
+
                                 // Skip if field is read-only or is a layout field
-                                if (field.df.read_only || ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
+                                if (field.df.read_only || ['Column Break', 'HTML', 'Button'].includes(field.df.fieldtype)) {
                                     return;
                                 }
 
                                 // Create comment icon if not exists
-                                if (field.label_area && !$(field.label_area).find('.field-comment-icon').length) {
+                                if (selector && !$(selector).find('.field-comment-icon').length) {
                                     const count = commentCountCache[fieldname] || 0;
                                     const comment_icon = $(`
-                                        <div class="field-comment-icon" style="display: none; position: absolute; right: -30px; top: -2px; z-index: 10;">
+                                        <div class="field-comment-icon" style="display: none;position: absolute; right: ${field.variant == 'field' ? '-20px' : '-10px'}; top: ${field.variant == 'field' ? '-2px' : '7px'}; z-index: 10;">
                                             <button class="btn" style="padding: 2px 8px; position: relative;" tabindex="-1" type="button">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
                                                     <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
@@ -1124,11 +1199,12 @@ function setupFieldComments(frm) {
                                     `);
 
                                     // Add icon to the field wrapper
-                                    $(field.label_area).css('position', 'relative');
-                                    $(field.label_area).append(comment_icon);
+                                    $(selector).css('position', 'relative');
+                                    $(selector).css('cursor', 'pointer');
+                                    $(selector).append(comment_icon);
 
                                     // Show/hide icon on hover
-                                    $(field.$wrapper).hover(
+                                    $(selector).hover(
                                         function () {
                                             comment_icon.show();
                                         },
@@ -1136,10 +1212,10 @@ function setupFieldComments(frm) {
                                     );
 
                                     // Handle click on comment icon - only respond to mouse clicks
-                                    comment_icon.find('button').on('click', function(e) {
+                                    comment_icon.find('button').on('click', function (e) {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        
+
                                         // Show sidebar
                                         $('.field-comments-sidebar').show();
                                         // Force a reflow to ensure the transition works
@@ -1154,14 +1230,14 @@ function setupFieldComments(frm) {
                                     });
 
                                     // Prevent keyboard events from triggering the button
-                                    comment_icon.find('button').on('keydown keyup keypress', function(e) {
+                                    comment_icon.find('button').on('keydown keyup keypress', function (e) {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         return false;
                                     });
                                 } else {
                                     // Update existing comment count badge
-                                    const commentCountBadge = $(field.label_area).find('.comment-count-badge');
+                                    const commentCountBadge = $(selector).find('.comment-count-badge');
                                     if (commentCountBadge.length) {
                                         const count = commentCountCache[fieldname] || 0;
                                         commentCountBadge.text(count);
@@ -1177,18 +1253,21 @@ function setupFieldComments(frm) {
                             });
                         } else {
                             // For NGO users, remove any existing comment icons
-                            Object.keys(frm.fields_dict).forEach(fieldname => {
-                                const field = frm.fields_dict[fieldname];
-                                if (!field || !field.label_area) return;
-                                
+                            [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].forEach(f => {
+                                const field = f;
+                                if (!field || !selector) return;
+
                                 // Remove any existing comment icons
-                                const existingIcon = $(field.label_area).find('.field-comment-icon');
+                                const existingIcon = $(selector).find('.field-comment-icon');
                                 if (existingIcon.length) {
                                     existingIcon.remove();
                                 }
                             });
                         }
                     }
+
+                    // Update total comment count badge after loading field counts
+                    updateTotalCommentCount(frm);
                 }
             });
         });
@@ -1373,7 +1452,7 @@ function updateExternalFlag(commentName, isExternal) {
             comment_name: commentName,
             is_external: isExternal ? 1 : 0  // Convert boolean to integer
         },
-        callback: function(response) {
+        callback: function (response) {
             if (response.message) {
                 frappe.show_alert({
                     message: __('External flag updated successfully'),
@@ -1391,7 +1470,7 @@ function updateExternalFlag(commentName, isExternal) {
                 }
             }
         },
-        error: function(err) {
+        error: function (err) {
             frappe.show_alert({
                 message: __('Error updating external flag'),
                 indicator: 'red'
@@ -1406,7 +1485,7 @@ function updateExternalFlag(commentName, isExternal) {
 }
 
 // Add CSS styles for better checkbox appearance
-$(document).ready(function() {
+$(document).ready(function () {
     // Add custom styles for external checkbox
     const style = document.createElement('style');
     style.textContent = `
@@ -1464,3 +1543,66 @@ $(document).ready(function() {
     `;
     document.head.appendChild(style);
 });
+
+// Add debounce mechanism for total comment count updates
+let totalCommentCountUpdateTimeout = null;
+
+// Add this new function to update the total comment count badge
+function updateTotalCommentCount(frm) {
+    // console.log('updateTotalCommentCount called for:', frm.doctype, frm.docname);
+
+    // Clear existing timeout
+    if (totalCommentCountUpdateTimeout) {
+        clearTimeout(totalCommentCountUpdateTimeout);
+    }
+
+    // Debounce the API call to prevent too many requests
+    totalCommentCountUpdateTimeout = setTimeout(() => {
+        // console.log('Updating total comment count for:', frm.doctype, frm.docname);
+        frappe.call({
+            method: 'frappe_theme.api.get_total_open_resolved_comment_count',
+            args: {
+                doctype_name: frm.doctype,
+                docname: frm.docname
+            },
+            callback: function (r) {
+                // console.log('Total comment count API response:', r);
+                let count = r.message || 0;
+
+                // Use the stored button reference if available
+                let commentsBtn = frm.commentsButton;
+
+                // Fallback to finding the button if reference is not available
+                if (!commentsBtn || !commentsBtn.length) {
+                    commentsBtn = frm.page.sidebar.find('.field-comments-btn') ||
+                        frm.page.sidebar.find('button:contains("Comments")') ||
+                        $('button:contains("Comments")').filter(function () {
+                            return $(this).closest('.form-sidebar').length > 0;
+                        });
+                }
+
+                if (commentsBtn && commentsBtn.length) {
+                    let label = count > 0
+                        ? __('Comments') + ` <span class="comments-badge">${count}</span>`
+                        : __('Comments');
+                    commentsBtn.html(label);
+                    // Style the badge
+                    commentsBtn.find('.comments-badge').css({
+                        'background': primaryColor,
+                        'color': '#fff',
+                        'border-radius': '10px',
+                        'padding': '2px 2px',
+                        'font-size': '11px',
+                        'margin-left': '2px'
+                    });
+                    // console.log('Successfully updated comments button with count:', count);
+                } else {
+                    // console.log('Comments button not found for updating total count');
+                }
+            },
+            error: function (err) {
+                console.error('Error updating total comment count:', err);
+            }
+        });
+    }, 300); // 300ms debounce delay
+}

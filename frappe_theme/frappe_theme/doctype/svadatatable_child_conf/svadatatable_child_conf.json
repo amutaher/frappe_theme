@@ -15,7 +15,10 @@
   "crud_permissions",
   "setup_crud_permissions",
   "disable_edit_depends_on",
-  "disable_delete_depends_on"
+  "disable_delete_depends_on",
+  "redirect_to_main_form",
+  "keep_workflow_enabled_form_submission",
+  "full_screen_dialog"
  ],
  "fields": [
   {
@@ -85,12 +88,30 @@
    "label": "Disable Delete Depends On (JS)",
    "max_height": "3rem",
    "options": "JS"
+  },
+  {
+   "default": "0",
+   "fieldname": "keep_workflow_enabled_form_submission",
+   "fieldtype": "Check",
+   "label": "Keep workflow enabled even after main form submission"
+  },
+  {
+   "default": "0",
+   "fieldname": "full_screen_dialog",
+   "fieldtype": "Check",
+   "label": "Make Dialogs Fullscreen"
+  },
+  {
+   "default": "0",
+   "fieldname": "redirect_to_main_form",
+   "fieldtype": "Check",
+   "label": "Redirect to main form on any Action"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-04-22 11:36:10.331292",
+ "modified": "2025-07-05 10:53:05.517128",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVADatatable Child Conf",
