@@ -44,7 +44,7 @@ def approver_details(dt, dn, workflow_state=""):
             else:
                 wa = frappe.get_list("Workflow Action", filters={"reference_doctype": dt, "reference_name": dn,"status":"Completed"}, fields=["completed_by","completed_by_role"],ignore_permissions=True)
             if len(wa) > 0:
-                user_details = frappe.get_list("SVA User", filters={"email": wa[3].completed_by},fields=["name","first_name","last_name","email"],ignore_permissions=True)
+                user_details = frappe.get_list("SVA User", filters={"email": wa[0].completed_by},fields=["name","first_name","last_name","email"],ignore_permissions=True)
                 details = {}
                 if len(user_details) > 0:
                     if user_details[0].last_name:
