@@ -106,14 +106,6 @@ class SvaDataTable {
                 change(this);
             }
         }
-        if (this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']) {
-            let change = this.frm?.['dt_events']?.[this.doctype]?.['crudHandler']
-            if (this.isAsync(change)) {
-                await change(this);
-            } else {
-                change(this);
-            }
-        }
         if (!this.render_only) {
             if (this.conf_perms.length && this.conf_perms.includes('read')) {
                 this.permissions = await this.get_permissions(this.doctype || this.link_report);
