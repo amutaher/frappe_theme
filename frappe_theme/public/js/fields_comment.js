@@ -259,7 +259,8 @@ function load_field_comments(fieldName, field, frm) {
                             e.stopPropagation();
                         });
 
-                        thread_section.find('.status-option').click((e) => {
+                        // Use event delegation for status option clicks
+                        thread_section.on('click', '.status-option', (e) => {
                             e.preventDefault();
                             const newStatus = $(e.target).data('status');
                             const statusPill = thread_section.find('.status-pill');
@@ -526,7 +527,8 @@ function load_all_comments(frm) {
                         e.stopPropagation();
                     });
 
-                    field_section.find('.status-option').click((e) => {
+                    // Use event delegation for status option clicks
+                    field_section.on('click', '.status-option', (e) => {
                         e.preventDefault();
                         const newStatus = $(e.target).data('status');
                         const statusPill = field_section.find('.status-pill');
@@ -757,10 +759,13 @@ function load_all_comments(frm) {
                         }
                     });
                 } else {
-                    // For NGO users, remove any existing comment icons
-                    [[...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })]].forEach(f => {
+                    [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].forEach(f => {
                         const field = f;
-                        if (!field || !selector) return;
+                        const fieldname = f?.df?.fieldname || 'details_tab';
+                        if (!field || !field.df) return;
+
+                        const selector = field?.label_area || field?.tab_link || field?.head;
+                        if (!selector) return;
 
                         // Remove any existing comment icons
                         const existingIcon = $(selector).find('.field-comment-icon');
@@ -1252,10 +1257,13 @@ function setupFieldComments(frm) {
                                 }
                             });
                         } else {
-                            // For NGO users, remove any existing comment icons
                             [...frm.fields.map((f) => { return { ...f, variant: 'field' } }), ...frm?.layout?.tabs?.map((t) => { return { ...t, variant: 'tab' } })].forEach(f => {
                                 const field = f;
-                                if (!field || !selector) return;
+                                const fieldname = f?.df?.fieldname || 'details_tab';
+                                if (!field || !field.df) return;
+
+                                const selector = field?.label_area || field?.tab_link || field?.head;
+                                if (!selector) return;
 
                                 // Remove any existing comment icons
                                 const existingIcon = $(selector).find('.field-comment-icon');
@@ -1307,7 +1315,7 @@ function getStatusPillStyle(status) {
 function renderStatusPill(status) {
     const style = getStatusPillStyle(status);
     const isClosed = status === 'Closed';
-
+    
     // Only show Open/Resolved for NGO
     let statusOptions = '';
     if (frappe.boot.user_team === 'NGO') {
@@ -1374,7 +1382,6 @@ function renderStatusPill(status) {
 function initializeDropdowns() {
     // Check permissions first
     check_comment_permissions().then(permissions => {
-        // Only initialize dropdowns if user has write permission
         if (permissions.includes('write')) {
             $('.status-pill').each(function () {
                 $(this).dropdown();
@@ -1396,34 +1403,101 @@ function initializeDropdowns() {
 // Update the status change handlers to use the new button structure
 function updateStatusPill(element, newStatus) {
     const style = getStatusPillStyle(newStatus);
-    element.attr('style', `
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 2px 18px 2px 12px;
-        border-radius: 999px;
-        background: ${style.bg} !important;
-        color: ${style.text} !important;
-        font-weight: 500 !important;
-        font-size: 13px !important;
-        line-height: 1.2;
-        cursor: ${newStatus === 'Closed' ? 'not-allowed' : 'pointer'};
-        border: none;
-        margin: 0;
-        opacity: ${newStatus === 'Closed' ? '0.7' : '1'};
-        box-shadow: none;
-    `);
-    element.html(`
-        <span style="
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: ${style.dot};
-            margin-right: 6px;
-        "></span>
-        ${newStatus}
-    `);
+    const isClosed = newStatus === 'Closed';
+    
+    // Check permissions to determine if dropdown should be shown
+    check_comment_permissions().then(permissions => {
+        const canShowDropdown = permissions.includes('write') || frappe.boot.user_team === 'NGO';
+        
+        // Only show Open/Resolved for NGO
+        let statusOptions = '';
+        if (frappe.boot.user_team === 'NGO') {
+            statusOptions = `
+                <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
+                <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
+            `;
+        } else {
+            statusOptions = `
+                <a class="dropdown-item status-option" data-status="Open" href="#">Open</a>
+                <a class="dropdown-item status-option" data-status="Resolved" href="#">Resolved</a>
+                <a class="dropdown-item status-option" data-status="Closed" href="#">Closed</a>
+            `;
+        }
+        
+        element.attr('style', `
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 18px 2px 12px;
+            border-radius: 999px;
+            background: ${style.bg} !important;
+            color: ${style.text} !important;
+            font-weight: 500 !important;
+            font-size: 13px !important;
+            line-height: 1.2;
+            cursor: ${isClosed ? 'not-allowed' : (canShowDropdown ? 'pointer' : 'default')};
+            border: none;
+            margin: 0;
+            opacity: ${isClosed ? '0.7' : '1'};
+            box-shadow: none;
+        `);
+        
+        // Update the button content
+        element.html(`
+            <span style="
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: ${style.dot};
+                margin-right: 6px;
+            "></span>
+            ${newStatus}
+        `);
+        
+        // Add dropdown attributes if not closed and user can show dropdown
+        if (!isClosed && canShowDropdown) {
+            element.attr('data-toggle', 'dropdown')
+                .attr('aria-haspopup', 'true')
+                .attr('aria-expanded', 'false');
+        } else {
+            element.removeAttr('data-toggle')
+                .removeAttr('aria-haspopup')
+                .removeAttr('aria-expanded');
+        }
+        
+        // Update or create dropdown menu
+        let dropdownMenu = element.siblings('.dropdown-menu');
+        if (!isClosed && canShowDropdown) {
+            if (dropdownMenu.length === 0) {
+                // Create new dropdown menu
+                dropdownMenu = $(`
+                    <div class="dropdown-menu" style="
+                        min-width: 120px;
+                        padding: 8px 0;
+                        margin: 0;
+                        border: 1px solid #E0E0E0;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    ">
+                        ${statusOptions}
+                    </div>
+                `);
+                element.parent().append(dropdownMenu);
+            } else {
+                // Update existing dropdown menu
+                dropdownMenu.html(statusOptions);
+            }
+        } else {
+            // Remove dropdown menu if status is closed or user can't show dropdown
+            dropdownMenu.remove();
+        }
+        
+        // Re-initialize dropdown functionality
+        if (!isClosed && canShowDropdown) {
+            element.dropdown();
+        }
+    });
 }
 
 frappe.router.on('change', function () {
@@ -1549,7 +1623,6 @@ let totalCommentCountUpdateTimeout = null;
 
 // Add this new function to update the total comment count badge
 function updateTotalCommentCount(frm) {
-    // console.log('updateTotalCommentCount called for:', frm.doctype, frm.docname);
 
     // Clear existing timeout
     if (totalCommentCountUpdateTimeout) {
@@ -1558,7 +1631,6 @@ function updateTotalCommentCount(frm) {
 
     // Debounce the API call to prevent too many requests
     totalCommentCountUpdateTimeout = setTimeout(() => {
-        // console.log('Updating total comment count for:', frm.doctype, frm.docname);
         frappe.call({
             method: 'frappe_theme.api.get_total_open_resolved_comment_count',
             args: {
@@ -1566,7 +1638,6 @@ function updateTotalCommentCount(frm) {
                 docname: frm.docname
             },
             callback: function (r) {
-                // console.log('Total comment count API response:', r);
                 let count = r.message || 0;
 
                 // Use the stored button reference if available
@@ -1595,9 +1666,7 @@ function updateTotalCommentCount(frm) {
                         'font-size': '11px',
                         'margin-left': '2px'
                     });
-                    // console.log('Successfully updated comments button with count:', count);
                 } else {
-                    // console.log('Comments button not found for updating total count');
                 }
             },
             error: function (err) {
