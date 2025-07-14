@@ -1407,7 +1407,7 @@ function updateStatusPill(element, newStatus) {
     
     // Check permissions to determine if dropdown should be shown
     check_comment_permissions().then(permissions => {
-        const canShowDropdown = permissions.includes('write') || frappe.boot.user_team === 'NGO';
+        const canShowDropdown = permissions.includes('write');
         
         // Only show Open/Resolved for NGO
         let statusOptions = '';
