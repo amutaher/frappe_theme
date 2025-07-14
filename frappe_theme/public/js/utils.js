@@ -123,7 +123,6 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
             const isDialog = context?.$wrapper && context.get_value;
             if (isDialog && context?.show_message) {
                 context.show_message('');
-                console.log('running')
             }
         }
     }
