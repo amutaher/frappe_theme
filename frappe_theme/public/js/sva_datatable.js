@@ -90,7 +90,7 @@ class SvaDataTable {
             export: true,
             import: true,
             print: true,
-        } 
+        }
         this.reloadTable();
         // return this.wrapper;
     }
@@ -506,7 +506,7 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-       
+
         if (this.crud.create && (this.frm ? this.frm?.doc?.docstatus == 0 : true) && (this.conf_perms.length && this.conf_perms.includes('create'))) {
             if (this.permissions?.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
@@ -2089,7 +2089,7 @@ class SvaDataTable {
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
-            if (columnField.fieldname == 'name') {
+            if (['name', this.meta?.title_field].includes(columnField.fieldname)) {
                 td.innerHTML = `<p style="cursor: pointer; text-decoration:underline;">${row[column.fieldname]}</p>`;
                 td.querySelector('p').addEventListener('click', () => {
                     let route = frappe.get_route();
