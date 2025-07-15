@@ -1,3 +1,23 @@
+if (frappe.ui?.FileUploader) {
+    frappe.ui.FileUploader = class CustomFileUploader extends frappe.ui?.FileUploader {
+        constructor(options = {}) {
+            // Override or enforce disable_file_browser
+            options.disable_file_browser = true;
+            // Call parent constructor with modified options
+
+            /* Other available flags
+            make_attachments_public,
+            allow_web_link,
+            allow_take_photo,
+            allow_toggle_private,
+            allow_toggle_optimize,
+
+            */
+            super(options);
+        }
+    };
+}
+
 frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     constructor(...args) {
         super(...args);
@@ -6,6 +26,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         this.currentTabField = null;
         this.dts = {};
         this.mountedComponents = new Map(); // Track mounted components and their cleanup functions
+        this.sva_db = new SVAHTTP()
     }
     refresh(docname) {
         try {
@@ -73,11 +94,22 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                     this.set_properties(frm.doc.name);
                 });
             }
+
             let dropdown = frm?.page?.btn_secondary?.parent();
             if (dropdown) {
                 dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
                 dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
+            frappe.db.get_single_value('My Theme', 'hide_form_comment')
+                .then(value => {
+                    if (value) {
+                        $('.comment-input-wrapper').hide();
+                        $('.new-timeline').hide();
+                    } else {
+                        $('.comment-input-wrapper').show();
+                        $('.new-timeline').show();
+                    }
+                });
             frappe.db.get_single_value('My Theme', 'hide_print_icon')
                 .then(value => {
                     if (value) {
@@ -86,6 +118,144 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                         frm.page.show_icon_group('print')
                     }
                 });
+            const dt_props = await this.getPropertySetterData(frm.doc.doctype);
+            let workflow = Object.values(locals?.['Workflow'] || {}).find(wf => wf.document_type == frm.doctype);
+            let field_events = {};
+            if (workflow) {
+                let wf_prop = dt_props?.filter(prop => ["wf_state_field"].includes(prop.property))
+                let has_action_fields = workflow?.transitions?.filter(wf => JSON.parse(wf?.custom_selected_fields || '[]')?.length)?.length;
+                if (has_action_fields || wf_prop?.length) {
+                    field_events['before_workflow_action'] = async function (frm) {
+                        let selected_state_info = workflow?.transitions?.find(wf => wf.state == frm.doc[workflow?.workflow_state_field] && wf.action == frm.selected_workflow_action);
+                        let action = selected_state_info?.action;
+                        let wf_dialog_fields = JSON.parse(selected_state_info.custom_selected_fields || "[]");
+                        let fields = [];
+                        if (wf_dialog_fields?.length) {
+                            fields = frm.meta?.fields.filter(field => { return wf_dialog_fields.some(f => f.fieldname == field.fieldname) })
+                            .map(field => {
+                                let field_obj = wf_dialog_fields.find(f => f.fieldname == field.fieldname);
+                                let field_data = frm.doc[field.fieldname]
+                                let _field =  {
+                                        label: field.label,
+                                        fieldname: field.fieldname,
+                                        fieldtype: field.fieldtype,
+                                        default: field_obj?.read_only && field_data,
+                                        read_only: field_obj?.read_only,
+                                        reqd: field_obj?.read_only ? 0 : field_obj?.reqd,
+                                        options: field.options
+                                    }
+                                if (!field_obj?.reqd && ['Attach', 'Attach Image', 'Attach File'].includes(field.fieldtype)){
+                                    if(field_data?.startsWith('/private/') || field_data?.startsWith('/files/')){
+                                        _field.label = '';
+                                        _field.fieldtype = 'HTML';
+                                        _field.options = `${field.label} :  <a href="${window.location.origin+field_data}" target="_blank"><i>${field_data}</i></a>`
+                                        _field.default = '';
+                                        _field.read_only = true;
+                                        _field.reqd = 0;
+                                    }
+                                }
+                                return _field;
+                            });
+                        } else {
+                            fields = frm.meta?.fields?.filter(field => {
+                                return field?.wf_state_field == action
+                            })?.map(field => {
+                                return {
+                                    label: field.label,
+                                    fieldname: field.fieldname,
+                                    fieldtype: field.fieldtype,
+                                    reqd: 1,
+                                    mandatory_depends_on: field.mandatory_depends_on,
+                                    depends_on: field.depends_on,
+                                    options: field.options
+                                }
+                            });
+                        }
+                        if (fields?.length) {
+                            frappe.validated = false;
+                            // Prevent multiple dialogs by checking if one is already open
+                            if (frm._workflow_dialog_open) {
+                                return;
+                            }
+
+                            frm._workflow_dialog_open = true;
+
+                            try {
+                                let workflow_state_bg = await frappe.db.get_list("Workflow State", {
+                                    fields: ['name', 'style']
+                                });
+                                const bg = workflow_state_bg?.find(bg => bg.name === action && bg.style);
+
+                                // console.log(fields, 'fields')
+                                const popupFields = [
+                                    {
+                                        label: "Action Test",
+                                        fieldname: "action_test",
+                                        fieldtype: "HTML",
+                                        options: `<p>Action:  <span style="padding: 4px 8px; border-radius: 100px; color:white;  font-size: 12px; font-weight: 400;" class="bg-${bg?.style?.toLowerCase() || 'secondary'}">${action}</span></p>`,
+                                    },
+                                    ...(fields ? fields : []),
+                                ];
+                                let title = __(frm.doctype);
+                                let dailog = new frappe.ui.Dialog({
+                                    title: title,
+                                    fields: popupFields,
+                                    primary_action_label: __(action),
+                                    secondary_action_label: __("Cancel"),
+                                    secondary_action: () => {
+                                        dailog.hide();
+                                        frm._workflow_dialog_open = false;
+                                    },
+                                    primary_action: (values) => {
+                                        frappe.dom.freeze();
+                                        // Apply workflow after a small delay to ensure values are set
+                                        frappe.xcall("frappe.model.workflow.apply_workflow", {
+                                            doc: { ...frm.doc, wf_dialog_fields: values ? values : {} },
+                                            action: action
+                                        }).then((doc) => {
+                                            frappe.model.sync(doc);
+                                            frm.refresh();
+                                            action = null;
+                                            frm.script_manager.trigger("after_workflow_action");
+                                        }).finally(() => {
+                                            dailog.hide();
+                                            frappe.dom.unfreeze();
+                                            frm._workflow_dialog_open = false;
+                                        });
+                                    }
+                                });
+
+                                // Handle dialog close event to reset the flag
+                                dailog.$wrapper.on('hidden.bs.modal', () => {
+                                    frm._workflow_dialog_open = false;
+                                });
+
+                                dailog.show();
+                                return dailog;
+                            } catch (error) {
+                                console.error("Error in workflow action handler:", error);
+                                frm._workflow_dialog_open = false;
+                            }
+                        }
+                    };
+                }
+            }
+            let props = dt_props?.filter(prop => ["filter_by", "link_filter"].includes(prop.property))
+            if (props?.length) {
+                for (const prop of props) {
+                    if (prop?.value) {
+                        const [valueField, filterField] = prop.value.split("->");
+                        field_events[valueField] = function (frm) {
+                            this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                            frm.set_value(prop.field_name, "");
+                        }.bind(this);
+                        this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
+                    }
+                }
+            }
+            if (Object.keys(field_events)?.length) {
+                frappe.ui.form.on(frm.doctype, field_events)
+            }
 
             const sva_db = new SVAHTTP();
             if (!window.sva_datatable_configuration?.[frm.doc.doctype]) {
@@ -102,21 +272,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             const tab_field = frm.get_active_tab()?.df?.fieldname;
             await this.tabContent(frm, tab_field);
 
-            const props = await this.getPropertySetterData(frm.doc.doctype);
-            let field_events = {};
-            if (props?.length) {
-                for (const prop of props) {
-                    if (prop?.value) {
-                        const [valueField, filterField] = prop.value.split("->");
-                        field_events[valueField] = function (frm) {
-                            this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
-                            frm.set_value(prop.field_name, "");
-                        }.bind(this);
-                        this.apply_custom_filter(prop.field_name, filterField, frm, frm.doc[valueField]);
-                    }
-                }
-                frappe.ui.form.on(frm.doctype, field_events)
-            }
+
         } catch (error) {
             console.error("Error in custom_refresh:", error);
         }
@@ -195,7 +351,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                         action: 'Save',
                     }
                 });
-                if (res.docs.length > 0) {
+                if (res?.docs?.length > 0) {
                     frappe.msgprint('Property set successfully');
                     add.hide();
                 }
@@ -383,7 +539,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('Request aborted due to tab switch');
+                console.error('Request aborted due to tab switch');
             } else {
                 console.error("Error in tabContent:", error);
                 frappe.show_alert({
@@ -571,12 +727,19 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const buttonHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat" viewBox="0 0 16 16">
             <path d="M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105"/>
         </svg>`;
-        frm.add_custom_button(buttonHTML, () => {
-            console.log('comment button clicked')
-            let commentSection = $(frm.$wrapper).find('.form-footer');
-            commentSection?.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
+        frappe.db.get_single_value('My Theme', 'hide_form_comment')
+            .then(value => {
+                if (value) {
+                    frm.remove_custom_button(buttonHTML);
+                } else {
+                    frm.add_custom_button(buttonHTML, () => {
+                        let commentSection = $(frm.$wrapper).find('.form-footer');
+                        commentSection?.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                }
+            });
     }
+
     clearPreviousComponents() {
         try {
             // Clean up mounted components
@@ -605,6 +768,11 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
             // Clear global event listeners
             this.clearGlobalEventListeners();
+
+            // Reset workflow dialog flag if frm is available
+            if (this.frm) {
+                this.frm._workflow_dialog_open = false;
+            }
 
             // Clear remaining fields only if frm is available
             // if (this.frm && this.frm.meta) {
@@ -771,7 +939,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('Tab switch cancelled previous requests');
+                console.error('Tab switch cancelled previous requests');
             } else {
                 console.error("Error in _activeTab:", error);
             }

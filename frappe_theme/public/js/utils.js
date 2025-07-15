@@ -109,13 +109,13 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
             const isDialog = context?.$wrapper && context.get_value;
             const isForm = context?.fields_dict && context.doc;
 
-        // Show error message
-        if (isDialog && context?.show_message) {
-            context.show_message('');
-            context.show_message(__(message), 'red');
-            frappe.validate = false;
-            throw new Error(message);
-            } 
+            // Show error message
+            if (isDialog && context?.show_message) {
+                context.show_message('');
+                context.show_message(__(message), 'red');
+                frappe.validate = false;
+                throw new Error(message);
+            }
             else if (isForm) {
                 frappe.throw(message);
             }
@@ -123,10 +123,28 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
             const isDialog = context?.$wrapper && context.get_value;
             if (isDialog && context?.show_message) {
                 context.show_message('');
-                console.log('running')
             }
         }
     }
 }
 
 frappe.utils.toggleFieldError = toggleFieldError;
+
+function makeDialogFullScreen(dialog) {
+    // Write logic to ensure that the dialog is full screen
+    let dbody = $(dialog.$wrapper).find('.modal-dialog');
+    let dbody_content = $(dialog.$wrapper).find('.modal-content');
+    dbody?.css({
+        'min-width': '100%',
+        'width': '100%',
+        'max-width': '100%',
+        'margin': '0',
+        'padding': '0',
+    });
+    dbody_content?.css({
+        'min-height': '100vh',
+        'height': '100vh !important',
+        'border-radius': '0'
+    });
+}
+frappe.utils.make_dialog_fullscreen = makeDialogFullScreen;

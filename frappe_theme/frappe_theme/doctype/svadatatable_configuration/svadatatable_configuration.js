@@ -363,6 +363,51 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     async setup_crud_permissions(frm, cdt, cdn) {
         set_crud_permissiions(frm, cdt, cdn);
     },
+    async setup_action_list(frm, cdt, cdn){
+        let row = locals[cdt][cdn];
+        let action_list = JSON.parse(row.action_list || '[]');
+        let dialog = new frappe.ui.Dialog({
+            title: __('Action List'),
+            fields: [
+                {
+                    label: __('Action List'),
+                    fieldname: 'action_list',
+                    fieldtype: 'Table',
+                    options: 'Action',
+                    data: action_list,
+                    fields: [
+                        {
+                            label: __('Label'),
+                            fieldname: 'label',
+                            fieldtype: 'Data',
+                            in_list_view: 1,
+                            reqd: 1
+                        },
+                        {
+                            label: __('Hidden'),
+                            fieldname: 'hidden',
+                            fieldtype: 'Check',
+                            in_list_view: 1,
+                            default: 0
+                        },
+                        {
+                            label: __('Action'),
+                            fieldname: 'action',
+                            fieldtype: 'Code',
+                            in_list_view: 1,
+                            reqd: 1
+                        }
+                    ]
+                }
+            ],
+            primary_action_label: __('Save'),
+            primary_action: async (values) => {
+                frappe.model.set_value(cdt, cdn, 'action_list', JSON.stringify(values.action_list));
+                dialog.hide();
+            }
+        });
+        dialog.show();
+    }
 
 });
 
@@ -580,6 +625,30 @@ frappe.ui.form.on('Number Card Child', {
             options = options.filter(d=>!filter_fields.includes(d));
         }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
+
+        // 
+        if(row.fetch_from=='DocField'){
+            let number_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            let number_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            if (number_fields_2.length) {
+                number_fields = number_fields.concat(number_fields_2);
+            }
+            let options = number_fields.map(function (d) { return d.fieldname });
+            frm?.cur_grid?.set_field_property('field', 'options', options);
+        }
+       
+    },
+    fetch_from: async function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if(row.fetch_from=='DocField'){
+            let number_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            let number_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            if (number_fields_2.length) {
+                number_fields = number_fields.concat(number_fields_2);
+            }
+            let options = number_fields.map(function (d) { return d.fieldname });
+            frm?.cur_grid?.set_field_property('field', 'options', options);
+        }
     },
     cards_add: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
