@@ -2160,7 +2160,7 @@ class SvaDataTable {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
                         cond = cond?.map(e => {
-                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && e[3]?.toLowerCase() == 'today') {
+                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && isNaN(e[3]) && e[3]?.toLowerCase() == 'today') {
                                 e[3] = new Date().toISOString().split('T')[0];
                             }
                             return e
