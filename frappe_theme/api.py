@@ -10,7 +10,7 @@ def get_my_theme():
 
 @frappe.whitelist(allow_guest=True)
 def get_property_set(doctype):
-        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter"]]},ignore_permissions=True)
+        return frappe.db.get_list("Property Setter", fields=["*"] , filters={"doc_type": doctype,"property":['IN',["filter_by","link_filter","wf_state_field"]]},ignore_permissions=True)
     
 
 @frappe.whitelist()
@@ -501,7 +501,7 @@ def apply_common_permissions(target_perm, common_permissions):
 
 
 @frappe.whitelist()
-def save_field_comment(doctype_name, docname, field_name, field_label, comment_text):
+def save_field_comment(doctype_name, docname, field_name, field_label, comment_text, is_external=0,status='Open'):
     try:
         frappe.log_error(f"Saving comment for: {doctype_name} {docname} {field_name}", "Comment Save Debug")
         
@@ -525,7 +525,7 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
                 'docname': docname,
                 'field_name': field_name,
                 'field_label': field_label,
-                'status': 'Open'  # Set initial status
+                'status': status  # Set initial status
             })
             comment_doc.insert(ignore_permissions=True)
             frappe.log_error(f"Created new comment doc: {comment_doc.name}", "Comment Save Debug")
@@ -538,7 +538,8 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'parentfield': 'comment_log',
             'comment': comment_text,
             'user': frappe.session.user,
-            'creation_date': frappe.utils.now_datetime()
+            'creation_date': frappe.utils.now_datetime(),
+            'is_external': int(is_external)  # Convert to integer and use the passed value
         })
 
         # Insert the child document, ignoring permissions
@@ -555,7 +556,8 @@ def save_field_comment(doctype_name, docname, field_name, field_label, comment_t
             'parent': comment_doc.name,
             'comment': comment_text,
             'user': frappe.session.user,
-            'creation_date': comment_log_entry.creation_date
+            'creation_date': comment_log_entry.creation_date,
+            'is_external': comment_log_entry.is_external
         }
 
     except Exception as e:
@@ -604,81 +606,81 @@ def send_mention_notification(mentioned_user, comment_doc, doctype, docname, fie
     except Exception as e:
         frappe.log_error(f"Error sending mention notification: {str(e)}", "DocType Field Comment Notification Error")
 
-@frappe.whitelist()
-def get_comment_count(doctype_name, docname, field_name):
-    """Get the count of comments for a specific field"""
-    try:
-        frappe.log_error(f"Getting comment count for: {doctype_name} {docname} {field_name}", "Comment Count Debug")
+# @frappe.whitelist()
+# def get_comment_count(doctype_name, docname, field_name):
+#     """Get the count of comments for a specific field"""
+#     try:
+#         frappe.log_error(f"Getting comment count for: {doctype_name} {docname} {field_name}", "Comment Count Debug")
         
-        # First verify if the document exists
-        doc_exists = frappe.db.exists(doctype_name, docname)
-        frappe.log_error(f"Document exists: {doc_exists}", "Comment Count Debug")
+#         # First verify if the document exists
+#         doc_exists = frappe.db.exists(doctype_name, docname)
+#         frappe.log_error(f"Document exists: {doc_exists}", "Comment Count Debug")
         
-        # Get the parent comment document with more detailed logging
-        comment_doc = frappe.get_all(
-            'DocType Field Comment',
-            filters={
-                'doctype_name': doctype_name,
-                'docname': docname,
-                'field_name': field_name,
-                'status': ['IN', ['Open', 'Resolved']]
-            },
-            fields=['name', 'doctype_name', 'docname', 'field_name'],
-            limit=1,
-            ignore_permissions=True
-        )
+#         # Get the parent comment document with more detailed logging
+#         comment_doc = frappe.get_all(
+#             'DocType Field Comment',
+#             filters={
+#                 'doctype_name': doctype_name,
+#                 'docname': docname,
+#                 'field_name': field_name,
+#                 'status': ['IN', ['Open', 'Resolved']]
+#             },
+#             fields=['name', 'doctype_name', 'docname', 'field_name'],
+#             limit=1,
+#             ignore_permissions=True
+#         )
         
-        frappe.log_error(f"Found comment doc: {comment_doc}", "Comment Count Debug")
+#         frappe.log_error(f"Found comment doc: {comment_doc}", "Comment Count Debug")
         
-        if not comment_doc:
-            frappe.log_error(f"No comment document found for {doctype_name} {docname} {field_name}", "Comment Count Error")
-            return 0
+#         if not comment_doc:
+#             frappe.log_error(f"No comment document found for {doctype_name} {docname} {field_name}", "Comment Count Error")
+#             return 0
             
-        # Get the count of comment logs with detailed logging
-        # First, let's verify the parent document exists
-        parent_exists = frappe.db.exists('DocType Field Comment', comment_doc[0].name)
-        frappe.log_error(f"Parent document exists: {parent_exists}", "Comment Count Debug")
+#         # Get the count of comment logs with detailed logging
+#         # First, let's verify the parent document exists
+#         parent_exists = frappe.db.exists('DocType Field Comment', comment_doc[0].name)
+#         frappe.log_error(f"Parent document exists: {parent_exists}", "Comment Count Debug")
         
-        if not parent_exists:
-            frappe.log_error(f"Parent document {comment_doc[0].name} does not exist", "Comment Count Error")
-            return 0
+#         if not parent_exists:
+#             frappe.log_error(f"Parent document {comment_doc[0].name} does not exist", "Comment Count Error")
+#             return 0
             
-        # Get all comment logs for this parent
-        comment_logs = frappe.get_all(
-            'DocType Field Comment Log',
-            filters={
-                'parent': comment_doc[0].name,
-                'parenttype': 'DocType Field Comment',
-                'parentfield': 'comment_log'
-            },
-            fields=['name', 'comment', 'user', 'creation_date'],
-            ignore_permissions=True
-        )
+#         # Get all comment logs for this parent
+#         comment_logs = frappe.get_all(
+#             'DocType Field Comment Log',
+#             filters={
+#                 'parent': comment_doc[0].name,
+#                 'parenttype': 'DocType Field Comment',
+#                 'parentfield': 'comment_log'
+#             },
+#             fields=['name', 'comment', 'user', 'creation_date'],
+#             ignore_permissions=True
+#         )
         
-        frappe.log_error(f"Comment logs found: {comment_logs}", "Comment Count Debug")
+#         frappe.log_error(f"Comment logs found: {comment_logs}", "Comment Count Debug")
         
-        # Get the count
-        count = len(comment_logs)
-        frappe.log_error(f"Total count: {count}", "Comment Count Debug")
+#         # Get the count
+#         count = len(comment_logs)
+#         frappe.log_error(f"Total count: {count}", "Comment Count Debug")
         
-        # If count is 0 but we have a parent document, verify the relationship
-        if count == 0:
-            # Check if there are any logs at all in the system
-            total_logs = frappe.db.count('DocType Field Comment Log')
-            frappe.log_error(f"Total logs in system: {total_logs}", "Comment Count Debug")
+#         # If count is 0 but we have a parent document, verify the relationship
+#         if count == 0:
+#             # Check if there are any logs at all in the system
+#             total_logs = frappe.db.count('DocType Field Comment Log')
+#             frappe.log_error(f"Total logs in system: {total_logs}", "Comment Count Debug")
             
-            # Check if the parent field exists in the DocType Field Comment table
-            parent_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'parentfield')
-            frappe.log_error(f"Parent field value: {parent_field}", "Comment Count Debug")
+#             # Check if the parent field exists in the DocType Field Comment table
+#             parent_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'parentfield')
+#             frappe.log_error(f"Parent field value: {parent_field}", "Comment Count Debug")
             
-            # Check if the comment_log table field exists
-            table_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'comment_log')
-            frappe.log_error(f"Table field value: {table_field}", "Comment Count Debug")
+#             # Check if the comment_log table field exists
+#             table_field = frappe.db.get_value('DocType Field Comment', comment_doc[0].name, 'comment_log')
+#             frappe.log_error(f"Table field value: {table_field}", "Comment Count Debug")
         
-        return count
-    except Exception as e:
-        frappe.log_error(f"Error in get_comment_count: {str(e)}\nTraceback: {frappe.get_traceback()}", "Comment Count Error")
-        return 0
+#         return count
+#     except Exception as e:
+#         frappe.log_error(f"Error in get_comment_count: {str(e)}\nTraceback: {frappe.get_traceback()}", "Comment Count Error")
+#         return 0
 
 @frappe.whitelist()
 def create_new_comment_thread(doctype_name, docname, field_name, field_label):
@@ -705,6 +707,8 @@ def load_field_comments(doctype_name, docname, field_name):
     """Load all comment threads for a specific field"""
     try:
         # Get all parent comment documents for the field
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
         comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
@@ -725,18 +729,22 @@ def load_field_comments(doctype_name, docname, field_name):
         # Get all comment logs for these parent documents
         threads = []
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+
             comment_logs = frappe.get_all(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                },
-                fields=['name', 'comment', 'user', 'creation_date'],
+                filters=filters,
+                fields=['name', 'comment', 'user', 'creation_date', 'is_external'],
                 order_by='creation_date asc',
                 ignore_permissions=True
             )
-
             threads.append({
                 'name': doc.name,
                 'status': doc.status,
@@ -758,6 +766,8 @@ def load_all_comments(doctype_name, docname):
     """Load all comments for a document"""
     try:
         # Get all parent comment documents for the document
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
         comment_docs = frappe.get_all(
             'DocType Field Comment',
             filters={
@@ -774,14 +784,18 @@ def load_all_comments(doctype_name, docname):
         # Get all comment logs for these parent documents
         all_comments = []
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+                
             comment_logs = frappe.get_all(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                },
-                fields=['name', 'comment', 'user', 'creation_date'],
+                filters=filters,
+                fields=['name', 'comment', 'user', 'creation_date', 'is_external'],
                 order_by='creation_date asc',
                 ignore_permissions=True
             )
@@ -792,7 +806,6 @@ def load_all_comments(doctype_name, docname):
                 'status': doc.status,
                 'comments': comment_logs
             })
-
         return all_comments
 
     except Exception as e:
@@ -803,6 +816,10 @@ def load_all_comments(doctype_name, docname):
 def get_all_field_comment_counts(doctype_name, docname):
     """Get comment counts for all fields in a document in a single call"""
     try:
+        # Get user type for filtering
+        user_roll = frappe.db.get_value("SVA User", {"email": frappe.session.user}, "role_profile")
+        user_type = frappe.db.get_value("Role Profile", user_roll, "custom_belongs_to")
+        
         # Get all parent comment documents for the document
         comment_docs = frappe.get_all(
             'DocType Field Comment',
@@ -823,13 +840,19 @@ def get_all_field_comment_counts(doctype_name, docname):
         
         # Get all comment logs for these parent documents
         for doc in comment_docs:
+            filters = {
+                'parent': doc.name,
+                'parenttype': 'DocType Field Comment',
+                'parentfield': 'comment_log'
+            }
+            
+            # For NGO users, only count external comments
+            if user_type == 'NGO':
+                filters['is_external'] = 1
+                
             count = frappe.db.count(
                 'DocType Field Comment Log',
-                filters={
-                    'parent': doc.name,
-                    'parenttype': 'DocType Field Comment',
-                    'parentfield': 'comment_log'
-                }
+                filters=filters
             )
             field_counts[doc.field_name] = count
 
@@ -839,3 +862,58 @@ def get_all_field_comment_counts(doctype_name, docname):
         frappe.log_error(f"Error in get_all_field_comment_counts: {str(e)}")
         return {}
 
+@frappe.whitelist()
+def update_comment_external_flag(comment_name, is_external):
+    """Update the external flag for a comment"""
+    try:
+        # Check if the comment exists
+        if not frappe.db.exists('DocType Field Comment Log', comment_name):
+            frappe.throw(f"Comment {comment_name} does not exist")
+        # Update the external flag
+        frappe.db.set_value('DocType Field Comment Log', comment_name, 'is_external', is_external)
+        
+        return True
+    except Exception as e:
+        frappe.log_error(f"Error updating external flag for comment {comment_name}: {str(e)}")
+        return False
+
+@frappe.whitelist()
+def get_total_open_resolved_comment_count(doctype_name, docname):
+    """Return the total count of open and resolved comments for a document"""
+    try:
+        field_counts = get_all_field_comment_counts(doctype_name, docname)
+        total = sum(field_counts.values()) if field_counts else 0
+        return total
+    except Exception as e:
+        frappe.log_error(f"Error in get_total_open_resolved_comment_count: {str(e)}")
+        return 0
+    
+@frappe.whitelist()
+def get_eligible_users_for_task(doctype, txt, searchfield, start, page_length, filters):
+    """Get eligible users for a task"""
+    try:
+        txt = f"%{txt}%" if txt else "%"
+        ngo = filters.get("ngo") if filters else None
+
+        condition = "sva.email LIKE %(txt)s"
+        if ngo:
+            condition += " AND ngo.name = %(ngo)s"
+
+        query = f"""
+            SELECT
+                sva.email,
+                sva.full_name
+            FROM `tabNGO` AS ngo
+            LEFT JOIN `tabUser Permission` AS up ON ngo.name = up.for_value
+            LEFT JOIN `tabSVA User` AS sva ON up.user = sva.email
+            WHERE {condition}
+            LIMIT {int(start)}, {int(page_length)}
+        """
+
+        return frappe.db.sql(query, {
+            "txt": txt,
+            "ngo": ngo
+        })
+    except Exception as e:
+        frappe.log_error(f"Error in get_eligible_users_for_task: {str(e)}")
+        return []

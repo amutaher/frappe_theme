@@ -1,5 +1,5 @@
 class ListSettings {
-	constructor({ doctype, meta, connection_type,settings, dialog_primary_action,sva_dt={} }) {
+	constructor({ doctype, meta, connection_type, settings, dialog_primary_action, sva_dt = {} }) {
 		if (!doctype) {
 			frappe.throw("DocType required");
 		}
@@ -37,7 +37,7 @@ class ListSettings {
 				checked: false
 			},
 		];
-		if (this.connection_type == "Report"){
+		if (this.connection_type == "Report") {
 			this.additional_fields = [];
 		}
 		// this.subject_field = null;
@@ -75,13 +75,13 @@ class ListSettings {
 					fieldtype: "HTML"
 				},
 			],
-	});
+		});
 		me.dialog.set_values(me.settings);
 		me.dialog.set_primary_action(__("Save"), () => {
-			this.dialog_primary_action(me.listview_settings,me.reset_layout)
+			this.dialog_primary_action(me.listview_settings, me.reset_layout)
 			me.dialog.hide();
 		});
-		if (me?.sva_dt?.user_has_list_settings){
+		if (me?.sva_dt?.user_has_list_settings) {
 			me.dialog.set_secondary_action_label(__("Reset Fields"))
 			me.dialog.set_secondary_action(() => {
 				me.listview_settings = JSON.parse(me?.sva_dt?.connection?.listview_settings || '[]')

@@ -8,7 +8,8 @@
     "field_order": [
         "comment",
         "user",
-        "creation_date"
+        "creation_date",
+        "is_external"
     ],
     "fields": [
         {
@@ -32,6 +33,12 @@
             "in_list_view": 1,
             "label": "Creation Date",
             "read_only": 1
+        },
+        {
+            "fieldname": "is_external",
+            "fieldtype": "Check",
+            "label": "External",
+            "default": 0
         }
     ],
     "istable": 1,
@@ -43,7 +50,6 @@
     "naming_rule": "Random",
     "owner": "Administrator",
     "permissions": [],
-    "row_format": "Dynamic",
     "sort_field": "modified",
     "sort_order": "DESC",
     "states": [],
