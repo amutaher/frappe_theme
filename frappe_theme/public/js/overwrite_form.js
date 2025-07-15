@@ -100,24 +100,18 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 dropdown.find('.dropdown-menu li:contains("Jump to field")')?.remove();
                 dropdown.find('.dropdown-menu li:contains("Print")')?.remove();
             }
-            frappe.db.get_single_value('My Theme', 'hide_form_comment')
-                .then(value => {
-                    if (value) {
-                        $('.comment-input-wrapper').hide();
-                        $('.new-timeline').hide();
-                    } else {
-                        $('.comment-input-wrapper').show();
-                        $('.new-timeline').show();
-                    }
-                });
-            frappe.db.get_single_value('My Theme', 'hide_print_icon')
-                .then(value => {
-                    if (value) {
-                        frm.page.hide_icon_group('print')
-                    } else {
-                        frm.page.show_icon_group('print')
-                    }
-                });
+            if (frappe?.boot?.my_theme?.hide_form_comment) {
+                $('.comment-input-wrapper').hide();
+                $('.new-timeline').hide();
+            }else{
+                $('.comment-input-wrapper').show();
+                $('.new-timeline').show();
+            }
+            if (frappe?.boot?.my_theme?.hide_print_icon) {
+                frm.page.hide_icon_group('print')
+            }else{
+                frm.page.show_icon_group('print')
+            }
             const dt_props = await this.getPropertySetterData(frm.doc.doctype);
             let workflow = Object.values(locals?.['Workflow'] || {}).find(wf => wf.document_type == frm.doctype);
             let field_events = {};
