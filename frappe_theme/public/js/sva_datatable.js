@@ -90,7 +90,7 @@ class SvaDataTable {
             export: true,
             import: true,
             print: true,
-        } 
+        }
         this.reloadTable();
         // return this.wrapper;
     }
@@ -506,7 +506,7 @@ class SvaDataTable {
         if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container')) {
             wrapper.querySelector('div#footer-element').appendChild(buttonContainer);
         }
-       
+
         if (this.crud.create && (this.frm ? this.frm?.doc?.docstatus == 0 : true) && (this.conf_perms.length && this.conf_perms.includes('create'))) {
             if (this.permissions?.length && this.permissions.includes('create')) {
                 if (!wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').querySelector('button#create')) {
@@ -1388,8 +1388,10 @@ class SvaDataTable {
 
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
+            let wf_editable_roles = this?.workflow?.states?.filter(s => s.state == row[this?.workflow?.workflow_state_field])?.map(s => s.allow_edit);
+            let wf_editable = wf_editable_roles?.some(role => frappe.user_roles.includes(role));
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
-            if (this.crud.write && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
+            if (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
@@ -1417,7 +1419,7 @@ class SvaDataTable {
                 }
             }
             let is_deletable = this.connection?.disable_delete_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_delete_depends_on, row) : true;
-            if (this.crud.delete && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
+            if (this.crud.delete && wf_editable && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
@@ -2089,7 +2091,7 @@ class SvaDataTable {
                 this.bindColumnEvents(td.firstElementChild, row[column.fieldname], column, row);
                 return;
             }
-            if (columnField.fieldname == 'name') {
+            if (['name', this.meta?.title_field].includes(columnField.fieldname)) {
                 td.innerHTML = `<p style="cursor: pointer; text-decoration:underline;">${row[column.fieldname]}</p>`;
                 td.querySelector('p').addEventListener('click', () => {
                     let route = frappe.get_route();
