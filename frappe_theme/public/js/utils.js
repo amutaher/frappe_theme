@@ -109,13 +109,13 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
             const isDialog = context?.$wrapper && context.get_value;
             const isForm = context?.fields_dict && context.doc;
 
-        // Show error message
-        if (isDialog && context?.show_message) {
-            context.show_message('');
-            context.show_message(__(message), 'red');
-            frappe.validate = false;
-            throw new Error(message);
-            } 
+            // Show error message
+            if (isDialog && context?.show_message) {
+                context.show_message('');
+                context.show_message(__(message), 'red');
+                frappe.validate = false;
+                throw new Error(message);
+            }
             else if (isForm) {
                 frappe.throw(message);
             }
@@ -123,7 +123,6 @@ function toggleFieldError(context, fieldname, message, toggle = true, is_child =
             const isDialog = context?.$wrapper && context.get_value;
             if (isDialog && context?.show_message) {
                 context.show_message('');
-                console.log('running')
             }
         }
     }

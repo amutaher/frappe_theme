@@ -6,8 +6,11 @@
  "field_order": [
   "html_field",
   "number_card",
-  "card_label",
+  "field",
   "info",
+  "column_break_rpeh",
+  "fetch_from",
+  "card_label",
   "icon_section",
   "icon_value",
   "column_break_1",
@@ -28,18 +31,21 @@
  ],
  "fields": [
   {
+   "depends_on": "eval:doc.fetch_from=='Number Card'",
    "fieldname": "number_card",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Number Card",
-   "options": "Number Card",
-   "reqd": 1
+   "mandatory_depends_on": "eval:doc.fetch_from=='Number Card'",
+   "options": "Number Card"
   },
   {
+   "depends_on": "eval:doc.fetch_from",
    "fieldname": "card_label",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Card Label"
+   "label": "Card Label",
+   "mandatory_depends_on": "eval:doc.fetch_from=='DocField'"
   },
   {
    "fieldname": "icon_section",
@@ -137,11 +143,29 @@
    "in_list_view": 1,
    "label": "HTML Field",
    "reqd": 1
+  },
+  {
+   "default": "Number Card",
+   "fieldname": "fetch_from",
+   "fieldtype": "Select",
+   "label": "Fetch From",
+   "options": "\nNumber Card\nDocField"
+  },
+  {
+   "fieldname": "column_break_rpeh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.fetch_from=='DocField'",
+   "fieldname": "field",
+   "fieldtype": "Select",
+   "label": "Field",
+   "mandatory_depends_on": "eval:doc.fetch_from=='DocField'"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2025-05-15 13:32:16.316128",
+ "modified": "2025-07-07 11:39:37.916087",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "Number Card Child",
