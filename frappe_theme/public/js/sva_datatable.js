@@ -1388,8 +1388,10 @@ class SvaDataTable {
 
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
+            let wf_editable_roles = this?.workflow?.states?.filter(s => s.state == row[this?.workflow?.workflow_state_field])?.map(s => s.allow_edit);
+            let wf_editable = wf_editable_roles?.some(role => frappe.user_roles.includes(role));
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
-            if (this.crud.write && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
+            if (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Edit', async () => {
@@ -1417,7 +1419,7 @@ class SvaDataTable {
                 }
             }
             let is_deletable = this.connection?.disable_delete_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_delete_depends_on, row) : true;
-            if (this.crud.delete && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
+            if (this.crud.delete && wf_editable && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
                         appendDropdownOption('Delete', async () => {
@@ -1568,7 +1570,7 @@ class SvaDataTable {
                         el.style['text-align'] = 'center';
                         wfActionTd.appendChild(el);
                     } else {
-                        el.disabled = (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
+                        el.disabled = this.connection?.disable_workflow || (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
                             !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
                         let { message: transitions } = await this.sva_db.call({
                             method: 'frappe.model.workflow.get_transitions',
