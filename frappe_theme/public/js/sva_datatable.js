@@ -65,7 +65,7 @@ class SvaDataTable {
         this.table_wrapper.id = 'table_wrapper';
         this.table = null;
         this.permissions = [];
-        this.workflow = []
+        this.workflow = null;
         this.wf_positive_closure = '';
         this.wf_negative_closure = '';
         this.wf_editable_allowed = false;
@@ -1389,7 +1389,7 @@ class SvaDataTable {
         // Edit and Delete Buttons
         if (!['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)) {
             let wf_editable_roles = this?.workflow?.states?.filter(s => s.state == row[this?.workflow?.workflow_state_field])?.map(s => s.allow_edit);
-            let wf_editable = wf_editable_roles?.some(role => frappe.user_roles.includes(role));
+            let wf_editable = (this.workflow ? wf_editable_roles?.some(role => frappe.user_roles.includes(role)) : true);
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
             if (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
