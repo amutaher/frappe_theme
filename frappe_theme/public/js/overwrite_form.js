@@ -113,8 +113,8 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
                 frm.page.show_icon_group('print')
             }
             const dt_props = await this.getPropertySetterData(frm.doc.doctype);
+            let field_events = {};
             // let workflow = Object.values(locals?.['Workflow'] || {}).find(wf => wf.document_type == frm.doctype);
-            // let field_events = {};
             // if (workflow) {
             //     let wf_prop = dt_props?.filter(prop => ["wf_state_field"].includes(prop.property))
             //     let has_action_fields = workflow?.transitions?.filter(wf => JSON.parse(wf?.custom_selected_fields || '[]')?.length)?.length;
