@@ -13,7 +13,7 @@ def custom_apply_workflow(doc, action):
     action_fields = json.loads(selected_transition.custom_selected_fields or '[]') if selected_transition else []
     required_fields = []
     if len(action_fields):
-        required_fields = [field["fieldname"] for field in action_fields if field.get('reqd',0)]
+        required_fields = [{'fieldname':field["fieldname"],'label':field["label"]} for field in action_fields if field.get('reqd',0)]
     else:
         props = frappe.get_all(
             "Property Setter",
@@ -26,14 +26,18 @@ def custom_apply_workflow(doc, action):
             ignore_permissions=True
         )
         if len(props):
-            required_fields = [prop["field_name"] for prop in props]
+            required_fields = [{'fieldname':prop["field_name"],'label':prop["field_name"]} for prop in props]
 
     wf_dialog_fields = doc.get('wf_dialog_fields') or {}
     # Check if all required fields have values
     if len(required_fields):
-        if not all(wf_dialog_fields.get(f) for f in required_fields):
-            return
-           # frappe.throw("Required workflow data is missing or incomplete.")
+        missing_fields = [f for f in required_fields if not wf_dialog_fields.get(f['fieldname'])]
+        if missing_fields:
+            field_list = "".join([f"<li>{f['label']}</li>" for f in missing_fields])
+            frappe.throw(f"Required workflow data is missing or incomplete. Missing fields: <br><ul>{field_list}</ul>")
+    # if len(required_fields):
+    #     if not all(wf_dialog_fields.get(f) for f in required_fields):
+    #        frappe.throw("Required workflow data is missing or incomplete.")
     # Load the actual doc and update fields
     data_doc = frappe.get_doc(doc.doctype, doc.name)
     meta = frappe.get_meta(doc.doctype)
