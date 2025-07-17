@@ -18,6 +18,7 @@ app_include_css = [
 ]
 app_include_js = [
     f"/assets/frappe_theme/js/fields_comment.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/overwrite_workflow.js",
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
     f"/assets/frappe_theme/js/extended_chart.js?ver={time.time()}",
