@@ -1992,6 +1992,75 @@ class SvaDataTable {
             this.bindColumnEvents(td.firstElementChild || spanElement, row[column.fieldname], column, row);
             return;
         }
+        if (column.fieldtype == 'Select') {
+            let edit_level1 = ['1', '2'].includes(row.docstatus) && (this.frm ? this.frm?.doc?.docstatus == 0 : true)
+            let wf_editable_roles = this?.workflow?.states?.filter(s => s.state == row[this?.workflow?.workflow_state_field])?.map(s => s.allow_edit);
+            let wf_editable = (this.workflow ? wf_editable_roles?.some(role => frappe.user_roles.includes(role)) : true);
+            let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
+            let editable = !edit_level1 && (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable))
+            if (col.inline_edit && editable) {
+                let me = this;
+                const control = frappe.ui.form.make_control({
+                    parent: td,
+                    df: {
+                        ...column,
+                        onchange: async function () {
+                            let changedValue = control.get_input_value();
+                            if (row[column.fieldname] && (row[column.fieldname] != changedValue)) {
+                                try {
+                                    let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,changedValue)
+                                    if (response){
+                                        frappe.show_alert({
+                                            message: `${column?.label || column.fieldname} updated successfully`,
+                                            indicator: 'success'
+                                        })
+                                    }
+                                } catch (error) {
+                                    frappe.show_alert({
+                                        message: `Error updating ${column?.label || column.fieldname}`,
+                                        indicator: 'danger'
+                                    })
+                                }
+                            }else{
+                                try {
+                                    let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,row[column.fieldname])
+                                    if (response){
+                                        frappe.show_alert({
+                                            message: `${column?.label || column.fieldname} updated successfully`,
+                                            indicator: 'success'
+                                        })
+                                    }
+                                } catch (error) {
+                                    frappe.show_alert({
+                                        message: `Error updating ${column?.label || column.fieldname}`,
+                                        indicator: 'danger'
+                                    })
+                                }
+                            }
+                        }
+                    },
+                    value: row[column.fieldname] || '',
+                    render_input: true,
+                    only_input: true
+                });
+                $(control.input).css({ width: '100%', height: '25px', marginTop: '5px', fontSize: '12px', color: 'black' });
+                $(td).css({ height: '25px !important', padding: '0px 5px' });
+                control.refresh();
+            } else {
+                if (this.frm?.dt_events?.[this.doctype]?.formatter?.[column.fieldname]) {
+                    let formatter = this.frm.dt_events[this.doctype].formatter[column.fieldname];
+                    td.innerHTML = formatter(row[column.fieldname], column, row, this);
+                } else {
+                    td.innerHTML = `<span>${row[column.fieldname] || ''}</span>`;
+                    if (col?.width) {
+                        $(td).css({ width: `${Number(col?.width) * 50}px`, minWidth: `${Number(col?.width) * 50}px`, maxWidth: `${Number(col?.width) * 50}px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                    } else {
+                        $(td).css({ width: `150px`, minWidth: `150px`, maxWidth: `150px`, height: '32px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0px 5px' });
+                    }
+                }
+            }
+            return;
+        }
         if (['HTML'].includes(columnField.fieldtype)) {
             const control = frappe.ui.form.make_control({
                 parent: td,

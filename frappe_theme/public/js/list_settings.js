@@ -117,14 +117,13 @@ class ListSettings {
 		let fields_html = me.dialog.get_field("fields_html");
 		let wrapper = fields_html.$wrapper[0];
 		let fields = ``;
-
 		for (let idx in me.listview_settings) {
 			// let is_sortable = idx == 0 ? `` : `sortable`;
 			// let show_sortable_handle = idx == 0 ? `hide` : ``;
 			fields += `
 				<div class="control-input flex align-center form-control fields_order sortable"
 					style="display: block; margin-bottom: 5px;" data-fieldname="${me.listview_settings[idx].fieldname}"
-					data-label="${me.listview_settings[idx].label}" data-type="${me.listview_settings[idx].type}">
+					data-label="${me.listview_settings[idx].label}" data-fieldtype="${me.listview_settings[idx].fieldtype}">
 
 					<div class="row">
 						<div class="col-1">
@@ -132,11 +131,12 @@ class ListSettings {
 						</div>
 						<div class="col-10" style="padding-left:0px;">
 							<div class="row align-items-center no-gutters">
-								<div class="col-9">
+								<div class="col-8">
 									${__(me.listview_settings[idx].label, null, me.doctype)}
 								</div>
-								<div class="col-3">
+								<div class="col-4 d-flex align-items-center" style="gap:5px;height:100%;">
 									<input type="number" class="form-control control-input bg-white column-width-input" style="margin-top:-5px;height:25px;" data-fieldname="${me.listview_settings[idx].fieldname}" value="${me.listview_settings[idx]?.width || 2}" />
+									<input style="visibility:${(['Select'].includes(me.listview_settings[idx].fieldtype) && frappe.session.user == 'Administrator') ? 'visible' : 'hidden'};height:18px;min-width:18px; margin-top:-2px;" type="checkbox" class="form-control bg-white inline-edit-checkbox" data-fieldname="${me.listview_settings[idx].fieldname}" value="${me.listview_settings[idx]?.inline_edit || 0}" ${me.listview_settings[idx]?.inline_edit ? 'checked' : ''} />
 								</div>
 							</div>
 						</div>
@@ -165,6 +165,9 @@ class ListSettings {
 			</div>
 		`);
 		$(fields_html.$wrapper).on('change', '.column-width-input', function () {
+			me.update_fields();
+		});
+		$(fields_html.$wrapper).on('change', '.inline-edit-checkbox', function () {
 			me.update_fields();
 		});
 		new Sortable(wrapper.getElementsByClassName("control-input-wrapper")[0], {
@@ -218,8 +221,10 @@ class ListSettings {
 		for (let idx = 0; idx < fields_order.length; idx++) {
 			me.listview_settings.push({
 				fieldname: fields_order.item(idx).getAttribute("data-fieldname"),
+				fieldtype: fields_order.item(idx).getAttribute("data-fieldtype"),
 				label: __(fields_order.item(idx).getAttribute("data-label")),
-				width: fields_order.item(idx).querySelector('.column-width-input')?.value || 2
+				width: fields_order.item(idx).querySelector('.column-width-input')?.value || 2,
+				inline_edit: fields_order.item(idx).querySelector('.inline-edit-checkbox')?.checked ? 1 : 0 || 0
 			});
 		}
 		me.dialog.set_value("listview_settings", JSON.stringify(me.listview_settings));
@@ -272,7 +277,9 @@ class ListSettings {
 							me.listview_settings.push({
 								label: __(field.label, null, me.doctype),
 								fieldname: field.fieldname,
-								width: 2
+								fieldtype: field.fieldtype,
+								width: 2,
+								inline_edit: 0
 							});
 						} else if (['creation', 'owner', 'modified', 'modified_by'].includes(value)) {
 							let ad_field = this.additional_fields.find(f => f.value === value);
@@ -280,7 +287,9 @@ class ListSettings {
 								me.listview_settings.push({
 									label: __(ad_field.label, null, me.doctype),
 									fieldname: ad_field.value,
-									width: 2
+									fieldtype: ad_field.fieldtype,
+									width: 2,
+									inline_edit: 0
 								});
 							}
 						}
@@ -300,7 +309,17 @@ class ListSettings {
 		if (!me.settings?.listview_settings) {
 			me.set_list_view_fields(meta);
 		} else {
-			me.listview_settings = JSON.parse(this.settings?.listview_settings || []);
+			me.listview_settings = (JSON.parse(this.settings?.listview_settings || []).length && JSON.parse(this.settings?.listview_settings || [])?.[0]?.fieldtype == 'undefined') ? JSON.parse(this.settings?.listview_settings || []).map((f) => {
+				let field = meta.find((m) => m.fieldname == f.fieldname);
+				if(field){
+					return {
+						...f,
+						fieldtype: field.fieldtype
+					};
+				}else{
+					return f;
+				}
+			}) : JSON.parse(this.settings?.listview_settings || [])
 		}
 		me.listview_settings.uniqBy((f) => f.fieldname);
 	}
@@ -317,6 +336,9 @@ class ListSettings {
 				me.listview_settings.push({
 					label: __(field.label, null, me.doctype),
 					fieldname: field.fieldname,
+					fieldtype: field.fieldtype,
+					width: 2,
+					inline_edit: field.inline_edit ? 1 : 0
 				});
 			}
 		});
