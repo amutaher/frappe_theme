@@ -1733,10 +1733,16 @@ class SvaDataTable {
         }
         async function take_action(values = undefined) {
             try {
+                let skip_workflow_values = {};
+                if (me.skip_workflow_confirmation) {
+                    for (let field of popupFields) {
+                        skip_workflow_values[field.fieldname] = doc[field.fieldname] || '';
+                    }
+                }
                 const updateFields = {
                     ...doc,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
-                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) },
+                    wf_dialog_fields: { ...(me.skip_workflow_confirmation ? skip_workflow_values : (values ? values : (workflowFormValue && workflowFormValue))) },
                     doctype: me.doctype
                 };
                 frappe.xcall("frappe.model.workflow.apply_workflow", {
