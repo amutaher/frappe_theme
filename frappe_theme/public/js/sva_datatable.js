@@ -893,7 +893,11 @@ class SvaDataTable {
                         };
                     }
                     if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                        f.hidden = 1;
+                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                            f.default = 0;
+                        } else {
+                            f.hidden = 1;
+                        }
                         continue;
                     }
                 }
@@ -1013,7 +1017,11 @@ class SvaDataTable {
                         f.read_only = 1;
                     }
                     if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
-                        f.hidden = 1;
+                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                            f.default = 0;
+                        } else {
+                            f.hidden = 1;
+                        }
                         continue;
                     }
                 }
@@ -1067,7 +1075,11 @@ class SvaDataTable {
                     continue;
                 }
                 if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    f.hidden = 1;
+                    if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                        f.default = 0;
+                    } else {
+                        f.hidden = 1;
+                    }
                     continue;
                 }
                 if (doc[f.fieldname]) {
@@ -1734,9 +1746,9 @@ class SvaDataTable {
         async function take_action(values = undefined) {
             try {
                 let skip_workflow_values = {};
-                if (me.skip_workflow_confirmation) {
+                if (me?.skip_workflow_confirmation) {
                     for (let field of popupFields) {
-                        skip_workflow_values[field.fieldname] = doc[field.fieldname] || '';
+                        skip_workflow_values[field.fieldname] = me.form_dialog.get_value(field.fieldname) || me.form_dialog?.fields_dict?.[field.fieldname]?.last_value || '';
                     }
                 }
                 const updateFields = {
