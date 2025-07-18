@@ -893,7 +893,11 @@ class SvaDataTable {
                         };
                     }
                     if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                        f.hidden = 1;
+                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                            f.default = 0;
+                        } else {
+                            f.hidden = 1;
+                        }
                         continue;
                     }
                 }
@@ -1013,7 +1017,11 @@ class SvaDataTable {
                         f.read_only = 1;
                     }
                     if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
-                        f.hidden = 1;
+                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                            f.default = 0;
+                        } else {
+                            f.hidden = 1;
+                        }
                         continue;
                     }
                 }
@@ -1067,7 +1075,11 @@ class SvaDataTable {
                     continue;
                 }
                 if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    f.hidden = 1;
+                    if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
+                        f.default = 0;
+                    } else {
+                        f.hidden = 1;
+                    }
                     continue;
                 }
                 if (doc[f.fieldname]) {
@@ -1733,10 +1745,16 @@ class SvaDataTable {
         }
         async function take_action(values = undefined) {
             try {
+                let skip_workflow_values = {};
+                if (me?.skip_workflow_confirmation) {
+                    for (let field of popupFields) {
+                        skip_workflow_values[field.fieldname] = me.form_dialog.get_value(field.fieldname) || me.form_dialog?.fields_dict?.[field.fieldname]?.last_value || '';
+                    }
+                }
                 const updateFields = {
                     ...doc,
                     ...(values ? values : (workflowFormValue && workflowFormValue)),
-                    wf_dialog_fields: { ...(values ? values : (workflowFormValue && workflowFormValue)) },
+                    wf_dialog_fields: { ...(me.skip_workflow_confirmation ? skip_workflow_values : (values ? values : (workflowFormValue && workflowFormValue))) },
                     doctype: me.doctype
                 };
                 frappe.xcall("frappe.model.workflow.apply_workflow", {
@@ -2160,7 +2178,7 @@ class SvaDataTable {
                     let cond = JSON.parse(this.connection.extended_condition)
                     if (Array.isArray(cond) && cond?.length) {
                         cond = cond?.map(e => {
-                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && e[3]?.toLowerCase() == 'today') {
+                            if (e.length > 3 && e[3] && !Array.isArray(e[3]) && isNaN(e[3]) && e[3]?.toLowerCase() == 'today') {
                                 e[3] = new Date().toISOString().split('T')[0];
                             }
                             return e
