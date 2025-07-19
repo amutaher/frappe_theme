@@ -670,14 +670,14 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         }
     }
 
-    getComponentClass(template) {
+    getComponentConfig(template) {
         const componentMap = {
-            "Gallery": GalleryComponent,
-            "Email": EmailComponent,
-            "Tasks": mGrantTask,
-            "Timeline": TimelineGenerator,
-            "Notes": NotesManager,
-            "Linked Users": LinkedUser
+            "Gallery": {'class': "SVAGalleryComponent", 'path': 'gallery.bundle.js'},
+            "Email": {'class': "SVAEmailComponent", 'path': 'communication.bundle.js'},
+            "Tasks": {'class': "SVAmGrantTask", 'path': 'task.bundle.js'},
+            "Timeline": {'class': "SVATimelineGenerator", 'path': 'timeline.bundle.js'},
+            "Notes": {'class': "SVANotesManager", 'path': 'note.bundle.js'},
+            "Linked Users": {'class': "SVALinkedUser", 'path': 'linked_users.bundle.js'}
         };
         return componentMap[template];
     }
@@ -827,9 +827,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
             if (signal.aborted) return;
 
-            const ComponentClass = this.getComponentClass(template);
-            if (ComponentClass) {
-                const instance = new ComponentClass(frm, el, { signal });
+            const ComponentConfig = this.getComponentConfig(template);
+            if (ComponentConfig) {
+                let instance;
+                frappe.require(ComponentConfig.path).then(() => {
+                    let componentClass = frappe.ui[ComponentConfig.class];
+                    instance = new componentClass(frm, el, { signal });
+                });
 
                 // Store cleanup function
                 this.mountedComponents.set(componentId, () => {

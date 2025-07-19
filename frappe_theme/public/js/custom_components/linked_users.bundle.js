@@ -551,3 +551,6 @@ class LinkedUser {
     //     // if (cur_frm) cur_frm.refresh();
     // }
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVALinkedUser = LinkedUser;

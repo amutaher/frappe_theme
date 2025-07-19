@@ -1015,3 +1015,6 @@ async function gallery_image(frm, selector) {
         console.error("Wrapper element not found!");
     }
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVAGalleryComponent = GalleryComponent;

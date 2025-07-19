@@ -791,3 +791,6 @@ class mGrantTask {
         }
     };
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVAmGrantTask = mGrantTask;
