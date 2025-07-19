@@ -156,10 +156,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             }
         }
         if (row.connection_type === 'Referenced') {
-            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            // let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
             let dts = await frappe.db.get_list('DocType', {
                 filters: [
-                    ['DocType', 'module', 'IN', modules],
+                    // ['DocType', 'module', 'IN', modules],
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
@@ -170,7 +170,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 filters: [
                     ['Custom Field', 'options', '=', "DocType"]
                 ],
-                fields: ['dt', 'fieldname']
+                fields: ['dt', 'fieldname'],
+                limit: 1000
             });
             let dt_options = [];
             if (dts.length) {
@@ -228,20 +229,22 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             frm.cur_grid.set_field_property('local_field', 'options', local_fields);
         }
         if (row.connection_type === 'Referenced') {
-            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            // let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
             let dts = await frappe.db.get_list('DocType', {
                 filters: [
-                    ['DocType', 'module', 'IN', modules],
+                    // ['DocType', 'module', 'IN', modules],
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
-                pluck: 'name'
+                pluck: 'name',
+                limit: 1000
             });
             let dts_2 = await frappe.db.get_list('Custom Field', {
                 filters: [
                     ['Custom Field', 'options', '=', "DocType"]
                 ],
-                fields: ['dt', 'fieldname']
+                fields: ['dt', 'fieldname'],
+                limit: 1000
             });
             let dt_options = [];
             if (dts.length) {
