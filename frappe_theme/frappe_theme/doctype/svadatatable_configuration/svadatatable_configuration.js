@@ -1,6 +1,18 @@
 // Copyright (c) 2024, Suvaidyam and contributors
 // For license information, please see license.txt
-
+const filter_html_fields = (frm)=>{
+    let filter_html_fields = []
+        if(frm.doc.child_doctypes.length > 0){
+            filter_html_fields = frm.doc.child_doctypes.filter(d => d && d.html_field).map(d => d.html_field);
+        }
+        if(frm.doc.number_cards.length > 0){
+            filter_html_fields = filter_html_fields.concat(frm.doc.number_cards.filter(d => d && d.html_field).map(d=>d.html_field));
+        }
+        if(frm.doc.charts.length > 0){
+            filter_html_fields = filter_html_fields.concat(frm.doc.charts.filter(d => d && d.html_field).map(d=>d.html_field));
+        }
+        return filter_html_fields;
+};
 frappe.ui.form.on("SVADatatable Configuration", {
     refresh: function(frm) {
         frm.set_query('parent_doctype', function() {
@@ -144,10 +156,10 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             }
         }
         if (row.connection_type === 'Referenced') {
-            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            // let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
             let dts = await frappe.db.get_list('DocType', {
                 filters: [
-                    ['DocType', 'module', 'IN', modules],
+                    // ['DocType', 'module', 'IN', modules],
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
@@ -158,7 +170,8 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
                 filters: [
                     ['Custom Field', 'options', '=', "DocType"]
                 ],
-                fields: ['dt', 'fieldname']
+                fields: ['dt', 'fieldname'],
+                limit: 1000
             });
             let dt_options = [];
             if (dts.length) {
@@ -187,7 +200,14 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     connection_type: async function (frm, cdt, cdn) {
@@ -209,20 +229,22 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
             frm.cur_grid.set_field_property('local_field', 'options', local_fields);
         }
         if (row.connection_type === 'Referenced') {
-            let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
+            // let modules = await frappe.db.get_list('Module Def', { filters: { 'app_name': ['!=', "frappe"] }, pluck: 'name' });
             let dts = await frappe.db.get_list('DocType', {
                 filters: [
-                    ['DocType', 'module', 'IN', modules],
+                    // ['DocType', 'module', 'IN', modules],
                     ['DocField', 'options', '=', "DocType"],
                     ['DocType', 'istable', '=', 0],
                 ],
-                pluck: 'name'
+                pluck: 'name',
+                limit: 1000
             });
             let dts_2 = await frappe.db.get_list('Custom Field', {
                 filters: [
                     ['Custom Field', 'options', '=', "DocType"]
                 ],
-                fields: ['dt', 'fieldname']
+                fields: ['dt', 'fieldname'],
+                limit: 1000
             });
             let dt_options = [];
             if (dts.length) {
@@ -344,6 +366,51 @@ frappe.ui.form.on("SVADatatable Configuration Child", {
     async setup_crud_permissions(frm, cdt, cdn) {
         set_crud_permissiions(frm, cdt, cdn);
     },
+    async setup_action_list(frm, cdt, cdn){
+        let row = locals[cdt][cdn];
+        let action_list = JSON.parse(row.action_list || '[]');
+        let dialog = new frappe.ui.Dialog({
+            title: __('Action List'),
+            fields: [
+                {
+                    label: __('Action List'),
+                    fieldname: 'action_list',
+                    fieldtype: 'Table',
+                    options: 'Action',
+                    data: action_list,
+                    fields: [
+                        {
+                            label: __('Label'),
+                            fieldname: 'label',
+                            fieldtype: 'Data',
+                            in_list_view: 1,
+                            reqd: 1
+                        },
+                        {
+                            label: __('Hidden'),
+                            fieldname: 'hidden',
+                            fieldtype: 'Check',
+                            in_list_view: 1,
+                            default: 0
+                        },
+                        {
+                            label: __('Action'),
+                            fieldname: 'action',
+                            fieldtype: 'Code',
+                            in_list_view: 1,
+                            reqd: 1
+                        }
+                    ]
+                }
+            ],
+            primary_action_label: __('Save'),
+            primary_action: async (values) => {
+                frappe.model.set_value(cdt, cdn, 'action_list', JSON.stringify(values.action_list));
+                dialog.hide();
+            }
+        });
+        dialog.show();
+    }
 
 });
 
@@ -357,9 +424,9 @@ frappe.ui.form.on("SVADatatable Child Conf", {
                 }
             }
         }
-        let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
-        let options = html_fields.map(function (d) { return d.fieldname });
-        frm?.cur_grid?.set_field_property('html_field', 'options', options);
+        // let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'] });
+        // let options = html_fields.map(function (d) { return d.fieldname });
+        // frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     parent_doctype: async function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
@@ -546,13 +613,45 @@ frappe.ui.form.on("SVADatatable Action Conf", {
 
 frappe.ui.form.on('Number Card Child', {
     async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
+
+        // 
+        if(row.fetch_from=='DocField'){
+            let number_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            let number_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            if (number_fields_2.length) {
+                number_fields = number_fields.concat(number_fields_2);
+            }
+            let options = number_fields.map(function (d) { return d.fieldname });
+            frm?.cur_grid?.set_field_property('field', 'options', options);
+        }
+       
+    },
+    fetch_from: async function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if(row.fetch_from=='DocField'){
+            let number_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            let number_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': ['IN',['Int','Float','Currency']] }, fields: ['fieldname'], limit: 1000 });
+            if (number_fields_2.length) {
+                number_fields = number_fields.concat(number_fields_2);
+            }
+            let options = number_fields.map(function (d) { return d.fieldname });
+            frm?.cur_grid?.set_field_property('field', 'options', options);
+        }
     },
     cards_add: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
@@ -579,12 +678,20 @@ frappe.ui.form.on('Number Card Child', {
 // Dashboard Chart Child table handling
 frappe.ui.form.on('Dashboard Chart Child', {
     async form_render(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
         let html_fields = await frappe.db.get_list('DocField', { filters: { 'parent': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         let html_fields_2 = await frappe.db.get_list('Custom Field', { filters: { 'dt': frm.doc.parent_doctype, 'fieldtype': 'HTML' }, fields: ['fieldname'], limit: 100 });
         if (html_fields_2.length) {
             html_fields = html_fields.concat(html_fields_2);
         }
+        let filter_fields = filter_html_fields(frm)
         let options = html_fields.map(function (d) { return d.fieldname });
+        if(filter_fields.length > 0 && frm.doc?.__unsaved ==1){
+            options = options.filter(d=>!filter_fields.includes(d));
+        }else{
+            filter_fields = filter_fields.filter(d => d !== row.html_field);
+            options = options.filter(d=>!filter_fields.includes(d));
+        }
         frm?.cur_grid?.set_field_property('html_field', 'options', options);
     },
     charts_add: function (frm, cdt, cdn) {

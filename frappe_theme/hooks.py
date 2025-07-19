@@ -8,9 +8,7 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
-# fixtures = [
-#     "SVADatatable Configuration"
-# ]
+# fixtures = []
 # include js, css files in header of desk.html
 import time
 app_include_css = [
@@ -19,7 +17,8 @@ app_include_css = [
     f"/assets/frappe_theme/css/number_card_mapper.css?ver={time.time()}"
 ]
 app_include_js = [
-    f"/assets/frappe_theme/js/field_comments.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/fields_comment.js?ver={time.time()}",
+    f"/assets/frappe_theme/js/overwrite_workflow.js",
     f"/assets/frappe_theme/js/svadb.js?ver={time.time()}",
     f"/assets/frappe_theme/js/task.js?ver={time.time()}",
     f"/assets/frappe_theme/js/extended_chart.js?ver={time.time()}",
@@ -68,7 +67,9 @@ web_include_js = f"/assets/frappe_theme/js/frappe_theme.js?ver={time.time()}"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "Workflow" : "public/js/doctype/workflow.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -161,13 +162,13 @@ jinja = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Version": {
+		"validate": "frappe_theme.controllers.timeline.validate",
+		# "on_cancel": "method",
+		# "on_trash": "method"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -201,6 +202,11 @@ jinja = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "frappe_theme.event.get_events"
 # }
+
+override_whitelisted_methods = {
+    "frappe.model.workflow.apply_workflow": "frappe_theme.overrides.workflow.custom_apply_workflow"
+}
+
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
