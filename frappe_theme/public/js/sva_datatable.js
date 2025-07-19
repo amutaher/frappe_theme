@@ -257,6 +257,7 @@ class SvaDataTable {
             }
 
             // Update the specific DOM row
+            const tableRows = this.tBody.querySelectorAll('tr');
             const oldRow = tableRows[domRowIndex];
             const newRow = this.createTableRow(updated_doc, rowIndex);
             
@@ -709,7 +710,7 @@ class SvaDataTable {
                         });
                         this.user_has_list_settings = false;
                     }
-                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'success' });
                 } catch (error) {
                     console.error('Error in setupListviewSettings', error);
                 } finally {
@@ -1397,7 +1398,7 @@ class SvaDataTable {
                             this.rows = [response, ...this.rows]
                             // this.rows.push(response);
                             this.updateTableBody();
-                            frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            frappe.show_alert({ message: `Successfully created ${__(this.connection?.title || doctype)}`, indicator: 'success' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_insert']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_insert']
                                 if (this.isAsync(change)) {
@@ -1428,7 +1429,7 @@ class SvaDataTable {
                             let rowIndex = this.rows.findIndex(r => r.name === name);
                             this.rows[rowIndex] = response;
                             this.updateTableBody();
-                            frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+                            frappe.show_alert({ message: `Successfully updated ${__(this.connection?.title || doctype)}`, indicator: 'success' });
                             if (this.frm?.['dt_events']?.[this.doctype]?.['after_update']) {
                                 let change = this.frm['dt_events'][this.doctype]['after_update']
                                 if (this.isAsync(change)) {
@@ -1511,7 +1512,7 @@ class SvaDataTable {
             let rowIndex = this.rows.findIndex(r => r.name === name);
             this.rows.splice(rowIndex, 1);
             this.updateTableBody();
-            frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'green' });
+            frappe.show_alert({ message: `Successfully deleted ${__(this.connection?.title || doctype)}`, indicator: 'success' });
             if (this.frm?.['dt_events']?.[this.doctype]?.['after_delete']) {
                 let change = this.frm['dt_events'][this.doctype]['after_delete']
                 if (this.isAsync(change)) {
@@ -2041,7 +2042,7 @@ class SvaDataTable {
                     me.rows[row.rowIndex] = row;
                     me.updateTableBody();
                     if (!me.skip_workflow_confirmation) {
-                        frappe.show_alert({ message: "Action completed successfully", indicator: "green" });
+                        frappe.show_alert({ message: "Action completed successfully", indicator: "success" });
                     }
                     if (dialog) {
                         dialog?.hide();
