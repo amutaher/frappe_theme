@@ -916,3 +916,6 @@ class TimelineGenerator {
         }
     }
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVATimelineGenerator = TimelineGenerator;

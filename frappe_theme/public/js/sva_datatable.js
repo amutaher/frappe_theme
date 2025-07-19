@@ -676,58 +676,60 @@ class SvaDataTable {
     }
     async setupListviewSettings() {
         let dtmeta = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype || this.link_report, _type: this.connection.connection_type });
-        new ListSettings({
-            doctype: this.doctype || this.link_report,
-            meta: dtmeta.message,
-            connection_type: this.connection.connection_type,
-            settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
-            sva_dt: this,
-            dialog_primary_action: async (listview_settings, reset = false) => {
-                try {
-                    if (!reset) {
-                        if (frappe.session.user == "Administrator") {
-                            await this.sva_db.call({
-                                method: 'frappe.client.set_value',
-                                doctype: this.connection.doctype,
-                                name: this.connection.name,
-                                fieldname: 'listview_settings',
-                                value: JSON.stringify(listview_settings ?? []),
-                            });
+        frappe.require("list_settings.bundle.js").then(() => {
+            new frappe.ui.SVAListSettings({
+                doctype: this.doctype || this.link_report,
+                meta: dtmeta.message,
+                connection_type: this.connection.connection_type,
+                settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
+                sva_dt: this,
+                dialog_primary_action: async (listview_settings, reset = false) => {
+                    try {
+                        if (!reset) {
+                            if (frappe.session.user == "Administrator") {
+                                await this.sva_db.call({
+                                    method: 'frappe.client.set_value',
+                                    doctype: this.connection.doctype,
+                                    name: this.connection.name,
+                                    fieldname: 'listview_settings',
+                                    value: JSON.stringify(listview_settings ?? []),
+                                });
+                            } else {
+                                await this.sva_db.call({
+                                    method: 'frappe_theme.dt_api.setup_user_list_settings',
+                                    parent_id: this.connection.parent,
+                                    child_dt: this.doctype || this.link_report,
+                                    listview_settings: JSON.stringify(listview_settings ?? []),
+                                });
+                                this.user_has_list_settings = true;
+                            }
                         } else {
                             await this.sva_db.call({
-                                method: 'frappe_theme.dt_api.setup_user_list_settings',
+                                method: 'frappe_theme.dt_api.delete_user_list_settings',
                                 parent_id: this.connection.parent,
-                                child_dt: this.doctype || this.link_report,
-                                listview_settings: JSON.stringify(listview_settings ?? []),
+                                child_dt: this.doctype
                             });
-                            this.user_has_list_settings = true;
+                            this.user_has_list_settings = false;
                         }
-                    } else {
-                        await this.sva_db.call({
-                            method: 'frappe_theme.dt_api.delete_user_list_settings',
-                            parent_id: this.connection.parent,
-                            child_dt: this.doctype
-                        });
-                        this.user_has_list_settings = false;
-                    }
-                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'success' });
-                } catch (error) {
-                    console.error('Error in setupListviewSettings', error);
-                } finally {
-                    this.header = listview_settings;
-                    if (window.sva_datatable_configuration?.[this.connection.parent]) {
-                        let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
-                        let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
-                        if (target) {
-                            target.listview_settings = JSON.stringify(listview_settings ?? [])
-                        } else if (target_child) {
-                            target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                        frappe.show_alert({ message: __('Listview settings updated'), indicator: 'success' });
+                    } catch (error) {
+                        console.error('Error in setupListviewSettings', error);
+                    } finally {
+                        this.header = listview_settings;
+                        if (window.sva_datatable_configuration?.[this.connection.parent]) {
+                            let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
+                            let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
+                            if (target) {
+                                target.listview_settings = JSON.stringify(listview_settings ?? [])
+                            } else if (target_child) {
+                                target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                            }
                         }
+                        this.reloadTable(true);
                     }
-                    this.reloadTable(true);
                 }
-            }
-        });
+            });
+        })
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `
