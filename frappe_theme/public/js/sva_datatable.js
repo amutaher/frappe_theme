@@ -200,6 +200,297 @@ class SvaDataTable {
             }
         }
     }
+
+    /**
+     * Reloads a specific row in the table without reloading the entire table
+     * @param {string|Object} docname_or_updated_doc - Document name or updated document object
+     * @param {boolean} fetch_from_server - Whether to fetch fresh data from server (default: false)
+     * @returns {Promise<boolean>} - Returns true if row was updated, false if not found
+     */
+    async reloadRow(docname_or_updated_doc, fetch_from_server = false) {
+        try {
+            let docname, updated_doc;
+            
+            // Determine if input is docname (string) or updated_doc (object)
+            if (typeof docname_or_updated_doc === 'string') {
+                docname = docname_or_updated_doc;
+                if (fetch_from_server) {
+                    // Fetch fresh data from server
+                    updated_doc = await this.sva_db.get_doc(this.doctype, docname);
+                } else {
+                    // Use existing row data
+                    updated_doc = this.rows.find(row => row.name === docname);
+                    if (!updated_doc) {
+                        console.warn(`Row with docname ${docname} not found in table`);
+                        return false;
+                    }
+                }
+            } else {
+                // Input is already an updated document object
+                updated_doc = docname_or_updated_doc;
+                docname = updated_doc.name;
+            }
+
+            if (!updated_doc || !docname) {
+                console.warn('Invalid document data provided to reloadRow');
+                return false;
+            }
+
+            // Find the row index in the data array
+            const rowIndex = this.rows.findIndex(row => row.name === docname);
+            if (rowIndex === -1) {
+                console.warn(`Row with docname ${docname} not found in table data`);
+                return false;
+            }
+
+            // Update the row data
+            this.rows[rowIndex] = { ...this.rows[rowIndex], ...updated_doc };
+
+            // Find the actual DOM row element using enhanced detection
+            const domRowIndex = this.findDOMRowByDocname(docname, rowIndex);
+
+            if (domRowIndex === -1) {
+                console.warn(`DOM row for docname ${docname} not found, updating table body completely`);
+                // If we can't find the specific row, update the entire table body
+                this.updateTableBody();
+                return true;
+            }
+
+            // Update the specific DOM row
+            const oldRow = tableRows[domRowIndex];
+            const newRow = this.createTableRow(updated_doc, rowIndex);
+            
+            if (oldRow && newRow) {
+                oldRow.replaceWith(newRow);
+                
+                // Trigger any after row update events
+                if (this.frm?.['dt_events']?.[this.doctype]?.['after_row_update']) {
+                    let change = this.frm['dt_events'][this.doctype]['after_row_update'];
+                    if (this.isAsync(change)) {
+                        await change(this, updated_doc, rowIndex);
+                    } else {
+                        change(this, updated_doc, rowIndex);
+                    }
+                }
+                
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error in reloadRow:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Creates a single table row element
+     * @param {Object} row - Row data object
+     * @param {number} rowIndex - Index of the row in the data array
+     * @returns {HTMLElement} - Table row element
+     */
+    createTableRow(row, rowIndex) {
+        const tr = document.createElement('tr');
+        tr.style.maxHeight = '32px';
+        tr.style.height = '32px';
+        tr.style.backgroundColor = '#fff';
+        tr.setAttribute('data-row-index', rowIndex);
+        tr.setAttribute('data-docname', row.name);
+
+        let primaryKey = row?.name || row?.rowIndex || rowIndex?.id || rowIndex;
+
+        // Serial Number Column
+        if (this.options.serialNumberColumn) {
+            const serialTd = document.createElement('td');
+            serialTd.style.minWidth = '40px';
+            serialTd.style.textAlign = 'center';
+            serialTd.style.position = 'sticky';
+            serialTd.style.left = '0px';
+            serialTd.style.backgroundColor = '#fff';
+
+            const serialNumber = this.page > 1
+                ? ((this.page - 1) * this.limit) + (rowIndex + 1)
+                : rowIndex + 1;
+
+            serialTd.innerHTML = `<p style="cursor: pointer; text-decoration:underline;" data-docname="${row.name}">${serialNumber}</p>`;
+            serialTd.querySelector('p').addEventListener('click', () => {
+                let route = frappe.get_route();
+                frappe.set_route('Form', this.connection.connection_type == 'Report' ? this.connection.report_ref_dt : this.doctype, row.name).then(() => {
+                    cur_frm.add_custom_button('Back', () => {
+                        frappe.set_route(route);
+                    });
+                });
+            });
+
+            tr.appendChild(serialTd);
+        }
+
+        // Data Columns
+        let left = 0;
+        let freezeColumnsAtLeft = this.options.serialNumberColumn ? 1 : 0; // Adjust for serial column
+        this.columns.forEach((column) => {
+            const td = document.createElement('td');
+            td.style = this.getCellStyle(column, freezeColumnsAtLeft, left);
+            if (this.options.freezeColumnsAtLeft >= freezeColumnsAtLeft) {
+                left += column.width;
+                freezeColumnsAtLeft++;
+            }
+
+            td.textContent = row[column.fieldname] || '';
+            if (this.options.editable) {
+                this.createEditableField(td, column, row);
+            } else {
+                this.createNonEditableField(td, column, row);
+            }
+            tr.appendChild(td);
+        });
+
+        // Workflow Column
+        if (this.workflow && (this.wf_editable_allowed || this.wf_transitions_allowed)) {
+            let workflow_state_field = this.workflow?.workflow_state_field;
+            const bg = this.workflow_state_bg?.find(bg => bg.name === row[workflow_state_field] && bg.style);
+            const closureStates = this.workflow?.states?.filter(s => ['Positive', 'Negative'].includes(s.custom_closure)).map(e => e.state);
+            const isClosed = closureStates.includes(row[workflow_state_field]);
+            const wfActionTd = document.createElement('td');
+            const el = document.createElement('select');
+            el.classList.add('form-select', 'rounded');
+            const titleText = this.workflow.transitions
+                .filter(link => frappe.user_roles.includes(link.allowed) && link.state === row[workflow_state_field])
+                .map(e => `${e.action} by ${e.allowed}`)
+                .join("\n");
+
+            el.setAttribute('title', titleText);
+            el.style.width = '100px';
+            el.style.minWidth = '100px';
+            el.style.padding = '2px 5px';
+            el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
+            
+            if (isClosed) {
+                el.disabled = true;
+                el.classList.add('ellipsis');
+                el.setAttribute('title', row[workflow_state_field]);
+                el.innerHTML = `<option value="" style="color:black" selected disabled">${row[workflow_state_field]}</option>`;
+                el.style['-webkit-appearance'] = 'none';
+                el.style['-moz-appearance'] = 'none';
+                el.style['appearance'] = 'none';
+                el.style['background-color'] = 'transparent';
+                el.style['text-align'] = 'center';
+                wfActionTd.appendChild(el);
+            } else {
+                el.disabled = this.connection?.disable_workflow || (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
+                    !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
+                
+                // Note: We'll need to handle the async workflow transitions loading
+                el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>`;
+                
+                el.addEventListener('focus', (event) => {
+                    const originalState = el?.getAttribute('title');
+                    el.value = '';
+                    el.title = originalState;
+                });
+                
+                el.addEventListener('change', async (event) => {
+                    const action = event.target.value;
+                    const link = this.workflow.transitions.find(l => l.state == row[workflow_state_field] && l.action === action && frappe.user_roles.includes(l.allowed));
+                    const originalState = el?.getAttribute('title');
+                    if (link) {
+                        if (window.onWorkflowStateChange) {
+                            await window.onWorkflowStateChange(this, link, primaryKey, el, originalState);
+                        } else {
+                            try {
+                                await this.wf_action(link, primaryKey, el, originalState, row);
+                            } catch (error) {
+                                el.value = ''; // Reset dropdown value
+                                el.title = originalState;
+                            }
+                        }
+                        el.value = '';
+                        el.title = originalState;
+                    }
+                });
+
+                wfActionTd.appendChild(el);
+            }
+            wfActionTd.style.textAlign = 'center';
+            tr.appendChild(wfActionTd);
+        }
+
+        // Action Column
+        if ((this.conf_perms.length && (this.conf_perms.includes('read') || this.conf_perms.includes('delete') || this.conf_perms.includes('write'))) || this.childLinks?.length) {
+            const actionTd = document.createElement('td');
+            actionTd.style.minWidth = '50px';
+            actionTd.style.textAlign = 'center';
+            actionTd.style.position = 'sticky';
+            actionTd.style.right = '0px';
+            actionTd.style.backgroundColor = '#fff';
+            actionTd.appendChild(this.createActionColumn(row, primaryKey));
+
+            tr.appendChild(actionTd);
+        }
+
+        return tr;
+    }
+
+    /**
+     * Enhanced method to find DOM row by document name with multiple strategies
+     * @param {string} docname - Document name to search for
+     * @param {number} rowIndex - Expected row index in data array
+     * @returns {number} - DOM row index, -1 if not found
+     */
+    findDOMRowByDocname(docname, rowIndex) {
+        const tableRows = this.tBody.querySelectorAll('tr');
+        
+        for (let i = 0; i < tableRows.length; i++) {
+            const row = tableRows[i];
+            
+            // Strategy 1: Check if row has data-docname attribute
+            if (row.getAttribute('data-docname') === docname) {
+                return i;
+            }
+            
+            // Strategy 2: Check if any cell contains the document name
+            const nameCell = row.querySelector('td[data-docname="' + docname + '"]') || 
+                            row.querySelector('td:first-child p[data-docname="' + docname + '"]') ||
+                            row.querySelector('td a[href*="' + docname + '"]');
+            
+            if (nameCell) {
+                return i;
+            }
+            
+            // Strategy 3: Check serial number if serialNumberColumn is enabled
+            if (this.options.serialNumberColumn) {
+                const serialCell = row.querySelector('td:first-child p');
+                if (serialCell) {
+                    const expectedSerial = this.page > 1 
+                        ? ((this.page - 1) * this.limit) + (rowIndex + 1)
+                        : rowIndex + 1;
+                    if (parseInt(serialCell.textContent) === expectedSerial) {
+                        return i;
+                    }
+                }
+            }
+            
+            // Strategy 4: Check by position/index when serialNumberColumn is disabled
+            if (!this.options.serialNumberColumn && i === rowIndex) {
+                return i;
+            }
+            
+            // Strategy 5: Check for document name in any text content
+            const rowText = row.textContent || '';
+            if (rowText.includes(docname)) {
+                // Additional verification: check if it's actually a document name cell
+                const cells = row.querySelectorAll('td');
+                for (let cell of cells) {
+                    if (cell.textContent && cell.textContent.trim() === docname) {
+                        return i;
+                    }
+                }
+            }
+        }
+        
+        return -1;
+    }
+
     setTitle(label) {
         this.label = label;
         this.header_element.querySelector('p').innerHTML = `<p style="font-weight:bold;">${this.label ? this.label : ' '}</p>`;
@@ -259,23 +550,6 @@ class SvaDataTable {
             justify-content: flex-end; /* Aligns items to the right */
             gap: 10px;
         `;
-        // add button to import data
-        // if (this.permissions?.length && this.permissions.includes('create')) {
-        // let import_button = document.createElement('button');
-        // import_button.id = 'import_button';
-        // import_button.classList.add('btn', 'btn-secondary', 'btn-sm');
-        // import_button.textContent = 'Import';
-        // import_button.style = 'margin-bottom:10px; margin-left: auto; margin-right: 14px;';
-
-        // import_button.onclick = async () => {
-        //     let dialog = new CustomListView({
-        //         frm: this.frm,
-        //         connection: this.connection
-        //     });
-        //     dialog.custom_import();
-        // }
-        // row.appendChild(import_button);
-        // }
         let leftAlignedColumns = [];
         let rightAlignedColumns = [];
 
@@ -537,7 +811,7 @@ class SvaDataTable {
             }
         }
         if (this.total > this.limit) {
-            if (!wrapper.querySelector('div#footer-element').querySelector('div#pagination-element')) {
+            if (!wrapper.querySelector('div#footer-element')?.querySelector('div#pagination-element')) {
                 wrapper.querySelector('div#footer-element').appendChild(this.setupPagination());
             }
         }
@@ -2010,6 +2284,7 @@ class SvaDataTable {
                                 try {
                                     let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,changedValue)
                                     if (response){
+                                        me.reloadRow(response);
                                         frappe.show_alert({
                                             message: `${column?.label || column.fieldname} updated successfully`,
                                             indicator: 'success'
@@ -2025,6 +2300,7 @@ class SvaDataTable {
                                 try {
                                     let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,row[column.fieldname])
                                     if (response){
+                                        me.reloadRow(response);
                                         frappe.show_alert({
                                             message: `${column?.label || column.fieldname} updated successfully`,
                                             indicator: 'success'
@@ -2502,4 +2778,3 @@ class SvaDataTable {
         return overlay;
     }
 }
-
