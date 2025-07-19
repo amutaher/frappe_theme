@@ -757,3 +757,6 @@ class EmailComponent {
     }
 
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVAEmailComponent = EmailComponent;

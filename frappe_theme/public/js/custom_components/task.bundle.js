@@ -91,10 +91,6 @@ class mGrantTask {
                         name: 'Cancelled',
                         color: 'red'
                     },
-                    {
-                        name: 'Delayed',
-                        color: 'red'
-                    }
                 ]
             })
         }
@@ -169,9 +165,11 @@ class mGrantTask {
                         ${cur_frm.doctype === 'Proposal' ? '' : `
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Status</th>`}
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Priority</th>
+                        <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Closure Status</th>
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Start Date</th>
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Due Date</th>
                         <th class="static-area ellipsis" style="color:#525252; font-size: 13px;">Description</th>
+                        <th class="static-area ellipsis" style="width: 40px; text-align: center; position: sticky; right: 0px; background-color: #F8F8F8; "></th>
                     </tr>
                 </thead>
                 <tbody style="background-color: #fff; font-size: 12px;">
@@ -187,7 +185,7 @@ class mGrantTask {
                 : this.task_list.map(task => `
                             <tr class="grid-row">
                                 ${showActions ? `
-                                    <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff;">
+                                    <td class="row-check sortable-handle col" style="width: 40px; text-align: center; position: sticky; left: 0px; background-color: #fff; z-index: 1;">
                                         <input type="checkbox" class="toggleCheckbox" data-id="${task.name}">
                                     </td>
                                 ` : ''}
@@ -214,7 +212,6 @@ class mGrantTask {
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="In Progress">In Progress</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Done">Done</a>
                                                     <a class="dropdown-item task-status" data-task="${task.name}" data-status="Cancelled">Cancelled</a>
-                                                    <a class="dropdown-item task-status" data-task="${task.name}" data-status="Delayed">Delayed</a>
                                                 </div>
                                             </div>
                                         ` : `
@@ -225,22 +222,27 @@ class mGrantTask {
                                     </td>
                                 `}
                                 <td style="padding: 5px 8px !important;">
-                                    ${this.permissions.includes('write') && !this.is_readonly ? `
-                                        <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
-                                            <span title="Priority" id="dropPriority-${task.name}" class="small dropdown-toggle badge bg-light pointer ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                ${task?.priority ?? 'Low'}
-                                            </span>
-                                            <div class="dropdown-menu" aria-labelledby="dropPriority-${task.name}">
-                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Low">Low</a>
-                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Medium">Medium</a>
-                                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="High">High</a>
-                                            </div>
-                                        </div>
-                                    ` : `
-                                        <span class="badge ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}">
-                                            ${task?.priority ?? 'Low'}
-                                        </span>
-                                    `}
+                                ${this.permissions.includes('write') && !this.is_readonly ? `
+                                <div class="dropdown" style="width: 100px; height: 26px; border-radius: 4px; background-color: #F1F1F1; color: #0E1116; font-weight: 400; font-size: 14px; line-height: 15.4px; letter-spacing: 0.25%; display: flex; align-items: center; justify-content: center; gap: 4px">
+                                <span title="Priority" id="dropPriority-${task.name}" class="small dropdown-toggle badge bg-light pointer ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                ${task?.priority ?? 'Low'}
+                                </span>
+                                <div class="dropdown-menu" aria-labelledby="dropPriority-${task.name}">
+                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Low">Low</a>
+                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="Medium">Medium</a>
+                                <a class="dropdown-item task-priority" data-task="${task.name}" data-priority="High">High</a>
+                                </div>
+                                </div>
+                                ` : `
+                                <span class="badge ${task?.priority === 'High' ? 'text-danger' : task?.priority === 'Medium' ? 'text-warning' : 'text-muted'}">
+                                ${task?.priority ?? 'Low'}
+                                </span>
+                                `}
+                                </td>
+                                <td style="white-space: nowrap;" class="text-center">
+                                    <span style="padding: 7px 18px;" class="badge ${task?.custom_closure_status === 'Delayed' ? 'badge-danger' : 'badge-success'}">
+                                        ${task?.custom_closure_status ?? '---'}
+                                    </span>
                                 </td>
                                 <td style="white-space: nowrap;">${task.custom_start_date ? getFormattedDate(task.custom_start_date) : '--:--'}</td>
                                 <td style="white-space: nowrap;font-size: 12px !important;" class="${(task.date && (new Date(task.date) < new Date(frappe.datetime.get_today()))) ? 'text-danger' : 'text-muted'}">${task.date ? getFormattedDate(task.date) : '--:--'}</td>
@@ -248,7 +250,7 @@ class mGrantTask {
                                    <p style="white-space: nowrap;overflow: hidden;text-overflow:ellipsis;" title="${this.stripHtmlTags(task.description)}">${this.stripHtmlTags(task.description)}</p>
                                 </td>
                                 ${(this.permissions.includes('write') || this.permissions.includes('delete')) && !this.is_readonly ? `
-                                    <td>
+                                    <td style="width: 40px; text-align: center; position: sticky; right: 0px; background-color: #fff;">
                                         <div class="dropdown">
                                             <span title="action" class="pointer d-flex justify-content-center align-items-center" id="dropdownMenuButton-${task.name}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                 ⋮
@@ -789,3 +791,6 @@ class mGrantTask {
         }
     };
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVAmGrantTask = mGrantTask;
