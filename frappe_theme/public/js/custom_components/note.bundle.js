@@ -819,3 +819,6 @@ class NotesManager {
         }
     }
 }
+
+frappe.provide("frappe.ui");
+frappe.ui.SVANotesManager = NotesManager;
