@@ -1,6 +1,6 @@
 import SVASortSelector from './sva_sort_selector.bundle.js';
 import SVAListSettings from './list_settings.bundle.js';
-// import SVAFilterArea from './filters/filter_area.bundle.js';
+import SVAFilterArea from './filters/filter_area.bundle.js';
 import DTAction from '../vue/dt_action/dt.action.bundle.js';
 
 class SvaDataTable {
@@ -591,22 +591,22 @@ class SvaDataTable {
             let { message } = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_report_filters', doctype: this.link_report })
             report_filters = message;
         }
-        // new SVAFilterArea({
-        //     wrapper: list_filter,
-        //     doctype: this.doctype || this.link_report,
-        //     dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? { ...this, columns: this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters } : this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) : this.header.map(field => field.fieldname) },
-        //     on_change: (filters) => {
-        //         if (filters.length == 0) {
-        //             if (this.additional_list_filters.length) {
-        //                 this.additional_list_filters = []
-        //                 this.reloadTable(true);
-        //             }
-        //         } else {
-        //             this.additional_list_filters = filters
-        //             this.reloadTable(true);
-        //         }
-        //     }
-        // })
+        new SVAFilterArea({
+            wrapper: list_filter,
+            doctype: this.doctype || this.link_report,
+            dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? { ...this, columns: this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters } : this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) : this.header.map(field => field.fieldname) },
+            on_change: (filters) => {
+                if (filters.length == 0) {
+                    if (this.additional_list_filters.length) {
+                        this.additional_list_filters = []
+                        this.reloadTable(true);
+                    }
+                } else {
+                    this.additional_list_filters = filters
+                    this.reloadTable(true);
+                }
+            }
+        })
 
         if (this.connection.connection_type != 'Report') {
             this.sort_selector = new SVASortSelector({
