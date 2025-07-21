@@ -1656,14 +1656,14 @@ class SvaDataTable {
         const appendDropdownOption = (text, onClickHandler) => {
             const option = document.createElement('a');
             option.classList.add('dropdown-item');
-            option.textContent = text;
+            option.innerHTML = text;
             option.addEventListener('click', onClickHandler);
             dropdownMenu.appendChild(option);
         };
 
         // View Button
         if (this.crud.read && (this.conf_perms.length && this.permissions.length && this.permissions.includes('read'))) {
-            appendDropdownOption('View', async () => {
+            appendDropdownOption(`${frappe.utils.icon("view", "sm")} View`, async () => {
                 if (this.connection?.redirect_to_main_form) {
                     let route = frappe.get_route()
                     frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1685,7 +1685,7 @@ class SvaDataTable {
             if (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
-                        appendDropdownOption('Edit', async () => {
+                        appendDropdownOption(`${frappe.utils.icon("edit", "sm")} Edit`, async () => {
                             if (this.connection?.redirect_to_main_form) {
                                 let route = frappe.get_route()
                                 frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1697,7 +1697,7 @@ class SvaDataTable {
                         });
                     }
                 } else {
-                    appendDropdownOption('Edit', async () => {
+                    appendDropdownOption(`${frappe.utils.icon("edit", "sm")} Edit`, async () => {
                         if (this.connection?.redirect_to_main_form) {
                             let route = frappe.get_route()
                             frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1713,22 +1713,28 @@ class SvaDataTable {
             if (this.crud.delete && wf_editable && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
-                        appendDropdownOption('Delete', async () => {
+                        appendDropdownOption(`${frappe.utils.icon("delete", "sm")} Delete`, async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
                     }
                 } else {
-                    appendDropdownOption('Delete', async () => {
+                    appendDropdownOption(`${frappe.utils.icon("delete", "sm")} Delete`, async () => {
                         await this.deleteRecord(this.doctype, primaryKey);
                     });
                 }
             }
         }
+        // ========================= Print Button ======================
+        if (this.permissions.includes('print')) {
+            appendDropdownOption(`${frappe.utils.icon("printer", "sm")} Print`, () => {
+                frappe.utils.print(this.doctype, primaryKey, this.meta?.default_print_format || "Standard", "No Letterhead", frappe.boot?.lang || "en",)
+            });
+        }
 
         // Child Links
         if (this.childLinks?.length) {
             this.childLinks.forEach(async (link) => {
-                appendDropdownOption(link?.title || link.link_doctype, async () => {
+                appendDropdownOption(`${frappe.utils.icon("external-link", "sm")} ${link?.title || link.link_doctype}`, async () => {
                     await this.childTableDialog(link.link_doctype, primaryKey, row, link);
                 });
             });
