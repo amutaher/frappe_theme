@@ -1,4 +1,4 @@
-class NotesManager {
+class SVANotesManager {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = this.setupWrapper(wrapper);
@@ -819,3 +819,5 @@ class NotesManager {
         }
     }
 }
+
+export default SVANotesManager;

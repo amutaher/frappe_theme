@@ -1,4 +1,7 @@
-class GalleryComponent {
+import Loader from '../loader-element.js';
+
+
+class SVAGalleryComponent {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
@@ -1006,12 +1009,4 @@ class GalleryComponent {
     }
 }
 
-async function gallery_image(frm, selector) {
-    const wrapper = document.querySelector(`[data-fieldname="${selector}"]`);
-    if (wrapper) {
-        const galleryComponent = new GalleryComponent(frm, wrapper);
-        await galleryComponent.initialize();
-    } else {
-        console.error("Wrapper element not found!");
-    }
-}
+export default SVAGalleryComponent;

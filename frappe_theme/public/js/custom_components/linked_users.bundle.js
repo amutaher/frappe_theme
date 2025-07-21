@@ -1,4 +1,4 @@
-class LinkedUser {
+class SVALinkedUser {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
@@ -551,3 +551,5 @@ class LinkedUser {
     //     // if (cur_frm) cur_frm.refresh();
     // }
 }
+
+export default SVALinkedUser;
