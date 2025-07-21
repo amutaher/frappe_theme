@@ -149,3 +149,12 @@ function makeDialogFullScreen(dialog) {
     });
 }
 frappe.utils.make_dialog_fullscreen = makeDialogFullScreen;
+
+function getUserAvatar(fullName) {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(" ");
+    const firstInitial = parts[0]?.[0]?.toUpperCase() || "";
+    const lastInitial = parts[1]?.[0]?.toUpperCase() || "";
+    return firstInitial + lastInitial;
+}
+frappe.utils.get_user_avatar = getUserAvatar;
