@@ -167,6 +167,4 @@ class SVASortSelector {
 	}
 };
 
-frappe.provide("frappe.ui");
-frappe.ui.SVASortSelector = SVASortSelector;
 export default SVASortSelector;
