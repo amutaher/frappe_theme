@@ -1,4 +1,6 @@
-class CustomFilterArea {
+import SVAFilterGroup from './filter_list.bundle.js';
+
+class SVAFilterArea {
 	constructor({ wrapper, doctype,on_change,dt_filter_fields = [] }) {
         this.wrapper = wrapper;
         this.doctype = doctype;
@@ -41,7 +43,7 @@ class CustomFilterArea {
 
 		this.filter_button = this.filter_component.find(".filter-button");
 		this.filter_x_button = this.filter_component.find(".filter-x-button");
-		this.filter_list = new CustomFilterGroup({
+		this.filter_list = new SVAFilterGroup({
 			parent: this.filter_component,
 			doctype: this.doctype,
 			filter_button: this.filter_button,
@@ -52,3 +54,5 @@ class CustomFilterArea {
 		});
 	}
 }
+
+export default SVAFilterArea;
