@@ -843,7 +843,7 @@ class GalleryComponent {
                     frappe.confirm('Are you sure you want to delete this file?', async () => {
                         await frappe.db.delete_doc('File', fileId);
                         self.gallery_files = self.gallery_files.filter(file => file.name !== fileId);
-                        self.updateGallery();
+                        self.render();
                     });
                 } catch (error) {
                     console.error(error);
