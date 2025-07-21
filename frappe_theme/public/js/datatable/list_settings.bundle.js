@@ -378,5 +378,6 @@ class ListSettings {
 		return multiselect_fields;
 	}
 }
-
+frappe.provide("frappe.ui");
+frappe.ui.SVAListSettings = ListSettings;
 export default ListSettings;
