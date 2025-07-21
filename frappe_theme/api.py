@@ -63,6 +63,8 @@ def get_permissions(doctype,_type='Direct'):
             permissions.append('submit')
         if frappe.has_permission(doctype,'cancel'):
             permissions.append('cancel')
+        if frappe.has_permission(doctype,'print'):
+            permissions.append('print')
     return permissions
 
 @frappe.whitelist() 
