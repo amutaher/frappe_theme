@@ -379,5 +379,4 @@ class ListSettings {
 	}
 }
 
-frappe.provide("frappe.ui");
-frappe.ui.SVAListSettings = ListSettings;
+export default ListSettings;
