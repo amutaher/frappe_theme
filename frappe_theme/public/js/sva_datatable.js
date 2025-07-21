@@ -210,7 +210,7 @@ class SvaDataTable {
     async reloadRow(docname_or_updated_doc, fetch_from_server = false) {
         try {
             let docname, updated_doc;
-            
+
             // Determine if input is docname (string) or updated_doc (object)
             if (typeof docname_or_updated_doc === 'string') {
                 docname = docname_or_updated_doc;
@@ -260,10 +260,10 @@ class SvaDataTable {
             const tableRows = this.tBody.querySelectorAll('tr');
             const oldRow = tableRows[domRowIndex];
             const newRow = this.createTableRow(updated_doc, rowIndex);
-            
+
             if (oldRow && newRow) {
                 oldRow.replaceWith(newRow);
-                
+
                 // Trigger any after row update events
                 if (this.frm?.['dt_events']?.[this.doctype]?.['after_row_update']) {
                     let change = this.frm['dt_events'][this.doctype]['after_row_update'];
@@ -273,7 +273,7 @@ class SvaDataTable {
                         change(this, updated_doc, rowIndex);
                     }
                 }
-                
+
                 return true;
             }
 
@@ -365,7 +365,7 @@ class SvaDataTable {
             el.style.minWidth = '100px';
             el.style.padding = '2px 5px';
             el.classList.add(bg ? `bg-${bg.style.toLowerCase()}` : 'pl-[20px]', ...(bg ? ['text-white'] : []));
-            
+
             if (isClosed) {
                 el.disabled = true;
                 el.classList.add('ellipsis');
@@ -380,16 +380,16 @@ class SvaDataTable {
             } else {
                 el.disabled = this.connection?.disable_workflow || (this.connection?.keep_workflow_enabled_form_submission ? false : this.frm?.doc?.docstatus !== 0) || closureStates.includes(row[workflow_state_field]) ||
                     !(this.workflow?.transitions?.some(tr => frappe.user_roles.includes(tr.allowed) && tr.state === row[workflow_state_field]));
-                
+
                 // Note: We'll need to handle the async workflow transitions loading
                 el.innerHTML = `<option value="" style="color:black" selected disabled class="ellipsis">${row[workflow_state_field]}</option>`;
-                
+
                 el.addEventListener('focus', (event) => {
                     const originalState = el?.getAttribute('title');
                     el.value = '';
                     el.title = originalState;
                 });
-                
+
                 el.addEventListener('change', async (event) => {
                     const action = event.target.value;
                     const link = this.workflow.transitions.find(l => l.state == row[workflow_state_field] && l.action === action && frappe.user_roles.includes(l.allowed));
@@ -440,29 +440,29 @@ class SvaDataTable {
      */
     findDOMRowByDocname(docname, rowIndex) {
         const tableRows = this.tBody.querySelectorAll('tr');
-        
+
         for (let i = 0; i < tableRows.length; i++) {
             const row = tableRows[i];
-            
+
             // Strategy 1: Check if row has data-docname attribute
             if (row.getAttribute('data-docname') === docname) {
                 return i;
             }
-            
+
             // Strategy 2: Check if any cell contains the document name
-            const nameCell = row.querySelector('td[data-docname="' + docname + '"]') || 
+            const nameCell = row.querySelector('td[data-docname="' + docname + '"]') ||
                             row.querySelector('td:first-child p[data-docname="' + docname + '"]') ||
                             row.querySelector('td a[href*="' + docname + '"]');
-            
+
             if (nameCell) {
                 return i;
             }
-            
+
             // Strategy 3: Check serial number if serialNumberColumn is enabled
             if (this.options.serialNumberColumn) {
                 const serialCell = row.querySelector('td:first-child p');
                 if (serialCell) {
-                    const expectedSerial = this.page > 1 
+                    const expectedSerial = this.page > 1
                         ? ((this.page - 1) * this.limit) + (rowIndex + 1)
                         : rowIndex + 1;
                     if (parseInt(serialCell.textContent) === expectedSerial) {
@@ -470,12 +470,12 @@ class SvaDataTable {
                     }
                 }
             }
-            
+
             // Strategy 4: Check by position/index when serialNumberColumn is disabled
             if (!this.options.serialNumberColumn && i === rowIndex) {
                 return i;
             }
-            
+
             // Strategy 5: Check for document name in any text content
             const rowText = row.textContent || '';
             if (rowText.includes(docname)) {
@@ -488,7 +488,7 @@ class SvaDataTable {
                 }
             }
         }
-        
+
         return -1;
     }
 
@@ -792,23 +792,27 @@ class SvaDataTable {
                     create_button.textContent = "Add row";
                     create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
                     create_button.style = 'width:fit-content;height:fit-content; margin-bottom:10px;';
-                    create_button.addEventListener('click', async () => {
-                        if ((this.connection?.redirect_to_main_form || this.connection?.connection_type === 'Report')) {
-                            let params = {}
-                            if (this.connection?.connection_type === 'Referenced') {
-                                params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
-                                params[this.connection.dn_reference_field] = this.frm?.doc.name;
-                            } else if (this.connection?.connection_type === 'Direct') {
-                                params[this.connection.link_fieldname] = this.frm?.doc.name;
+                    let add_row_handler = this.frm?.['dt_events']?.[this.doctype]?.add_row_handler;
+                    if(!(add_row_handler && typeof add_row_handler === 'function') ){
+                        add_row_handler = async () => {
+                            if ((this.connection?.redirect_to_main_form || this.connection?.connection_type === 'Report')) {
+                                let params = {}
+                                if (this.connection?.connection_type === 'Referenced') {
+                                    params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
+                                    params[this.connection.dn_reference_field] = this.frm?.doc.name;
+                                } else if (this.connection?.connection_type === 'Direct') {
+                                    params[this.connection.link_fieldname] = this.frm?.doc.name;
+                                }
+                                let route = frappe.get_route()
+                                frappe.new_doc(this.doctype || this.connection.report_ref_dt, params).then(() => {
+                                    cur_frm['sva_dt_prev_route'] = route;
+                                });
+                            } else {
+                                await this.createFormDialog(this.doctype);
                             }
-                            let route = frappe.get_route()
-                            frappe.new_doc(this.doctype || this.connection.report_ref_dt, params).then(() => {
-                                cur_frm['sva_dt_prev_route'] = route;
-                            });
-                        } else {
-                            await this.createFormDialog(this.doctype);
                         }
-                    });
+                    }
+                    create_button.addEventListener('click', add_row_handler);
                     wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
                 }
             }
@@ -1188,8 +1192,8 @@ class SvaDataTable {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
                             f.hidden = 1;
+                            continue;
                         }
-                        continue;
                     }
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
