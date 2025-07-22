@@ -1,3 +1,8 @@
+import SVASortSelector from './sva_sort_selector.bundle.js';
+import SVAListSettings from './list_settings.bundle.js';
+import SVAFilterArea from './filters/filter_area.bundle.js';
+import DTAction from '../vue/dt_action/dt.action.bundle.js';
+
 class SvaDataTable {
     /**
      * Constructor for initializing the table with provided options.
@@ -451,8 +456,8 @@ class SvaDataTable {
 
             // Strategy 2: Check if any cell contains the document name
             const nameCell = row.querySelector('td[data-docname="' + docname + '"]') ||
-                            row.querySelector('td:first-child p[data-docname="' + docname + '"]') ||
-                            row.querySelector('td a[href*="' + docname + '"]');
+                row.querySelector('td:first-child p[data-docname="' + docname + '"]') ||
+                row.querySelector('td a[href*="' + docname + '"]');
 
             if (nameCell) {
                 return i;
@@ -586,7 +591,7 @@ class SvaDataTable {
             let { message } = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_report_filters', doctype: this.link_report })
             report_filters = message;
         }
-        new CustomFilterArea({
+        new SVAFilterArea({
             wrapper: list_filter,
             doctype: this.doctype || this.link_report,
             dt_filter_fields: { sva_dt: this.connection.connection_type == 'Report' ? { ...this, columns: this.frm ? report_filters.filter(f => f.options != this.frm?.doc?.doctype) : report_filters } : this, header: this.connection.connection_type == 'Report' ? report_filters.map(field => field.fieldname) : this.header.map(field => field.fieldname) },
@@ -602,6 +607,7 @@ class SvaDataTable {
                 }
             }
         })
+
         if (this.connection.connection_type != 'Report') {
             this.sort_selector = new SVASortSelector({
                 parent: $(list_filter),
@@ -620,21 +626,19 @@ class SvaDataTable {
 
                 },
             });
+
         }
 
         // add action button with dropdown
         let action_button = document.createElement('div');
         action_button.id = 'action_button';
 
-        frappe.require("dt.action.bundle.js").then(() => {
-            new frappe.ui.DTAction({
-                wrapper: action_button,
-                dt: this
-            });
-        })
+        new DTAction({
+            wrapper: action_button,
+            dt: this
+        });
         list_filter.appendChild(action_button);
 
-        //
         let options_wrapper = document.createElement('div');
 
         options_wrapper.id = 'options-wrapper';
@@ -676,60 +680,58 @@ class SvaDataTable {
     }
     async setupListviewSettings() {
         let dtmeta = await this.sva_db.call({ method: 'frappe_theme.dt_api.get_meta_fields', doctype: this.doctype || this.link_report, _type: this.connection.connection_type });
-        frappe.require("list_settings.bundle.js").then(() => {
-            new frappe.ui.SVAListSettings({
-                doctype: this.doctype || this.link_report,
-                meta: dtmeta.message,
-                connection_type: this.connection.connection_type,
-                settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
-                sva_dt: this,
-                dialog_primary_action: async (listview_settings, reset = false) => {
-                    try {
-                        if (!reset) {
-                            if (frappe.session.user == "Administrator") {
-                                await this.sva_db.call({
-                                    method: 'frappe.client.set_value',
-                                    doctype: this.connection.doctype,
-                                    name: this.connection.name,
-                                    fieldname: 'listview_settings',
-                                    value: JSON.stringify(listview_settings ?? []),
-                                });
-                            } else {
-                                await this.sva_db.call({
-                                    method: 'frappe_theme.dt_api.setup_user_list_settings',
-                                    parent_id: this.connection.parent,
-                                    child_dt: this.doctype || this.link_report,
-                                    listview_settings: JSON.stringify(listview_settings ?? []),
-                                });
-                                this.user_has_list_settings = true;
-                            }
+        new SVAListSettings({
+            doctype: this.doctype || this.link_report,
+            meta: dtmeta.message,
+            connection_type: this.connection.connection_type,
+            settings: { ...this.connection, listview_settings: JSON.stringify(this.header) },
+            sva_dt: this,
+            dialog_primary_action: async (listview_settings, reset = false) => {
+                try {
+                    if (!reset) {
+                        if (frappe.session.user == "Administrator") {
+                            await this.sva_db.call({
+                                method: 'frappe.client.set_value',
+                                doctype: this.connection.doctype,
+                                name: this.connection.name,
+                                fieldname: 'listview_settings',
+                                value: JSON.stringify(listview_settings ?? []),
+                            });
                         } else {
                             await this.sva_db.call({
-                                method: 'frappe_theme.dt_api.delete_user_list_settings',
+                                method: 'frappe_theme.dt_api.setup_user_list_settings',
                                 parent_id: this.connection.parent,
-                                child_dt: this.doctype
+                                child_dt: this.doctype || this.link_report,
+                                listview_settings: JSON.stringify(listview_settings ?? []),
                             });
-                            this.user_has_list_settings = false;
+                            this.user_has_list_settings = true;
                         }
-                        frappe.show_alert({ message: __('Listview settings updated'), indicator: 'success' });
-                    } catch (error) {
-                        console.error('Error in setupListviewSettings', error);
-                    } finally {
-                        this.header = listview_settings;
-                        if (window.sva_datatable_configuration?.[this.connection.parent]) {
-                            let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
-                            let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
-                            if (target) {
-                                target.listview_settings = JSON.stringify(listview_settings ?? [])
-                            } else if (target_child) {
-                                target_child.listview_settings = JSON.stringify(listview_settings ?? [])
-                            }
-                        }
-                        this.reloadTable(true);
+                    } else {
+                        await this.sva_db.call({
+                            method: 'frappe_theme.dt_api.delete_user_list_settings',
+                            parent_id: this.connection.parent,
+                            child_dt: this.doctype
+                        });
+                        this.user_has_list_settings = false;
                     }
+                    frappe.show_alert({ message: __('Listview settings updated'), indicator: 'success' });
+                } catch (error) {
+                    console.error('Error in setupListviewSettings', error);
+                } finally {
+                    this.header = listview_settings;
+                    if (window.sva_datatable_configuration?.[this.connection.parent]) {
+                        let target = window.sva_datatable_configuration?.[this.connection.parent]?.child_doctypes.find((item) => item.name == this.connection.name);
+                        let target_child = window.sva_datatable_configuration?.[this.connection.parent]?.child_confs.find((item) => item.name == this.connection.name);
+                        if (target) {
+                            target.listview_settings = JSON.stringify(listview_settings ?? [])
+                        } else if (target_child) {
+                            target_child.listview_settings = JSON.stringify(listview_settings ?? [])
+                        }
+                    }
+                    this.reloadTable(true);
                 }
-            });
-        })
+            }
+        });
     }
     setupTableWrapper(tableWrapper) {
         tableWrapper.style = `
@@ -1658,14 +1660,14 @@ class SvaDataTable {
         const appendDropdownOption = (text, onClickHandler) => {
             const option = document.createElement('a');
             option.classList.add('dropdown-item');
-            option.textContent = text;
+            option.innerHTML = text;
             option.addEventListener('click', onClickHandler);
             dropdownMenu.appendChild(option);
         };
 
         // View Button
         if (this.crud.read && (this.conf_perms.length && this.permissions.length && this.permissions.includes('read'))) {
-            appendDropdownOption('View', async () => {
+            appendDropdownOption(`${frappe.utils.icon("view", "sm")} View`, async () => {
                 if (this.connection?.redirect_to_main_form) {
                     let route = frappe.get_route()
                     frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1687,7 +1689,7 @@ class SvaDataTable {
             if (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
-                        appendDropdownOption('Edit', async () => {
+                        appendDropdownOption(`${frappe.utils.icon("edit", "sm")} Edit`, async () => {
                             if (this.connection?.redirect_to_main_form) {
                                 let route = frappe.get_route()
                                 frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1699,7 +1701,7 @@ class SvaDataTable {
                         });
                     }
                 } else {
-                    appendDropdownOption('Edit', async () => {
+                    appendDropdownOption(`${frappe.utils.icon("edit", "sm")} Edit`, async () => {
                         if (this.connection?.redirect_to_main_form) {
                             let route = frappe.get_route()
                             frappe.set_route("Form", this.doctype, primaryKey).then(() => {
@@ -1715,22 +1717,28 @@ class SvaDataTable {
             if (this.crud.delete && wf_editable && (this.permissions.includes('delete') && this.conf_perms.includes('delete') && is_deletable)) {
                 if ((this.wf_positive_closure || this.wf_negative_closure) && row['workflow_state']) {
                     if (![this.wf_positive_closure, this.wf_negative_closure].includes(row['workflow_state'])) {
-                        appendDropdownOption('Delete', async () => {
+                        appendDropdownOption(`${frappe.utils.icon("delete", "sm")} Delete`, async () => {
                             await this.deleteRecord(this.doctype, primaryKey);
                         });
                     }
                 } else {
-                    appendDropdownOption('Delete', async () => {
+                    appendDropdownOption(`${frappe.utils.icon("delete", "sm")} Delete`, async () => {
                         await this.deleteRecord(this.doctype, primaryKey);
                     });
                 }
             }
         }
+        // ========================= Print Button ======================
+        if (this.permissions.includes('print')) {
+            appendDropdownOption(`${frappe.utils.icon("printer", "sm")} Print`, () => {
+                frappe.utils.print(this.doctype, primaryKey, this.meta?.default_print_format || "Standard", "No Letterhead", frappe.boot?.lang || "en",)
+            });
+        }
 
         // Child Links
         if (this.childLinks?.length) {
             this.childLinks.forEach(async (link) => {
-                appendDropdownOption(link?.title || link.link_doctype, async () => {
+                appendDropdownOption(`${frappe.utils.icon("external-link", "sm")} ${link?.title || link.link_doctype}`, async () => {
                     await this.childTableDialog(link.link_doctype, primaryKey, row, link);
                 });
             });
@@ -2289,8 +2297,8 @@ class SvaDataTable {
                             let changedValue = control.get_input_value();
                             if (row[column.fieldname] && (row[column.fieldname] != changedValue)) {
                                 try {
-                                    let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,changedValue)
-                                    if (response){
+                                    let response = await me.sva_db.set_value(me.doctype, row.name, column.fieldname, changedValue)
+                                    if (response) {
                                         me.reloadRow(response);
                                         frappe.show_alert({
                                             message: `${column?.label || column.fieldname} updated successfully`,
@@ -2303,10 +2311,10 @@ class SvaDataTable {
                                         indicator: 'danger'
                                     })
                                 }
-                            }else{
+                            } else {
                                 try {
-                                    let response = await me.sva_db.set_value(me.doctype,row.name,column.fieldname,row[column.fieldname])
-                                    if (response){
+                                    let response = await me.sva_db.set_value(me.doctype, row.name, column.fieldname, row[column.fieldname])
+                                    if (response) {
                                         me.reloadRow(response);
                                         frappe.show_alert({
                                             message: `${column?.label || column.fieldname} updated successfully`,
@@ -2785,3 +2793,5 @@ class SvaDataTable {
         return overlay;
     }
 }
+
+export default SvaDataTable;
