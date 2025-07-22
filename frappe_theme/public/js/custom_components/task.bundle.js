@@ -1,4 +1,4 @@
-class mGrantTask {
+class SVAmGrantTask {
     constructor(frm = null, wrapper = null) {
         // debugger
         this.frm = frm;
@@ -791,3 +791,5 @@ class mGrantTask {
         }
     };
 }
+
+export default SVAmGrantTask;

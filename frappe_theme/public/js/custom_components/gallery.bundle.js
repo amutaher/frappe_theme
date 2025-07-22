@@ -1,4 +1,7 @@
-class GalleryComponent {
+import Loader from '../loader-element.js';
+
+
+class SVAGalleryComponent {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
@@ -31,7 +34,7 @@ class GalleryComponent {
             }
             // Get permissions and store them
             this.permissions = await this.get_permissions("File");
-            
+
             // Initialize the wrapper with basic structure regardless of permissions
             this.wrapper.innerHTML = `
                 <div class="gallery-wrapper">
@@ -55,7 +58,7 @@ class GalleryComponent {
                     color: var(--gray-600);
                 `;
                 noPermissionDiv.textContent = "You do not have permission through role permission to access this resource.";
-                
+
                 // Clear the gallery body and append the no permission message
                 const galleryBody = this.wrapper.querySelector('#gallery-body');
                 galleryBody.innerHTML = '';
@@ -84,7 +87,7 @@ class GalleryComponent {
                 color: var(--gray-600);
             `;
             errorDiv.textContent = `Failed to initialize gallery: ${error.message || error}`;
-            
+
             const galleryBody = this.wrapper.querySelector('#gallery-body');
             galleryBody.innerHTML = '';
             galleryBody.appendChild(errorDiv);
@@ -402,7 +405,7 @@ class GalleryComponent {
     renderHeader() {
         const canCreate = this.permissions.includes('create');
         const canDelete = this.permissions.includes('delete');
-        
+
         const headerHTML = `
             <div class="row" style="display: flex; justify-content: space-between; align-items: center; margin: 0;">
                 <div style="display: flex; align-items: center; gap: 16px;">
@@ -443,10 +446,10 @@ class GalleryComponent {
             </div>
         `;
     }
-    preview_file (frm) {
+    preview_file(frm) {
         // return console.log(frm)
         let file_extension = frm?.file_url?.split(".").pop();
-		let show_file = new frappe.ui.Dialog({
+        let show_file = new frappe.ui.Dialog({
             title: __('Preview File'),
             size: 'large',
             fields: [
@@ -474,22 +477,22 @@ class GalleryComponent {
         // if(!frappe.utils.is_image_file(frm.file_url)){
         //     show_file.get_primary_btn().hide();
         // }
-		if (frappe.utils.is_image_file(frm.file_url)) {
-			$preview = $(`<div class="img_preview position-relative">
+        if (frappe.utils.is_image_file(frm.file_url)) {
+            $preview = $(`<div class="img_preview position-relative">
 				<img style="width: 100%; max-height:75vh;object-fit: contain;" 
 					class="img-responsive"
 					src="${frappe.utils.escape_html(frm.file_url)}"
 				/>
 			</div>`);
-		} else if (frappe.utils.is_video_file(frm.file_url)) {
-			$preview = $(`<div class="img_preview d-flex justify-content-center">
+        } else if (frappe.utils.is_video_file(frm.file_url)) {
+            $preview = $(`<div class="img_preview d-flex justify-content-center">
 				<video style="width:100%" height="320" controls>
 					<source src="${frappe.utils.escape_html(frm.file_url)}">
 					${__("Your browser does not support the video element.")}
 				</video>
 			</div>`);
-		} else if (file_extension === "pdf") {
-			$preview = $(`<div class="img_preview">
+        } else if (file_extension === "pdf") {
+            $preview = $(`<div class="img_preview">
 				<object style="background:#323639;" width="100%">
 					<embed
 						style="background:#323639;"
@@ -499,24 +502,24 @@ class GalleryComponent {
 					>
 				</object>
 			</div>`);
-		} else if (file_extension === "mp3") {
-			$preview = $(`<div class="img_preview d-flex justify-content-center">
+        } else if (file_extension === "mp3") {
+            $preview = $(`<div class="img_preview d-flex justify-content-center">
 				<audio width="480" height="60" controls>
 					<source src="${frappe.utils.escape_html(frm.file_url)}" type="audio/mpeg">
 					${__("Your browser does not support the audio element.")}
 				</audio >
 			</div>`);
-		}else{
+        } else {
             $preview = $(`<div class="img_preview d-flex justify-content-center">
 				<p class="text-muted">Preview not available for this file type</p>
 			</div>`);
         }
 
-		if ($preview) {
+        if ($preview) {
             show_file.show();
-			show_file.get_field("preview_html").$wrapper.html($preview);
-		}
-	}
+            show_file.get_field("preview_html").$wrapper.html($preview);
+        }
+    }
     convertTofileSize(size) {
         if (size < 1024) {
             return size + ' Bytes';
@@ -537,8 +540,8 @@ class GalleryComponent {
         return `
             <div class="row">
                 ${this.gallery_files.map(file => {
-                    let extension = file?.file_url?.split('.').pop()?.toLowerCase();
-                    return `
+            let extension = file?.file_url?.split('.').pop()?.toLowerCase();
+            return `
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
                             <div class="image-card">
                                 <div class="image-container">
@@ -586,14 +589,14 @@ class GalleryComponent {
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <div class="file-date" style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;"
-                                        title="by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}">
-                                        by ${file.owner_full_name} ${file.owner!='Administrator' ? `(${file.owner})`:''}
+                                        title="by ${file.owner_full_name} ${file.owner != 'Administrator' ? `(${file.owner})` : ''}">
+                                        by ${file.owner_full_name} ${file.owner != 'Administrator' ? `(${file.owner})` : ''}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
     }
@@ -731,6 +734,7 @@ class GalleryComponent {
                         if (new_file) {
                             let complete_file = await frappe.db.get_doc('File', new_file.name);
                             self.gallery_files.unshift(complete_file);
+                            self.render();
                             await self.fetchGalleryFiles();
                             frappe.show_alert({
                                 message: __('File uploaded successfully'),
@@ -796,8 +800,8 @@ class GalleryComponent {
                         }
                         self.gallery_files = self.gallery_files.filter(file => !self.selectedFiles.includes(file.name));
                         self.selectedFiles = [];
+                        self.render();
                         self.updateSelectedFilesUI();
-                        self.updateGallery();
                         frappe.show_alert({
                             message: __('Files deleted successfully'),
                             indicator: 'green'
@@ -842,7 +846,7 @@ class GalleryComponent {
                     frappe.confirm('Are you sure you want to delete this file?', async () => {
                         await frappe.db.delete_doc('File', fileId);
                         self.gallery_files = self.gallery_files.filter(file => file.name !== fileId);
-                        self.updateGallery();
+                        self.render();
                     });
                 } catch (error) {
                     console.error(error);
@@ -850,7 +854,7 @@ class GalleryComponent {
             }
         });
 
-        $('.preview-btn').off('click').on('click', function() {
+        $('.preview-btn').off('click').on('click', function () {
             const fileData = $(this).data('file');
             if (fileData) {
                 self.preview_file(fileData);
@@ -891,7 +895,7 @@ class GalleryComponent {
 
     updateSelectedFilesUI() {
         const deleteSelectedButton = document.getElementById('deleteSelectedButton');
-        
+
         // Only update delete button if it exists (user has delete permission)
         if (deleteSelectedButton) {
             if (this.selectedFiles.length > 0) {
@@ -923,6 +927,7 @@ class GalleryComponent {
         // bodyWrapper.style.minHeight = '500px';
         bodyWrapper.style.overflow = 'auto';
         this.attachGalleryItemEventListeners(); // Attach event listeners to gallery items
+        this.attachEventListeners();
     }
 
     renderListView() {
@@ -952,8 +957,8 @@ class GalleryComponent {
                 </div>
                 <div class="frappe-list-body">
                     ${this.gallery_files.map(file => {
-                        let extension = file?.file_url?.split('.').pop()?.toLowerCase();
-                        return `
+            let extension = file?.file_url?.split('.').pop()?.toLowerCase();
+            return `
                             <div class="frappe-list-row">
                                 ${canDelete ? `
                                     <div class="frappe-list-col frappe-list-col-checkbox">
@@ -999,19 +1004,11 @@ class GalleryComponent {
                                 ` : ''}
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
     }
 }
 
-async function gallery_image(frm, selector) {
-    const wrapper = document.querySelector(`[data-fieldname="${selector}"]`);
-    if (wrapper) {
-        const galleryComponent = new GalleryComponent(frm, wrapper);
-        await galleryComponent.initialize();
-    } else {
-        console.error("Wrapper element not found!");
-    }
-}
+export default SVAGalleryComponent;

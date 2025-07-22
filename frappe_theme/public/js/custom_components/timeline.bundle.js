@@ -1,4 +1,4 @@
-class TimelineGenerator {
+class SVATimelineGenerator {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = this.setupWrapper(wrapper);
@@ -916,3 +916,5 @@ class TimelineGenerator {
         }
     }
 }
+
+export default SVATimelineGenerator;
