@@ -69,16 +69,18 @@ const set_list_settings = async (frm, cdt, cdn) => {
             _type: row.connection_type
         }
     });
-    new ListSettings({
-        doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
-        meta: dtmeta.message,
-        connection_type: row.connection_type,
-        settings: row,
-        dialog_primary_action: async (listview_settings) => {
-            frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_settings));
-            frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
-        }
-    });
+    frappe.require("list_settings.bundle.js").then(() => {
+        new frappe.ui.SVAListSettings({
+            doctype: row.connection_type == "Report" ? row.link_report : (["Direct", "Unfiltered","Indirect"].includes(row.connection_type) ? row.link_doctype : row.referenced_link_doctype ?? row.link_doctype),
+            meta: dtmeta.message,
+            connection_type: row.connection_type,
+            settings: row,
+            dialog_primary_action: async (listview_settings) => {
+                frappe.model.set_value(cdt, cdn, "listview_settings", JSON.stringify(listview_settings));
+                frappe.show_alert({ message: __('Listview settings updated'), indicator: 'green' });
+            }
+        })
+    })
 }
 const set_crud_permissiions = (frm, cdt, cdn) => {
     let row = locals[cdt][cdn];
