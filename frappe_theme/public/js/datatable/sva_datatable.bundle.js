@@ -2288,7 +2288,7 @@ class SvaDataTable {
             let wf_editable = (this.workflow ? wf_editable_roles?.some(role => frappe.user_roles.includes(role)) : true);
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
             let editable = !edit_level1 && (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable))
-            if (col.inline_edit && editable) {
+            if (col?.inline_edit && editable) {
                 let me = this;
                 const control = frappe.ui.form.make_control({
                     parent: td,
