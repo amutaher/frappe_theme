@@ -1175,10 +1175,10 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                            f.default = 0;
-                        } else {
+                    if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        if (!f.depends_on) {
+                            f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                        }else{
                             f.hidden = 1;
                         }
                         continue;
@@ -1299,10 +1299,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
-                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                            f.default = 0;
-                        } else {
+                    if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !f.default) {
+                        if (!f.depends_on) {
+                            f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                        }else{
                             f.hidden = 1;
                         }
                         continue;
@@ -1352,15 +1352,14 @@ class SvaDataTable {
                             </div>
                         `;
                     } else {
-                        f.default = '';
                         f.hidden = 1;
                     }
                     continue;
                 }
-                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                        f.default = 0;
-                    } else {
+                if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    if (!f.depends_on) {
+                        f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                    }else{
                         f.hidden = 1;
                     }
                     continue;
@@ -1468,7 +1467,9 @@ class SvaDataTable {
                 if (additional_action) {
                     additional_action(false);
                 }
-                dialog.clear();
+                if (mode != 'view') {
+                    dialog.clear();
+                }
                 dialog.hide();
             }
         });
