@@ -35,7 +35,7 @@
    "fieldname": "parent_task_name",
    "fieldtype": "Link",
    "label": "Parent Task Name",
-   "link_filters": "[[\"SVA Task Planner\",\"is_group\",\"=\",1]]",
+   "link_filters": "[]",
    "mandatory_depends_on": "eval:!doc.is_group",
    "options": "SVA Task Planner"
   },
@@ -82,7 +82,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-28 13:01:44.804698",
+ "modified": "2025-07-28 18:51:16.219034",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "SVA Task Planner",
