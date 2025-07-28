@@ -1,6 +1,13 @@
 // Copyright (c) 2025, Suvaidyam and contributors
 // For license information, please see license.txt
 function setDayOptions(frm) {
+    frm.set_query("parent_task_name", function () {
+        return {
+            filters: {
+                "is_group": 1
+            }
+        };
+    });
     monthly_dates = [
         "",
         "Start of the month",
