@@ -12,20 +12,17 @@ Quarterly_dates = ["", "Start of the month", "End of the month"]
 
 frappe.ui.form.on("SVA Task Planner", {
     refresh(frm) {
-
-        if (frm.doc.frequency === "Quarterly") {
-            frm.set_df_property("day", "options", Quarterly_dates);
-        } else {
-            frm.set_df_property("day", "options", monthly_dates);
-        }
-
+        setDayOptions(frm);
     },
     frequency(frm) {
-        if (frm.doc.frequency === "Quarterly") {
-            frm.set_df_property("day", "options", Quarterly_dates);
-        } else {
-            frm.set_df_property("day", "options", monthly_dates);
-        }
-
+        setDayOptions(frm);
     }
 });
+
+function setDayOptions(frm) {
+    if (frm.doc.frequency === "Quarterly") {
+        frm.set_df_property("day", "options", Quarterly_dates);
+    } else {
+        frm.set_df_property("day", "options", monthly_dates);
+    }
+}
