@@ -41,3 +41,24 @@
     padding-top: 0px !important;
     padding-bottom: 0px !important;
 }
+
+/* Fix for icon button hover states */
+.btn:hover .filter-icon,
+.btn:hover .filter-icon svg,
+.btn:hover .filter-icon .icon,
+.btn:hover .es-icon,
+.btn:hover svg.icon {
+    color: inherit;
+}
+
+.btn.filter-button:hover,
+.btn.filter-x-button:hover,
+.btn.icon-btn:hover {
+    color: var(--text-color, #495057);
+}
+
+.btn.filter-button:hover .button-label,
+.btn.filter-x-button:hover .button-label,
+.btn:hover .button-label {
+    color: inherit;
+}
