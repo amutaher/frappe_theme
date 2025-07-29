@@ -138,7 +138,7 @@ const addCustomLogo = () => {
     }
 }
 const applyTheme = async () => {
-    let theme = await getTheme();
+    let theme = frappe.boot?.my_theme || await getTheme();
     const style = document.createElement('style');
     style.innerHTML = `
         /* Login page */
