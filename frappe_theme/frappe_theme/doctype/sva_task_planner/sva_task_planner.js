@@ -16,10 +16,10 @@ function setDayOptions(frm) {
         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
         21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
     ]
-    Quarterly_dates = ["", "Start of the month", "End of the month"]
+    quarterly_dates = ["", "Start of the month", "End of the month"]
 
     if (frm.doc.frequency === "Quarterly") {
-        frm.set_df_property("day", "options", Quarterly_dates);
+        frm.set_df_property("day", "options", quarterly_dates);
     } else {
         frm.set_df_property("day", "options", monthly_dates);
     }
