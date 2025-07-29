@@ -35,7 +35,6 @@
    "fieldname": "parent_task_name",
    "fieldtype": "Link",
    "label": "Parent Task Name",
-   "link_filters": "[]",
    "mandatory_depends_on": "eval:!doc.is_group",
    "options": "SVA Task Planner"
   },
