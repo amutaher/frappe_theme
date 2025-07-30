@@ -794,23 +794,27 @@ class SvaDataTable {
                     create_button.textContent = "Add row";
                     create_button.classList.add('btn', 'btn-secondary', 'btn-sm');
                     create_button.style = 'width:fit-content;height:fit-content; margin-bottom:10px;';
-                    create_button.addEventListener('click', async () => {
-                        if ((this.connection?.redirect_to_main_form || this.connection?.connection_type === 'Report')) {
-                            let params = {}
-                            if (this.connection?.connection_type === 'Referenced') {
-                                params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
-                                params[this.connection.dn_reference_field] = this.frm?.doc.name;
-                            } else if (this.connection?.connection_type === 'Direct') {
-                                params[this.connection.link_fieldname] = this.frm?.doc.name;
+                    let add_row_handler = this.frm?.['dt_events']?.[this.doctype]?.add_row_handler;
+                    if(!(add_row_handler && typeof add_row_handler === 'function') ){
+                        add_row_handler = async () => {
+                            if ((this.connection?.redirect_to_main_form || this.connection?.connection_type === 'Report')) {
+                                let params = {}
+                                if (this.connection?.connection_type === 'Referenced') {
+                                    params[this.connection.dt_reference_field] = this.frm?.doc.doctype;
+                                    params[this.connection.dn_reference_field] = this.frm?.doc.name;
+                                } else if (this.connection?.connection_type === 'Direct') {
+                                    params[this.connection.link_fieldname] = this.frm?.doc.name;
+                                }
+                                let route = frappe.get_route()
+                                frappe.new_doc(this.doctype || this.connection.report_ref_dt, params).then(() => {
+                                    cur_frm['sva_dt_prev_route'] = route;
+                                });
+                            } else {
+                                await this.createFormDialog(this.doctype);
                             }
-                            let route = frappe.get_route()
-                            frappe.new_doc(this.doctype || this.connection.report_ref_dt, params).then(() => {
-                                cur_frm['sva_dt_prev_route'] = route;
-                            });
-                        } else {
-                            await this.createFormDialog(this.doctype);
                         }
-                    });
+                    }
+                    create_button.addEventListener('click', add_row_handler);
                     wrapper.querySelector('div#footer-element').querySelector('div#create-button-container').appendChild(create_button);
                 }
             }
@@ -1171,10 +1175,10 @@ class SvaDataTable {
                             return { filters };
                         };
                     }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                            f.default = 0;
-                        } else {
+                    if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                        if (!f.depends_on) {
+                            f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                        }else{
                             f.hidden = 1;
                         }
                         continue;
@@ -1190,8 +1194,8 @@ class SvaDataTable {
                         if (f.hidden) {
                             f.fieldtype = 'Data'
                             f.hidden = 1;
+                            continue;
                         }
-                        continue;
                     }
                     if (this.frm?.['dt_events']?.[this.doctype]?.[f.fieldname]) {
                         let change = this.frm['dt_events'][this.doctype][f.fieldname]
@@ -1295,10 +1299,10 @@ class SvaDataTable {
                         }
                         f.read_only = 1;
                     }
-                    if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !f.default) {
-                        if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                            f.default = 0;
-                        } else {
+                    if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !f.default) {
+                        if (!f.depends_on) {
+                            f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                        }else{
                             f.hidden = 1;
                         }
                         continue;
@@ -1348,15 +1352,14 @@ class SvaDataTable {
                             </div>
                         `;
                     } else {
-                        f.default = '';
                         f.hidden = 1;
                     }
                     continue;
                 }
-                if (!['Check', 'Button'].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
-                    if (['Currency', 'Float', 'Int'].includes(f.fieldtype)) {
-                        f.default = 0;
-                    } else {
+                if (!['Check', 'Button',"Table","Table MultiSelect"].includes(f.fieldtype) && f.read_only && !doc[f.fieldname]) {
+                    if (!f.depends_on) {
+                        f.depends_on = `eval:(doc?.${f.fieldname} != null || doc?.${f.fieldname} != undefined)`
+                    }else{
                         f.hidden = 1;
                     }
                     continue;
@@ -1464,7 +1467,9 @@ class SvaDataTable {
                 if (additional_action) {
                     additional_action(false);
                 }
-                dialog.clear();
+                if (mode != 'view') {
+                    dialog.clear();
+                }
                 dialog.hide();
             }
         });
@@ -2283,7 +2288,7 @@ class SvaDataTable {
             let wf_editable = (this.workflow ? wf_editable_roles?.some(role => frappe.user_roles.includes(role)) : true);
             let is_editable = this.connection?.disable_edit_depends_on ? !frappe.utils.custom_eval(this.connection?.disable_edit_depends_on, row) : true;
             let editable = !edit_level1 && (this.crud.write && wf_editable && (this.permissions.includes('write') && this.conf_perms.includes('write') && is_editable))
-            if (col.inline_edit && editable) {
+            if (col?.inline_edit && editable) {
                 let me = this;
                 const control = frappe.ui.form.make_control({
                     parent: td,
