@@ -18,6 +18,16 @@ if (frappe.ui?.FileUploader) {
     };
 }
 
+import Loader from './loader-element.js';
+import SvaDataTable from './datatable/sva_datatable.bundle.js';
+import SVADashboardManager from './sva_dashboard_manager.bundle.js';
+import SVAEmailComponent from './custom_components/communication.bundle.js';
+import SVAGalleryComponent from './custom_components/gallery.bundle.js';
+import SVALinkedUser from './custom_components/linked_users.bundle.js';
+import SVANotesManager from './custom_components/note.bundle.js';
+import SVAmGrantTask from './custom_components/task.bundle.js';
+import SVATimelineGenerator from './custom_components/timeline.bundle.js';
+
 frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     constructor(...args) {
         super(...args);
@@ -103,13 +113,13 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
             if (frappe?.boot?.my_theme?.hide_form_comment) {
                 $('.comment-input-wrapper').hide();
                 $('.new-timeline').hide();
-            }else{
+            } else {
                 $('.comment-input-wrapper').show();
                 $('.new-timeline').show();
             }
             if (frappe?.boot?.my_theme?.hide_print_icon) {
                 frm.page.hide_icon_group('print')
-            }else{
+            } else {
                 frm.page.show_icon_group('print')
             }
             const dt_props = await this.getPropertySetterData(frm.doc.doctype);
@@ -562,7 +572,7 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
     }
 
     processConfigurationFields(dts, tab_fields) {
-        const dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field)) || [];
+        const dtFields = dts.child_doctypes?.filter(f => tab_fields.includes(f.html_field) && !f.hide_table) || [];
 
         const vm_fields = [
             ...(dts?.number_cards?.filter(f => tab_fields.includes(f.html_field)) || []).map(f => f.html_field),
@@ -672,12 +682,12 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
 
     getComponentClass(template) {
         const componentMap = {
-            "Gallery": GalleryComponent,
-            "Email": EmailComponent,
-            "Tasks": mGrantTask,
-            "Timeline": TimelineGenerator,
-            "Notes": NotesManager,
-            "Linked Users": LinkedUser
+            "Gallery": SVAGalleryComponent,
+            "Email": SVAEmailComponent,
+            "Tasks": SVAmGrantTask,
+            "Timeline": SVATimelineGenerator,
+            "Notes": SVANotesManager,
+            "Linked Users": SVALinkedUser
         };
         return componentMap[template];
     }
@@ -824,26 +834,21 @@ frappe.ui.form.Form = class CustomForm extends frappe.ui.form.Form {
         const loader = new Loader(el, componentId);
         try {
             loader.show();
-
             if (signal.aborted) return;
-
             const ComponentClass = this.getComponentClass(template);
-            if (ComponentClass) {
-                const instance = new ComponentClass(frm, el, { signal });
-
-                // Store cleanup function
-                this.mountedComponents.set(componentId, () => {
-                    if (instance.cleanup) {
-                        instance.cleanup();
-                    }
-                    if (instance.destroy) {
-                        instance.destroy();
-                    }
-                    if (instance.unmount) {
-                        instance.unmount();
-                    }
-                });
-            }
+            let instance = new ComponentClass(frm, el, { signal });
+            // Store cleanup function
+            this.mountedComponents.set(componentId, () => {
+                if (instance.cleanup) {
+                    instance.cleanup();
+                }
+                if (instance.destroy) {
+                    instance.destroy();
+                }
+                if (instance.unmount) {
+                    instance.unmount();
+                }
+            });
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error(`Error rendering component ${template}:`, error);

@@ -1,4 +1,4 @@
-class EmailComponent {
+class SVAEmailComponent {
     constructor(frm, wrapper) {
         this.frm = frm;
         this.wrapper = wrapper;
@@ -757,3 +757,5 @@ class EmailComponent {
     }
 
 }
+
+export default SVAEmailComponent;
