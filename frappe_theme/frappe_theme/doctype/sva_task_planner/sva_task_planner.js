@@ -23,7 +23,6 @@ function setDayOptions(frm) {
     const options = dayOptionsByFrequency[frm.doc.frequency] || dayOptionsByFrequency["Monthly"];
     frm.set_df_property("day", "options", options);
 
-    // Optional: filter for parent_task_name
     frm.set_query("parent_task_name", () => ({
         filters: {
             is_group: 1
