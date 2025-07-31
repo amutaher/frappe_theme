@@ -1,8 +1,8 @@
 // Copyright (c) 2025, Suvaidyam and contributors
 // For license information, please see license.txt
 
-function setDayOptions(frm) {
-    const dayOptionsByFrequency = {
+function set_day_options(frm) {
+    const day_options_by_frequency = {
         "Monthly": [
             "", "Start of the month", "End of the month",
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -20,7 +20,7 @@ function setDayOptions(frm) {
         ]
     };
 
-    const options = dayOptionsByFrequency[frm.doc.frequency] || dayOptionsByFrequency["Monthly"];
+    const options = day_options_by_frequency[frm.doc.frequency] || day_options_by_frequency["Monthly"];
     frm.set_df_property("day", "options", options);
 
     frm.set_query("parent_task_name", () => ({
@@ -32,9 +32,9 @@ function setDayOptions(frm) {
 
 frappe.ui.form.on("SVA Task Planner", {
     refresh(frm) {
-        setDayOptions(frm);
+        set_day_options(frm);
     },
     frequency(frm) {
-        setDayOptions(frm);
+        set_day_options(frm);
     }
 });
