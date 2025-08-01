@@ -22,7 +22,7 @@ function set_day_options(frm) {
             "Start of the year", "End of the year"
         ],
         "Bi-Annually": [
-            "Start of the Bi-Annually Period", "End of the Bi-Annually Period"
+            "Start of the Bi-Annual Period", "End of the Bi-Annual Period"
         ]
     };
 
