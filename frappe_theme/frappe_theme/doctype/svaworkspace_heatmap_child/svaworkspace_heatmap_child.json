@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-24 13:00:17.825716",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "custom_block",
+  "column_break_xtcd",
+  "report",
+  "section_break_qlqe",
+  "target_fields",
+  "setup_target_fields",
+  "column_break_tabo",
+  "primary_target",
+  "section_break_vhni",
+  "default_view",
+  "block_height",
+  "column_break_dwyd",
+  "min_data_color",
+  "max_data_color"
+ ],
+ "fields": [
+  {
+   "fieldname": "custom_block",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custom Block",
+   "options": "Custom HTML Block",
+   "reqd": 1
+  },
+  {
+   "fieldname": "report",
+   "fieldtype": "Link",
+   "label": "Report",
+   "options": "Report",
+   "reqd": 1
+  },
+  {
+   "default": "State",
+   "fieldname": "default_view",
+   "fieldtype": "Select",
+   "label": "Default View",
+   "options": "State\nDistrict",
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_fields",
+   "fieldtype": "Code",
+   "label": "Target Fields",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_target_fields",
+   "fieldtype": "Button",
+   "label": "Setup Target Fields"
+  },
+  {
+   "fieldname": "primary_target",
+   "fieldtype": "Select",
+   "label": "Primary Target",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_height",
+   "fieldtype": "Int",
+   "label": "Block Height (px)"
+  },
+  {
+   "fieldname": "column_break_xtcd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_vhni",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "min_data_color",
+   "fieldtype": "Color",
+   "label": "Min Data Color (Based on primary Target)"
+  },
+  {
+   "fieldname": "max_data_color",
+   "fieldtype": "Color",
+   "label": "Max Data Color (Based on primary Target)"
+  },
+  {
+   "fieldname": "section_break_qlqe",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_tabo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_dwyd",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-03-30 10:31:16.557144",
+ "modified_by": "Administrator",
+ "module": "Frappe Theme",
+ "name": "SVAWorkspace Heatmap Child",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

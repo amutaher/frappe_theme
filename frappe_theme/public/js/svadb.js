@@ -39,6 +39,7 @@ class SVAHTTP {
             responseData = { message: await response.text() };
         }
         if (!response.ok) {
+            console.error(responseData,'Eroor in response');
             let messages = JSON.parse(responseData._server_messages || '[]');
             let msg = ''
             if (messages.length) {
@@ -100,3 +101,5 @@ class SVAHTTP {
         return res.message;
     }
 }
+
+// export default SVAHTTP;

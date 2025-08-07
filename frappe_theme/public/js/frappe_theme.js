@@ -1,5 +1,5 @@
 // window.dev_server = 0;
-const getElements = async (selector, waitSeconds=2) => {
+const getElements = async (selector, waitSeconds = 2) => {
     let timeTaken = 0;
     return new Promise((resolve, reject) => {
         let interval = setInterval(() => {
@@ -8,14 +8,14 @@ const getElements = async (selector, waitSeconds=2) => {
             if (elements?.length) {
                 clearInterval(interval);
                 resolve(elements);
-            }else if(timeTaken >= waitSeconds){
+            } else if (timeTaken >= waitSeconds) {
                 clearInterval(interval)
                 resolve([]);
             }
         }, 500);
     });
 }
-const getElement = async (selector, waitSeconds=2) => {
+const getElement = async (selector, waitSeconds = 2) => {
     let timeTaken = 0;
     return new Promise((resolve, reject) => {
         let interval = setInterval(() => {
@@ -24,7 +24,7 @@ const getElement = async (selector, waitSeconds=2) => {
             if (element?.length) {
                 clearInterval(interval);
                 resolve(element);
-            }else if(timeTaken >= waitSeconds){
+            } else if (timeTaken >= waitSeconds) {
                 clearInterval(interval)
                 resolve(null);
             }
@@ -67,18 +67,18 @@ const getTheme = async () => {
 
 const getUserRoles = (theme) => {
     let currentUser = frappe?.boot?.user?.roles;
-    if(!currentUser){
+    if (!currentUser) {
         return false;
     }
-    if(currentUser.includes('Administrator')){
-        if(theme.hide_search.map(u => u.role).includes('Administrator')){
+    if (currentUser.includes('Administrator')) {
+        if (theme.hide_search.map(u => u.role).includes('Administrator')) {
             return true;
-        }else{
+        } else {
             return false;
         }
     }
     let roles = currentUser.some(role => theme.hide_search.some(u => u.role === role))
-    if(!roles){
+    if (!roles) {
         return false;
     }
     return roles;
@@ -121,8 +121,29 @@ const hide_comments_and_like_from_list = async () => {
         }
     }
 }
+const addCustomLogo = (theme) => {
+    let navbarBreadcrumbs;
+    let attempts = 0;
+    let interval = setInterval(() => {
+        navbarBreadcrumbs = document.querySelector('#navbar-breadcrumbs');
+        if (navbarBreadcrumbs || attempts > 10) {
+            const logoUrl = theme?.custom_logo;
+            if (navbarBreadcrumbs && logoUrl) {
+                const customLogo = document.createElement('div');
+                customLogo.className = 'custom-logo';
+                const logoHeight = theme?.custom_logo_height || 36;
+                customLogo.innerHTML = `
+                    <img src="${logoUrl}" alt="Custom Logo" style="height: ${logoHeight}px; margin-right: 5px;">
+                `;
+                navbarBreadcrumbs.parentNode.insertBefore(customLogo, navbarBreadcrumbs);
+            }
+            clearInterval(interval);
+        }
+        attempts++;
+    }, 500);
+}
 const applyTheme = async () => {
-    let theme = await getTheme();
+    let theme = frappe.boot?.my_theme || await getTheme();
     const style = document.createElement('style');
     style.innerHTML = `
         /* Login page */
@@ -196,7 +217,7 @@ const applyTheme = async () => {
 
         /* Navbar */
         .input-group.search-bar.text-muted {
-           display: ${ getUserRoles(theme) ? 'none' : ''} !important;
+           display: ${getUserRoles(theme) ? 'none' : ''} !important;
         }
      
         .navbar {
@@ -204,6 +225,10 @@ const applyTheme = async () => {
         }
         .navbar.container ,.navbar-brand{
             color: ${theme.navbar_text_color && theme.navbar_text_color} !important;
+        }
+        .navbar-nav svg{
+            fill: ${theme.navbar_text_color && theme.navbar_text_color} !important;
+            stroke: ${theme.navbar_text_color && theme.navbar_text_color} !important;
         }
         .navbar-toggler , .navbar-toggler span svg,.navbar svg.es-icon.icon-sm use, .notifications-seen > .es-icon{
             fill:${theme.navbar_text_color && theme.navbar_text_color} !important;
@@ -283,6 +308,27 @@ const applyTheme = async () => {
         }
         .btn.btn-secondary.btn-default svg{
             stroke:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+            fill:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+        }
+        .btn.btn-secondary svg{
+            stroke:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+            fill:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+        }
+        .btn.btn-default svg{
+            stroke:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+            fill:${theme.secondary_button_text_color && theme.secondary_button_text_color} !important;
+        }
+        .btn.btn-secondary.btn-default:hover svg{
+            stroke:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+            fill:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+        }
+        .btn.btn-secondary:hover svg{
+            stroke:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+            fill:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+        }
+        .btn.btn-default:hover svg{
+            stroke:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
+            fill:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
         }
         .btn.btn-default.icon-btn span .menu-btn-group-label svg,.btn.btn-secondary.btn-default:hover svg{
             stroke:${theme.secondary_button_hover_text_color && theme.secondary_button_hover_text_color} !important;
@@ -332,5 +378,6 @@ const applyTheme = async () => {
     `;
     await observer_function(theme);
     document.head.appendChild(style);
+    addCustomLogo(theme);
 }
 applyTheme()

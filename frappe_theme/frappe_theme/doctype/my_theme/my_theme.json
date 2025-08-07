@@ -21,6 +21,7 @@
   "login_box_position",
   "page_heading_text_color",
   "login_box_background_color",
+  "disable_usr_pass_login",
   "navbar_tab",
   "navbar_section",
   "navbar_color",
@@ -28,6 +29,8 @@
   "hide_search",
   "column_break_jevx",
   "navbar_text_color",
+  "custom_logo",
+  "custom_logo_height",
   "buttons_tab",
   "primary_button_section",
   "button_background_color",
@@ -44,7 +47,6 @@
   "body_tab",
   "main_body_section",
   "body_background_color",
-  "hide_side_bar",
   "column_break_ojdd",
   "main_body_content_box_background_color",
   "table_tab",
@@ -73,7 +75,12 @@
   "input_label_color",
   "workspace_remapping_tab",
   "sidebar_element_selector",
-  "workspace"
+  "workspace",
+  "features_tab",
+  "hide_print_icon",
+  "hide_fields_comment",
+  "hide_side_bar",
+  "hide_form_comment"
  ],
  "fields": [
   {
@@ -422,13 +429,54 @@
    "fieldname": "dialog_width",
    "fieldtype": "Data",
    "label": "SVA DataTable Dialog Width"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_print_icon",
+   "fieldtype": "Check",
+   "label": "Hide Print Icon"
+  },
+  {
+   "fieldname": "custom_logo",
+   "fieldtype": "Attach Image",
+   "label": "Custom Logo"
+  },
+  {
+   "default": "45",
+   "description": "Set the height of your custom logo in pixels. The width will adjust automatically to maintain the aspect ratio. Recommended height is between 30-60 pixels.",
+   "fieldname": "custom_logo_height",
+   "fieldtype": "Int",
+   "label": "Logo Height (px)"
+  },
+  {
+   "default": "1",
+   "fieldname": "disable_usr_pass_login",
+   "fieldtype": "Check",
+   "label": " Disable Username/Password Login"
+  },
+  {
+   "fieldname": "features_tab",
+   "fieldtype": "Tab Break",
+   "label": "Features"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_fields_comment",
+   "fieldtype": "Check",
+   "label": "Hide Fields Comment"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_form_comment",
+   "fieldtype": "Check",
+   "label": "Hide Form Comment"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-17 14:14:55.187511",
+ "modified": "2025-07-01 15:28:37.557258",
  "modified_by": "Administrator",
  "module": "Frappe Theme",
  "name": "My Theme",
